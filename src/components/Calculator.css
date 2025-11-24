@@ -245,7 +245,7 @@ h4 {
   background-color: rgb(205 204 204);
   color: #6d7277;
   border-collapse: collapse;
-  width: 340px;
+  /* width: 340px; */
 }
 
 .data th {
@@ -395,6 +395,7 @@ div:where(.swal2-container) .swal2-html-container {
 
 .tbl-in {
   margin-top: 20px;
+  padding-right: 20px;
 }
 
 .tables-and-buttons-container {
@@ -508,4 +509,69 @@ div:where(.swal2-container) .swal2-html-container {
   box-shadow: 2px 1px 3px 0px #96b3cd;
   border: solid 1px darkgray;
   padding: 0 20px;
+}
+
+/* Блок для выбранного элемента */
+.selected-item-container {
+  margin-top: 20px;
+  padding: 15px;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  background-color: #ffffff;
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: row;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+/* Левая часть - формы и кнопки */
+.selected-item-forms {
+  flex: 0 0 40%;
+  max-width: 50%;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+/* Правая часть - таблицы */
+.selected-item-container .tables-and-buttons-container {
+  flex: 0 0 60%;
+  max-width: 60%;
+  min-width: 0;
+  width: 50%;
+  display: flex;
+  flex-direction: column;
+}
+
+.selected-item-container .tables-and-buttons-container .tbl-in {
+  width: 100%;
+}
+
+.selected-item-container .tables-and-buttons-container .data {
+  width: 100%;
+}
+
+/* Адаптивность для мобильных устройств */
+@media screen and (max-width: 550px) {
+  .selected-item-container {
+    flex-direction: column;
+  }
+
+  .selected-item-forms {
+    flex: 0 0 100%;
+    max-width: 100%;
+    width: 100%;
+  }
+
+  .selected-item-container .tables-and-buttons-container {
+    flex: 0 0 100%;
+    max-width: 100%;
+    width: 100%;  
+
+  }
+  .tbl-in {
+    padding-right: 0px;
+  }
 }

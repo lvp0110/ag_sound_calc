@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
@@ -38,6 +38,9 @@ const Calculator = () => {
   const [ConstrToCalc, setConstrToCalc] = useState([]);
   const [isErrorFloor, setIsErrorFloor] = useState(false);
   const [calculatedMaterials, setCalculatedMaterials] = useState([]);
+  
+  // Ref для прокрутки к selected-item-container
+  const selectedItemContainerRef = useRef(null);
 
   const [constR, setConstR] = useState({
     id: "",
@@ -760,6 +763,22 @@ const Calculator = () => {
     }
   }, [currentItems]);
 
+  // Прокрутка к selected-item-container при выборе элемента
+  useEffect(() => {
+    if (currentItems != 0) {
+      // Небольшая задержка для того, чтобы DOM успел обновиться
+      setTimeout(() => {
+        const container = document.querySelector('.selected-item-container');
+        if (container) {
+          container.scrollIntoView({
+            behavior: 'smooth',
+            block: 'start'
+          });
+        }
+      }, 100);
+    }
+  }, [currentItems]);
+
   // Methods
   const hasHistory = () => {
     return window.history.length > 2;
@@ -1393,21 +1412,41 @@ const Calculator = () => {
                               />
                             )}
                           </button>
+                        </div>
+                      );
+                    }) : (
+                      <div style={{ padding: "20px", textAlign: "center", color: "#878181" }}>
+                        Нет элементов в этой подкатегории
+                      </div>
+                    )}
+                  </div>
+                )}
 
-                          {/* Формы конструкций для каждого элемента */}
-                          {isSelected && (
-                      <>
+                {/* Блок с формами, кнопкой расчета и таблицами - открывается при выборе элемента */}
+                {currentItems != 0 && (() => {
+                  const selectedItem = items.find((el) => el.id == currentItems);
+                  // Показываем блок только если выбранный элемент принадлежит этой секции
+                  if (!selectedItem || selectedItem.c_id !== openedSubCategory) return null;
+                  
+                  return (
+                    <div 
+                      ref={selectedItemContainerRef}
+                      className="selected-item-container" 
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div className="selected-item-forms">
+                        {/* Формы конструкций для выбранного элемента */}
                         {/* Полы: template 1, 111, 3, 607.1, 608.1, 609.1, 610.1, 2.1, 9, 9.1 */}
-                        {(elem.template == 1 ||
-                          elem.template == 111 ||
-                          elem.template == 3 ||
-                          elem.template == 607.1 ||
-                          elem.template == 608.1 ||
-                          elem.template == 609.1 ||
-                          elem.template == 610.1 ||
-                          elem.template == 2.1 ||
-                          elem.template == 9 ||
-                          elem.template == 9.1) && (
+                        {(selectedItem.template == 1 ||
+                          selectedItem.template == 111 ||
+                          selectedItem.template == 3 ||
+                          selectedItem.template == 607.1 ||
+                          selectedItem.template == 608.1 ||
+                          selectedItem.template == 609.1 ||
+                          selectedItem.template == 610.1 ||
+                          selectedItem.template == 2.1 ||
+                          selectedItem.template == 9 ||
+                          selectedItem.template == 9.1) && (
                           <div className="inputsFloorAll">
                             <h4 style={{ margin: "5px" }}>
                               размер конструкции
@@ -1432,7 +1471,7 @@ const Calculator = () => {
                         )}
 
                         {/* Потолки: template 4, 5 */}
-                        {(elem.template == 4 || elem.template == 5) && (
+                        {(selectedItem.template == 4 || selectedItem.template == 5) && (
                           <div className="ceiling">
                             <h4 style={{ margin: "5px" }}>
                               размер конструкции
@@ -1453,7 +1492,7 @@ const Calculator = () => {
                                 setConstR({ ...constR, lenY: e.target.value })
                               }
                             />
-                            {elem.template == 5 && (
+                            {selectedItem.template == 5 && (
                               <input
                                 type="number"
                                 placeholder="смещение потолка,мм"
@@ -1470,22 +1509,22 @@ const Calculator = () => {
                         )}
 
                         {/* Облицовка и перегородки: template 6, 50, 75, 100, 101, 50.1, 75.1, 100.1, 101.1, 50.2, 75.2, 100.2, 8.1 */}
-                        {(elem.template == 6 ||
-                          elem.template == 50 ||
-                          elem.template == 75 ||
-                          elem.template == 100 ||
-                          elem.template == 101 ||
-                          elem.template == 50.1 ||
-                          elem.template == 75.1 ||
-                          elem.template == 100.1 ||
-                          elem.template == 101.1 ||
-                          elem.template == 50.2 ||
-                          elem.template == 75.2 ||
-                          elem.template == 100.2 ||
-                          elem.template == 8.1) && (
+                        {(selectedItem.template == 6 ||
+                          selectedItem.template == 50 ||
+                          selectedItem.template == 75 ||
+                          selectedItem.template == 100 ||
+                          selectedItem.template == 101 ||
+                          selectedItem.template == 50.1 ||
+                          selectedItem.template == 75.1 ||
+                          selectedItem.template == 100.1 ||
+                          selectedItem.template == 101.1 ||
+                          selectedItem.template == 50.2 ||
+                          selectedItem.template == 75.2 ||
+                          selectedItem.template == 100.2 ||
+                          selectedItem.template == 8.1) && (
                           <div
                             className={
-                              elem.c_id == "W" ? "partittion50" : "frame50"
+                              selectedItem.c_id == "W" ? "partittion50" : "frame50"
                             }
                           >
                             <h4 style={{ margin: "5px" }}>
@@ -1528,8 +1567,8 @@ const Calculator = () => {
                                   onChange={(e) =>
                                     setProfileStep(e.target.value)
                                   }
-                                  id={`step600_${elem.id}`}
-                                  name={`steps_${elem.id}`}
+                                  id={`step600_${selectedItem.id}`}
+                                  name={`steps_${selectedItem.id}`}
                                   value="600"
                                   checked={profileStep == 600}
                                 />
@@ -1542,8 +1581,8 @@ const Calculator = () => {
                                   onChange={(e) =>
                                     setProfileStep(e.target.value)
                                   }
-                                  id={`step400_${elem.id}`}
-                                  name={`steps_${elem.id}`}
+                                  id={`step400_${selectedItem.id}`}
+                                  name={`steps_${selectedItem.id}`}
                                   value="400"
                                   checked={profileStep == 400}
                                 />
@@ -1556,8 +1595,8 @@ const Calculator = () => {
                                   onChange={(e) =>
                                     setProfileStep(e.target.value)
                                   }
-                                  id={`step300_${elem.id}`}
-                                  name={`steps_${elem.id}`}
+                                  id={`step300_${selectedItem.id}`}
+                                  name={`steps_${selectedItem.id}`}
                                   value="300"
                                   checked={profileStep == 300}
                                 />
@@ -1568,7 +1607,7 @@ const Calculator = () => {
                                   className="checkbox"
                                   type="checkbox"
                                   onChange={(e) => setDFrame(e.target.checked)}
-                                  id={`dframe_${elem.id}`}
+                                  id={`dframe_${selectedItem.id}`}
                                   checked={dFrame}
                                 />
                                 <label className="label">
@@ -1608,8 +1647,8 @@ const Calculator = () => {
                                       Type: e.target.value,
                                     })
                                   }
-                                  id={`doors_${elem.id}`}
-                                  name={`opening_${elem.id}`}
+                                  id={`doors_${selectedItem.id}`}
+                                  name={`opening_${selectedItem.id}`}
                                   value="OST_Doors"
                                   checked={opening.Type == "OST_Doors"}
                                 />
@@ -1623,8 +1662,8 @@ const Calculator = () => {
                                       Type: e.target.value,
                                     })
                                   }
-                                  id={`wind_${elem.id}`}
-                                  name={`opening_${elem.id}`}
+                                  id={`wind_${selectedItem.id}`}
+                                  name={`opening_${selectedItem.id}`}
                                   value="OST_Windows"
                                   checked={opening.Type == "OST_Windows"}
                                 />
@@ -1657,12 +1696,12 @@ const Calculator = () => {
                         )}
 
                         {/* SOUNDBOARD: template 201, 202 */}
-                        {(elem.template == 201 || elem.template == 202) && (
+                        {(selectedItem.template == 201 || selectedItem.template == 202) && (
                           <div className="inputsFloorAll">
                             <h4 style={{ margin: "5px" }}>
                               размер конструкции
                             </h4>
-                            {elem.c_id == "5" ? (
+                            {selectedItem.c_id == "5" ? (
                               <>
                                 <input
                                   type="number"
@@ -1714,10 +1753,10 @@ const Calculator = () => {
                               </>
                             )}
                           </div>
-                        )}
+                          )}
 
                           {/* Кнопка расчета конструкций для выбранного элемента */}
-                          {isSelected && elem.template != null && (
+                          {selectedItem.template != null && (
                             <div>
                               <button
                                 onClick={addConstrToCalc}
@@ -1727,27 +1766,30 @@ const Calculator = () => {
                               </button>
                             </div>
                           )}
-                        </>
-                      )}
-                    </div>
-                  );
-                }) : (
-                  <div style={{ padding: "20px", textAlign: "center", color: "#878181" }}>
-                    Нет элементов в этой подкатегории
-                  </div>
-                )}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
 
-        <div className="tables-and-buttons-container">
-          {tableConstrToCalc != null && (
-            <div className="tbl-in">
-              <hr style={{ opacity: 0.1 }} />
-              <table className="data" id="table1">
+                          {/* Кнопки экспорта */}
+                          {template != null && (
+                            <div className="buttons-container">
+                              <button
+                                onClick={copyTableToClipboard}
+                                className="add_design_button"
+                              >
+                                экспорт в ERP
+                              </button>
+                              <button onClick={tableToExcel} className="add_design_button">
+                                сохранить в Excel
+                              </button>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Блок таблиц и кнопок - показывается после нажатия кнопки "расчет конструкции" */}
+                        <div className="tables-and-buttons-container">
+                          {tableConstrToCalc != null && ConstrToCalc.length > 0 && (
+                            <>
+                            <div className="tbl-in">
+                              {/* <hr style={{ opacity: 0.1 }} /> */}
+                              <table className="data" id="table1">
                 <thead>
                   <tr>
                     <th
@@ -1795,11 +1837,8 @@ const Calculator = () => {
                 </tbody>
               </table>
             </div>
-          )}
 
-          {tableConstrToCalc != null && (
             <div className="tbl-in">
-              <hr />
               <table className="data" id="table2">
                 <thead>
                   <tr>
@@ -1850,23 +1889,15 @@ const Calculator = () => {
                 </tbody>
               </table>
             </div>
-          )}
-
-          <div className="buttons-container">
-            {template != null && (
-              <button
-                onClick={copyTableToClipboard}
-                className="add_design_button"
-              >
-                экспорт в ERP
-              </button>
-            )}
-            {template != null && (
-              <button onClick={tableToExcel} className="add_design_button">
-                сохранить в Excel
-              </button>
-            )}
-          </div>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>
