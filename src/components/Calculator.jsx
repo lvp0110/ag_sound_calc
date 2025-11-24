@@ -1551,7 +1551,8 @@ const Calculator = () => {
                               style={{ marginBottom: "10px" }}
                               onClick={getStartParam}
                             >
-                              изменить параметры конструкции
+                              
+                              параметры конструкции
                             </button>
                             {unvisible && (
                               <div
