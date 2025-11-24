@@ -5,8 +5,8 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   // Для GitHub Pages: используйте имя вашего репозитория
   // Если репозиторий в корне (username.github.io), установите base: '/'
-  // Если репозиторий называется Oldcalc, используйте '/Oldcalc/'
-  base: process.env.VITE_BASE_PATH || (process.env.NODE_ENV === 'production' ? '/Oldcalc/' : '/'),
+  // Репозиторий: sound_calc
+  base: process.env.VITE_BASE_PATH || (process.env.NODE_ENV === 'production' ? '/sound_calc/' : '/'),
   plugins: [react()],
   server: {
     proxy: {
