@@ -1,0 +1,367 @@
+.close-btn {
+  display: block;
+  width: 50px;
+  height: 50px;
+  position: absolute;
+  font-size: 30px;
+  font-weight: 100;
+  top: 1%;
+  right: 2%;
+  color: gray;
+  background: none;
+  border: 1px solid gray;
+}
+
+@media screen and (max-width: 1024px) {
+  .close-btn {
+    display: none;
+  }
+}
+
+.buttons {
+  display: none;
+}
+
+.content-calc {
+  width: auto;
+  height: 100%;
+  overflow-y: auto;
+  margin-bottom: 10px;
+}
+
+.p1 {
+  font-family: 'Montserrat', sans-serif;
+  text-transform: uppercase;
+  font-size: 16px;
+  font-weight: 500;
+  text-align: center;
+}
+
+.logo {
+  height: 70px;
+  position: absolute;
+  top: 7px;
+  left: 10px;
+  filter: drop-shadow(2px 3px 3px #96b3cd);
+  z-index: 11;
+}
+
+.logo-short {
+  height: 70px;
+  position: fixed;
+  top: 5px;
+  right: 15px;
+  filter: drop-shadow(1px 2px 1px #fff);
+  z-index: 11;
+}
+
+.content-calc > div {
+  margin: auto;
+  padding-right: 3px;
+  top: 10px;
+  position: relative;
+  font-family: 'Montserrat', sans-serif;
+  width: 340px;
+}
+
+.content-item {
+  width: 340px;
+  margin: auto;
+  top: 10px;
+  position: relative;
+  font-family: 'Montserrat', sans-serif;
+}
+
+button {
+  width: 100%;
+  height: 120px;
+  font-family: 'Montserrat', sans-serif;
+  font-size: 16px;
+  border-radius: 10px;
+  margin: 1px;
+  margin-top: 5px;
+  color: #fff;
+  background: #848f99;
+  box-shadow: 3px 1px 4px 0px #96b3cd;
+  border: solid 1px darkgray;
+  position: relative;
+}
+
+.counter__button_minus {
+  border: none;
+  box-shadow: none;
+  font-size: 0;
+  width: 20px;
+  height: 1px;
+  text-align: center;
+  background: none;
+  position: absolute;
+}
+
+.counter_input {
+  position: absolute;
+  background: none;
+  margin-left: 308px;
+  height: 15px;
+  width: 15px;
+  text-align: center;
+  margin-top: -48px;
+  border-radius: 25%;
+  font-size: 12px;
+}
+
+.type_page {
+  top: 10px;
+  height: 50%;
+  position: relative;
+  width: 48.7%;
+  margin-left: 3px;
+  z-index: 1;
+}
+
+.const_page {
+  top: 10px;
+  height: 160px;
+  position: relative;
+  width: 48.7%;
+  display: inline-grid;
+  margin-left: 3px;
+  font-size: 12px;
+  z-index: 1;
+}
+
+button:hover {
+  opacity: 0.8;
+}
+
+.type_active {
+  background: darkgray;
+  color: #fff;
+  height: 80px;
+}
+
+.const_active {
+  background: darkgray;
+  color: #fff;
+  height: 60px;
+}
+
+span {
+  color: #878181;
+  justify-content: center;
+  display: flex;
+  font-size: 12px;
+  pointer-events: none;
+  font-weight: 600;
+}
+
+input[type="number"] {
+  width: 47.3%;
+  height: 30px;
+  font-family: 'Montserrat', sans-serif;
+  margin-top: 6px;
+  margin-left: 3px;
+  margin-bottom: 2px;
+  border: solid 1px darkgray;
+  border-radius: 5px;
+}
+
+input.radio {
+  height: 20px;
+  width: 20px;
+  display: block;
+  position: absolute;
+}
+
+input.checkbox {
+  height: 20px;
+  width: 20px;
+  display: block;
+  position: absolute;
+}
+
+h4 {
+  color: #878181;
+  font-size: 14px;
+  justify-content: center;
+  display: grid;
+  font-weight: 500;
+}
+
+.label {
+  color: #878181;
+  font-size: 14px;
+  display: block;
+  margin-left: 50px;
+  padding-top: 2px;
+  padding-bottom: 8px;
+  margin-top: 2px;
+}
+
+.data {
+  font-size: 12px;
+  background-color: rgb(205 204 204);
+  color: #6d7277;
+  border-collapse: collapse;
+  width: 340px;
+}
+
+.data th {
+  padding: 3px;
+  text-align: center;
+  font-weight: 600;
+}
+
+.data td {
+  padding: 3px;
+  text-align: center;
+}
+
+.data tr:nth-child(even) {
+  background-color: rgb(225 226 227);
+  color: #737272;
+}
+
+.start_page {
+  top: 120px;
+  height: 120px;
+  position: relative;
+}
+
+.active {
+  background: darkgray;
+  color: #fff;
+}
+
+.img-icon {
+  position: absolute;
+  width: 99%;
+  pointer-events: none;
+  border-radius: 10px;
+}
+
+.img-icon-type {
+  width: 90%;
+  pointer-events: none;
+  border-radius: 10px;
+}
+
+.counter__button_plus {
+  width: 100%;
+  height: 35px;
+  border-radius: 8px;
+  border: solid 1px rgb(255, 255, 255);
+  box-shadow: none;
+  filter: drop-shadow(0px 0px 2px black);
+}
+
+.counter__button_param {
+  width: 100%;
+  height: 35px;
+  border-radius: 8px;
+  border: solid 1px #6d7277;
+  color: #6d7277;
+  background: rgb(225 226 227);
+}
+
+.add_design_button {
+  height: 35px;
+  border-radius: 8px;
+  border: solid 1px rgb(184, 178, 178);
+}
+
+div:where(.swal2-container) {
+  display: grid;
+  position: fixed;
+  z-index: 1060;
+  inset: 0;
+  box-sizing: border-box;
+  grid-template-areas:
+    "top-start top top-end"
+    "center-start center center-end"
+    "bottom-start bottom-center bottom-end";
+  grid-template-rows: minmax(min-content, auto) minmax(min-content, auto) minmax(min-content, auto);
+  height: 100%;
+  width: 100%;
+  padding: 0.625em;
+  overflow-x: hidden;
+  transition: background-color 0.1s;
+  -webkit-overflow-scrolling: touch;
+}
+
+div:where(.swal2-container) button:where(.swal2-styled).swal2-confirm {
+  border: 0;
+  border-radius: 0.25em;
+  background: initial;
+  background-color: #6cabc8;
+  color: #fff;
+  font-size: 1em;
+  height: 70px;
+  width: 70px;
+  position: relative;
+  top: -100px;
+}
+
+div:where(.swal2-container).swal2-center > .swal2-popup {
+  grid-column: 2;
+  grid-row: 2;
+  place-self: center center;
+}
+
+div:where(.swal2-container) .swal2-html-container {
+  z-index: 1;
+  justify-content: center;
+  margin: 1em 1.6em 0.3em;
+  padding: 30px;
+  overflow: auto;
+  color: inherit;
+  font-size: 1.125em;
+  font-weight: normal;
+  line-height: normal;
+  text-align: center;
+  word-wrap: break-word;
+  word-break: break-word;
+  width: auto;
+  top: 0;
+}
+
+.span_gkl {
+  font-weight: 600;
+  text-decoration: underline;
+  margin-bottom: 10px;
+}
+
+.span_wool {
+  font-weight: 600;
+  text-decoration: underline;
+  margin-bottom: 10px;
+}
+
+.items {
+  padding-bottom: 25px;
+}
+
+.tbl-in {
+  margin-top: 20px;
+}
+
+.inputsFloorAll,
+.inputsC2K2,
+.inputsFloor615,
+.inputsFloorSplast,
+.inputsTehno,
+.ceilingZips,
+.ceiling,
+.frameZips,
+.frame50,
+.frame75,
+.frame100,
+.frameVibr,
+.partittion50,
+.partittion75,
+.partittion100,
+.partittionWave,
+.framedBx {
+  margin-top: 10px;
+}
+
