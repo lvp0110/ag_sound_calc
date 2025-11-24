@@ -32,7 +32,7 @@
 }
 
 .p1 {
-  font-family: 'Montserrat', sans-serif;
+  font-family: "Montserrat", sans-serif;
   text-transform: uppercase;
   font-size: 16px;
   font-weight: 500;
@@ -62,7 +62,7 @@
   padding-right: 3px;
   top: 10px;
   position: relative;
-  font-family: 'Montserrat', sans-serif;
+  font-family: "Montserrat", sans-serif;
   width: 340px;
 }
 
@@ -71,7 +71,7 @@
   margin: auto;
   top: 10px;
   position: relative;
-  font-family: 'Montserrat', sans-serif;
+  font-family: "Montserrat", sans-serif;
 }
 
 .items.content-item {
@@ -97,16 +97,18 @@
 }
 
 .main-content {
-  margin-left: 220px;
+  margin-left: 0;
   flex: 1;
   padding: 10px;
   align-self: flex-start;
+  width: 100%;
+  max-width: 100%;
 }
 
 button {
   width: 100%;
   height: 120px;
-  font-family: 'Montserrat', sans-serif;
+  font-family: "Montserrat", sans-serif;
   font-size: 16px;
   border-radius: 10px;
   margin: 1px;
@@ -198,7 +200,7 @@ span {
 input[type="number"] {
   width: 47.3%;
   height: 30px;
-  font-family: 'Montserrat', sans-serif;
+  font-family: "Montserrat", sans-serif;
   margin-top: 6px;
   margin-left: 3px;
   margin-bottom: 2px;
@@ -320,7 +322,10 @@ div:where(.swal2-container) {
     "top-start top top-end"
     "center-start center center-end"
     "bottom-start bottom-center bottom-end";
-  grid-template-rows: minmax(min-content, auto) minmax(min-content, auto) minmax(min-content, auto);
+  grid-template-rows: minmax(min-content, auto) minmax(min-content, auto) minmax(
+      min-content,
+      auto
+    );
   height: 100%;
   width: 100%;
   padding: 0.625em;
@@ -392,6 +397,20 @@ div:where(.swal2-container) .swal2-html-container {
   margin-top: 20px;
 }
 
+.tables-and-buttons-container {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.buttons-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 20px;
+  width: 100%;
+}
+
 .inputsFloorAll,
 .inputsC2K2,
 .inputsFloor615,
@@ -412,3 +431,81 @@ div:where(.swal2-container) .swal2-html-container {
   margin-top: 10px;
 }
 
+/* Стили для секций */
+.section-container {
+  margin-bottom: 30px;
+  padding: 15px;
+  border: 1px solid #1391a8;
+  border-radius: 10px;
+  background-color: #f9f9f9;
+  width: 100%;
+  box-sizing: border-box;
+  transition: background-color 0.2s ease;
+}
+
+.section-container:hover {
+  background-color: #f0f0f0;
+}
+
+.section-header {
+  margin-bottom: 15px;
+}
+
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 20px;
+  font-weight: 600;
+  color: #6d7277;
+  margin: 0;
+  padding: 10px 0;
+}
+
+.section-icon {
+  width: 80px;
+  height: 80px;
+  background: cadetblue;
+  border-radius: 10px;
+}
+
+.subcategory-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.subcategory_page {
+  width: auto;
+  min-width: 150px;
+  height: 50px;
+  font-family: "Montserrat", sans-serif;
+  font-size: 14px;
+  border-radius: 8px;
+  margin: 0;
+  color: #fff;
+  background: #848f99;
+  box-shadow: 2px 1px 3px 0px #96b3cd;
+  border: solid 1px darkgray;
+  padding: 0 20px;
+}
+
+.subcategory_page:hover {
+  opacity: 0.8;
+}
+
+.subcategory_active {
+  width: auto;
+  min-width: 150px;
+  height: 50px;
+  font-family: "Montserrat", sans-serif;
+  font-size: 14px;
+  border-radius: 8px;
+  margin: 0;
+  color: #fff;
+  background: darkgray;
+  box-shadow: 2px 1px 3px 0px #96b3cd;
+  border: solid 1px darkgray;
+  padding: 0 20px;
+}

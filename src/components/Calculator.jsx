@@ -22,6 +22,13 @@ const Calculator = () => {
   const [currentCategory, setCurrentCategory] = useState(0);
   const [currentSubCategory, setCurrentSubCategory] = useState(0);
   const [currentItems, setCurrentItems] = useState(0);
+  // Состояние для отслеживания открытых подкатегорий в каждой секции
+  const [openedSubCategories, setOpenedSubCategories] = useState({
+    F: null, // null или id подкатегории
+    C: null,
+    L: null,
+    W: null,
+  });
   const [template, setTemplate] = useState(null);
   const [profileStep, setProfileStep] = useState(600);
   const [dFrame, setDFrame] = useState(false);
@@ -680,37 +687,78 @@ const Calculator = () => {
     return [];
   }, []);
 
-  const getSubCategories = useMemo(() => {
-    // Сразу показываем подкатегории с c_id == 1 (ПОЛ, ПОТОЛОК, ОБЛИЦОВКА, ПЕРЕГОРОДКА)
-    if (currentSubCategory != 0) {
-      return SubCategories.filter((el) => el.id == currentSubCategory);
-    }
-    return SubCategories.filter((el) => el.c_id == 1);
-  }, [currentSubCategory]);
-
-  const getItems = useMemo(() => {
-    if (currentSubCategory != 0) {
-      // Всегда возвращаем все элементы подкатегории, чтобы показывать формы для всех
-      const items = Items.filter((el) => el.c_id == currentSubCategory);
-
-      // Если элемент выбран, устанавливаем template и другие параметры
-      if (currentItems != 0) {
-        const selectedItem = items.find((el) => el.id == currentItems);
-        if (selectedItem) {
-          setTemplate(selectedItem.template);
-          setTableConstrToCalc(1);
-          setCurrentConstr(selectedItem.ag_id);
-        }
-      } else {
-        setTemplate(null);
-        setVisible(false);
-        setCurrentConstr("");
-      }
-
-      return items;
+  // Получить подкатегории для конкретной секции
+  const getSubCategoriesForSection = useCallback((sectionId) => {
+    if (sectionId === "F") {
+      return SubCategories.filter((el) => el.id === "F");
+    } else if (sectionId === "C") {
+      return SubCategories.filter((el) => el.id === "C");
+    } else if (sectionId === "L") {
+      return SubCategories.filter((el) => el.id === "L");
+    } else if (sectionId === "W") {
+      return SubCategories.filter((el) => el.id === "W");
     }
     return [];
-  }, [currentSubCategory, currentItems]);
+  }, []);
+
+  // Получить items для конкретной секции и подкатегории
+  const getItemsForSection = useCallback((sectionId, subCategoryId) => {
+    if (!subCategoryId) return [];
+    return Items.filter((el) => el.c_id == subCategoryId);
+  }, []);
+
+  // Обработчик клика на секцию (section-container)
+  const handleSectionClick = useCallback((sectionId, subCategories) => {
+    setOpenedSubCategories((prev) => {
+      const currentOpened = prev[sectionId];
+      
+      // Если секция уже открыта - закрыть её
+      if (currentOpened) {
+        return { ...prev, [sectionId]: null };
+      }
+      
+      // Если секция закрыта - открыть первую подкатегорию
+      if (subCategories && subCategories.length > 0) {
+        const firstSubCategory = subCategories[0];
+        setCurrentSubCategory(firstSubCategory.id);
+        return { ...prev, [sectionId]: firstSubCategory.id };
+      }
+      
+      return prev;
+    });
+  }, []);
+
+  // Обработчик выбора элемента
+  const handleItemSelect = useCallback((item) => {
+    if (currentItems === item.id) {
+      // Если кликнули на уже выбранный элемент - сбросить выбор
+      setCurrentItems(0);
+      setTemplate(null);
+      setCurrentConstr("");
+    } else {
+      // Установить новый выбор
+      setCurrentItems(item.id);
+      setTemplate(item.template);
+      setTableConstrToCalc(1);
+      setCurrentConstr(item.ag_id);
+    }
+  }, [currentItems]);
+
+  // Обновляем template и другие параметры при изменении currentItems
+  useEffect(() => {
+    if (currentItems != 0) {
+      const selectedItem = Items.find((el) => el.id == currentItems);
+      if (selectedItem) {
+        setTemplate(selectedItem.template);
+        setTableConstrToCalc(1);
+        setCurrentConstr(selectedItem.ag_id);
+      }
+    } else {
+      setTemplate(null);
+      setVisible(false);
+      setCurrentConstr("");
+    }
+  }, [currentItems]);
 
   // Methods
   const hasHistory = () => {
@@ -1240,6 +1288,19 @@ const Calculator = () => {
         if (subCategory) {
           setCurrentItems(item.id);
           setCurrentSubCategory(subCategory.id);
+          
+          // Определяем секцию по c_id и открываем соответствующую подкатегорию
+          const sectionId = item.c_id === "F" ? "F" :
+                           item.c_id === "C" || item.c_id === 6 ? "C" :
+                           item.c_id === "L" || item.c_id === 5 ? "L" :
+                           item.c_id === "W" ? "W" : null;
+          
+          if (sectionId) {
+            setOpenedSubCategories((prev) => ({
+              ...prev,
+              [sectionId]: subCategory.id,
+            }));
+          }
         }
       }
     }
@@ -1261,75 +1322,80 @@ const Calculator = () => {
     getActiveCategories: getActiveCategories?.length,
   });
 
+  // Основные секции
+  const mainSections = [
+    { id: "F", title: "ПОЛ", icon: "../../../Img_constr/icon_floor_white.svg" },
+    { id: "C", title: "ПОТОЛОК", icon: "../../../Img_constr/icon_ceiling_white.svg" },
+    { id: "L", title: "ОБЛИЦОВКА", icon: "../../../Img_constr/icon_frame_white.svg" },
+    { id: "W", title: "ПЕРЕГОРОДКА", icon: "../../../Img_constr/icon_partition_white.svg" },
+  ];
+
+  // Проверяем, есть ли открытые секции
+  const hasOpenedSections = Object.values(openedSubCategories).some(
+    (value) => value !== null
+  );
+
   return (
     <div>
       <div className="content-calc" style={{ height: "100vh" }}>
-        {/* Кнопки вывода данных на экран */}
-        <div className="subcategory">
-          {getSubCategories && getSubCategories.length > 0
-            ? getSubCategories.map((elem) => (
-                <button
-                  key={elem.id}
-                  value={elem.id}
-                  className={
-                    currentSubCategory == elem.id ? "type_active" : "type_page"
-                  }
-                  onClick={() =>
-                    setCurrentSubCategory(currentSubCategory ? 0 : elem.id)
-                  }
-                >
-                  {currentSubCategory == 0 && (
-                    <img src={elem.img} alt="" className="img-icon-type" />
-                  )}
-                  {elem.title}
-                </button>
-              ))
-            : null}
-        </div>
         <div className="main-content">
-          <div className="items content-item">
-          {getItems && getItems.length > 0
-            ? getItems.map((elem) => {
-                const isSelected = currentItems == elem.id;
-                return (
-                  <div key={`${elem.id}-${elem.c_id}`}>
-                    <button
-                      value={elem.id}
-                      className={isSelected ? "const_active" : "const_page"}
-                      onClick={() => {
-                        // Если кликнули на уже выбранный элемент - сбросить выбор, иначе установить новый
-                        if (isSelected) {
-                          setCurrentItems(0);
-                          setTemplate(null);
-                          setCurrentConstr("");
-                        } else {
-                          setCurrentItems(elem.id);
-                          setTemplate(elem.template);
-                          setTableConstrToCalc(1);
-                          setCurrentConstr(elem.ag_id);
-                        }
-                      }}
-                    >
-                      <p
-                        style={{
-                          zIndex: 1,
-                          color: "revert",
-                          pointerEvents: "none",
-                        }}
-                      >
-                        {elem.title}
-                      </p>
-                      {!isSelected && (
-                        <img
-                          src={`../../../${elem.img}`}
-                          alt=""
-                          className="img-icon"
-                        />
-                      )}
-                    </button>
+          {/* Четыре секции */}
+          {mainSections.map((section) => {
+            const subCategories = getSubCategoriesForSection(section.id);
+            const openedSubCategory = openedSubCategories[section.id];
+            const items = openedSubCategory
+              ? getItemsForSection(section.id, openedSubCategory)
+              : [];
 
-                    {/* Формы конструкций для каждого элемента */}
-                    {isSelected && (
+            return (
+              <div 
+                key={section.id} 
+                className="section-container"
+                onClick={() => handleSectionClick(section.id, subCategories)}
+                style={{ cursor: 'pointer' }}
+              >
+                <div className="section-header">
+                  <h2 className="section-title">
+                    <img src={section.icon} alt="" className="section-icon" />
+                    {section.title}
+                  </h2>
+                </div>
+
+                {/* Список items для открытой подкатегории */}
+                {openedSubCategory && (
+                  <div 
+                    className="items content-item"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {items.length > 0 ? items.map((elem) => {
+                      const isSelected = currentItems == elem.id;
+                      return (
+                        <div key={`${elem.id}-${elem.c_id}`}>
+                          <button
+                            value={elem.id}
+                            className={isSelected ? "const_active" : "const_page"}
+                            onClick={() => handleItemSelect(elem)}
+                          >
+                            <p
+                              style={{
+                                zIndex: 1,
+                                color: "revert",
+                                pointerEvents: "none",
+                              }}
+                            >
+                              {elem.title}
+                            </p>
+                            {!isSelected && (
+                              <img
+                                src={`../../../${elem.img}`}
+                                alt=""
+                                className="img-icon"
+                              />
+                            )}
+                          </button>
+
+                          {/* Формы конструкций для каждого элемента */}
+                          {isSelected && (
                       <>
                         {/* Полы: template 1, 111, 3, 607.1, 608.1, 609.1, 610.1, 2.1, 9, 9.1 */}
                         {(elem.template == 1 ||
@@ -1650,150 +1716,157 @@ const Calculator = () => {
                           </div>
                         )}
 
-                        {/* Кнопка расчета конструкций для выбранного элемента */}
-                        {isSelected && elem.template != null && (
-                          <div>
-                            <button
-                              onClick={addConstrToCalc}
-                              className="counter__button_plus"
-                            >
-                              расчет конструкции
-                            </button>
-                          </div>
-                        )}
-                      </>
-                    )}
+                          {/* Кнопка расчета конструкций для выбранного элемента */}
+                          {isSelected && elem.template != null && (
+                            <div>
+                              <button
+                                onClick={addConstrToCalc}
+                                className="counter__button_plus"
+                              >
+                                расчет конструкции
+                              </button>
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
+                  );
+                }) : (
+                  <div style={{ padding: "20px", textAlign: "center", color: "#878181" }}>
+                    Нет элементов в этой подкатегории
                   </div>
-                );
-              })
-            : null}
-        </div>
-
-        {tableConstrToCalc != null && (
-          <div className="tbl-in">
-            <hr style={{ opacity: 0.1 }} />
-            <table className="data" id="table1">
-              <thead>
-                <tr>
-                  <th
-                    colSpan="5"
-                    style={{
-                      fontSize: "14px",
-                      fontWeight: "bold",
-                      textAlign: "center",
-                    }}
-                  >
-                    cписок конструкций
-                  </th>
-                </tr>
-                <tr>
-                  <th>шифр</th>
-                  <th>название</th>
-                  <th>масса</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {ConstrToCalc.map((constRItem) => (
-                  <tr key={constRItem.key_id}>
-                    <td style={{ textAlign: "right" }}>{constRItem.ag_id}</td>
-                    <td style={{ textAlign: "center" }}>
-                      {constRItem.title} ,{constRItem.lenX} x {constRItem.lenY}{" "}
-                      {constRItem.lenZ} мм
-                    </td>
-                    <td>{constRItem.weight}</td>
-                    <td>
-                      <input
-                        type="button"
-                        className="counter__button_minus"
-                        onClick={() => delConstrFromList(constRItem.key_id)}
-                      />
-                      <img
-                        src="/delete-icon.jpg"
-                        alt=""
-                        style={{ height: "30px", opacity: 0.7 }}
-                        onClick={() => delConstrFromList(constRItem.key_id)}
-                      />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {tableConstrToCalc != null && (
-          <div className="tbl-in">
-            <hr />
-            <table className="data" id="table2">
-              <thead>
-                <tr>
-                  <th
-                    colSpan="5"
-                    style={{
-                      fontSize: "14px",
-                      fontWeight: "bold",
-                      textAlign: "center",
-                    }}
-                  >
-                    cписок материалов
-                  </th>
-                </tr>
-                <tr>
-                  <th>артикул</th>
-                  <th>название</th>
-                  <th style={{ display: "none" }}></th>
-                  <th>кол-во</th>
-                  <th>ед.изм</th>
-                </tr>
-              </thead>
-              <tbody>
-                {calculatedMaterials &&
-                calculatedMaterials.data &&
-                calculatedMaterials.data.length > 0 ? (
-                  calculatedMaterials.data.map((Material, index) => (
-                    <tr key={index}>
-                      <td>{filterVariable(Material.Code)}</td>
-                      <td>{Material.Name}</td>
-                      <td style={{ display: "none" }}></td>
-                      <td>{convertUnits(Material)}</td>
-                      <td>{Material.Units}</td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td
-                      colSpan="5"
-                      style={{ textAlign: "center", padding: "20px" }}
-                    >
-                      {calculatedMaterials
-                        ? "Нет данных для отображения"
-                        : "Загрузка..."}
-                    </td>
-                  </tr>
                 )}
-              </tbody>
-            </table>
-          </div>
-        )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
 
-        <div>
-          {template != null && (
-            <button
-              onClick={copyTableToClipboard}
-              className="add_design_button"
-            >
-              экспорт в ERP
-            </button>
+        <div className="tables-and-buttons-container">
+          {tableConstrToCalc != null && (
+            <div className="tbl-in">
+              <hr style={{ opacity: 0.1 }} />
+              <table className="data" id="table1">
+                <thead>
+                  <tr>
+                    <th
+                      colSpan="5"
+                      style={{
+                        fontSize: "14px",
+                        fontWeight: "bold",
+                        textAlign: "center",
+                      }}
+                    >
+                      cписок конструкций
+                    </th>
+                  </tr>
+                  <tr>
+                    <th>шифр</th>
+                    <th>название</th>
+                    <th>масса</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {ConstrToCalc.map((constRItem) => (
+                    <tr key={constRItem.key_id}>
+                      <td style={{ textAlign: "right" }}>{constRItem.ag_id}</td>
+                      <td style={{ textAlign: "center" }}>
+                        {constRItem.title} ,{constRItem.lenX} x {constRItem.lenY}{" "}
+                        {constRItem.lenZ} мм
+                      </td>
+                      <td>{constRItem.weight}</td>
+                      <td>
+                        <input
+                          type="button"
+                          className="counter__button_minus"
+                          onClick={() => delConstrFromList(constRItem.key_id)}
+                        />
+                        <img
+                          src="/delete-icon.jpg"
+                          alt=""
+                          style={{ height: "30px", opacity: 0.7 }}
+                          onClick={() => delConstrFromList(constRItem.key_id)}
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
-        </div>
-        <div>
-          {template != null && (
-            <button onClick={tableToExcel} className="add_design_button">
-              сохранить в Excel
-            </button>
+
+          {tableConstrToCalc != null && (
+            <div className="tbl-in">
+              <hr />
+              <table className="data" id="table2">
+                <thead>
+                  <tr>
+                    <th
+                      colSpan="5"
+                      style={{
+                        fontSize: "14px",
+                        fontWeight: "bold",
+                        textAlign: "center",
+                      }}
+                    >
+                      cписок материалов
+                    </th>
+                  </tr>
+                  <tr>
+                    <th>артикул</th>
+                    <th>название</th>
+                    <th style={{ display: "none" }}></th>
+                    <th>кол-во</th>
+                    <th>ед.изм</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {calculatedMaterials &&
+                  calculatedMaterials.data &&
+                  calculatedMaterials.data.length > 0 ? (
+                    calculatedMaterials.data.map((Material, index) => (
+                      <tr key={index}>
+                        <td>{filterVariable(Material.Code)}</td>
+                        <td>{Material.Name}</td>
+                        <td style={{ display: "none" }}></td>
+                        <td>{convertUnits(Material)}</td>
+                        <td>{Material.Units}</td>
+                      </tr>
+                    ))
+                  ) : (
+                    <tr>
+                      <td
+                        colSpan="5"
+                        style={{ textAlign: "center", padding: "20px" }}
+                      >
+                        {calculatedMaterials
+                          ? "Нет данных для отображения"
+                          : "Загрузка..."}
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           )}
-        </div>
+
+          <div className="buttons-container">
+            {template != null && (
+              <button
+                onClick={copyTableToClipboard}
+                className="add_design_button"
+              >
+                экспорт в ERP
+              </button>
+            )}
+            {template != null && (
+              <button onClick={tableToExcel} className="add_design_button">
+                сохранить в Excel
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>
