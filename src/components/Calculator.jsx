@@ -1826,7 +1826,7 @@ const Calculator = () => {
                           onClick={() => delConstrFromList(constRItem.key_id)}
                         />
                         <img
-                          src="/delete-icon.jpg"
+                          src={`${import.meta.env.BASE_URL}delete-icon.jpg`}
                           alt=""
                           style={{ height: "30px", opacity: 0.7 }}
                           onClick={() => delConstrFromList(constRItem.key_id)}
