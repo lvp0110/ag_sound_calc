@@ -5,7 +5,7 @@ import { saveAs } from "file-saver";
 import Swal from "sweetalert2";
 import "./Calculator.css";
 import SubCategories from "../data/subCategories";
-import Items from "../data/items";
+import Items, { getItemsWithApiImages } from "../data/items";
 import SizeLimits from "../data/sizeLimits";
 import mainSections from "../data/mainSections";
 import { constRZero, constSentZero, openingZero } from "../constants/defaultValues";
@@ -43,9 +43,26 @@ const Calculator = () => {
   const [ConstrToCalc, setConstrToCalc] = useState([]);
   const [isErrorFloor, setIsErrorFloor] = useState(false);
   const [calculatedMaterials, setCalculatedMaterials] = useState([]);
+  const [itemsWithImages, setItemsWithImages] = useState(Items); // Начальное значение - базовые items
   
   // Ref для прокрутки к selected-item-container
   const selectedItemContainerRef = useRef(null);
+
+  // Загружаем items с изображениями из API при монтировании компонента
+  useEffect(() => {
+    const loadItemsWithImages = async () => {
+      try {
+        const enrichedItems = await getItemsWithApiImages();
+        setItemsWithImages(enrichedItems);
+      } catch (error) {
+        console.error('Failed to load items with API images:', error);
+        // В случае ошибки используем базовые items
+        setItemsWithImages(Items);
+      }
+    };
+    
+    loadItemsWithImages();
+  }, []);
 
   const [constR, setConstR] = useState({
     id: "",
@@ -106,8 +123,8 @@ const Calculator = () => {
   // Получить items для конкретной секции и подкатегории
   const getItemsForSection = useCallback((sectionId, subCategoryId) => {
     if (!subCategoryId) return [];
-    return Items.filter((el) => el.c_id == subCategoryId);
-  }, []);
+    return itemsWithImages.filter((el) => el.c_id == subCategoryId);
+  }, [itemsWithImages]);
 
   // Обработчик клика на секцию (section-container)
   const handleSectionClick = useCallback((sectionId, subCategories) => {
@@ -149,7 +166,7 @@ const Calculator = () => {
   // Обновляем template и другие параметры при изменении currentItems
   useEffect(() => {
     if (currentItems != 0) {
-      const selectedItem = Items.find((el) => el.id == currentItems);
+      const selectedItem = itemsWithImages.find((el) => el.id == currentItems);
       if (selectedItem) {
         setTemplate(selectedItem.template);
         setTableConstrToCalc(1);
@@ -160,7 +177,7 @@ const Calculator = () => {
       setVisible(false);
       setCurrentConstr("");
     }
-  }, [currentItems]);
+  }, [currentItems, itemsWithImages]);
 
   // Прокрутка к selected-item-container при выборе элемента
   useEffect(() => {
@@ -512,13 +529,13 @@ const Calculator = () => {
         const IconType = SubCategories.find(
           (el) => el.id == currentSubCategory
         );
-        const Description = Items.find((el) => el.id == currentItems);
-        const Constr = Items.find((el) => el.id == currentItems);
+        const Description = itemsWithImages.find((el) => el.id == currentItems);
+        const Constr = itemsWithImages.find((el) => el.id == currentItems);
         const ConstrType = SubCategories.find(
           (el) => el.id == currentSubCategory
         );
-        const ConstrId = Items.find((el) => el.id == currentItems);
-        const StepProfile = Items.find((el) => el.id == currentItems);
+        const ConstrId = itemsWithImages.find((el) => el.id == currentItems);
+        const StepProfile = itemsWithImages.find((el) => el.id == currentItems);
 
         const newConstR = {
           ...constR,
@@ -697,8 +714,8 @@ const Calculator = () => {
 
   // Initialize from route params
   useEffect(() => {
-    if (id != null) {
-      const item = Items.find((item) => item.ag_id === id);
+    if (id != null && itemsWithImages.length > 0) {
+      const item = itemsWithImages.find((item) => item.ag_id === id);
       if (item) {
         const subCategory = SubCategories.find(
           (subCategory) => subCategory.id === item.c_id
@@ -722,7 +739,7 @@ const Calculator = () => {
         }
       }
     }
-  }, [id]);
+  }, [id, itemsWithImages]);
 
   // Note: setConstrFromCalcToSent is called manually when needed, not in useEffect to avoid infinite loops
 
@@ -796,13 +813,23 @@ const Calculator = () => {
                             >
                               {elem.title}
                             </p>
-                            {!isSelected && (
-                              <img
-                                src={`../../../${elem.img}`}
-                                alt=""
-                                className="img-icon"
-                              />
-                            )}
+                            {!isSelected && (() => {
+                              const imageSrc = elem.Img || elem.img;
+                              // Если нет изображения, не рендерим img
+                              if (!imageSrc) return null;
+                              
+                              // Если это URL из API (начинается с /api/ или http), используем напрямую
+                              const src = imageSrc.startsWith('/api/') || imageSrc.startsWith('http://') || imageSrc.startsWith('https://')
+                                ? imageSrc
+                                : `../../../${imageSrc}`;
+                              return (
+                                <img
+                                  src={src}
+                                  alt=""
+                                  className="img-icon"
+                                />
+                              );
+                            })()}
                           </button>
                         </div>
                       );
