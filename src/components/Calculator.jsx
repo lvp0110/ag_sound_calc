@@ -4,7 +4,6 @@ import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 import Swal from "sweetalert2";
 import "./Calculator.css";
-import Categories from "../data/categories";
 import SubCategories from "../data/subCategories";
 import Items from "../data/items";
 import SizeLimits from "../data/sizeLimits";

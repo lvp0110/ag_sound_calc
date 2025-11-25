@@ -1,26 +1,5 @@
 const Items = [
-  {
-    id: 1111,
-    title: "Акустическая облицовка SOUNDBOARD",
-    description:
-      "Облицовка стен декоративно-акустическими панелями SOUNDBOARD",
-    c_id: "5",
-    template: 201,
-    img: "/photo_2024-01-27_23-54-07.jpg",
-    ag_id: "AG.LSBfr",
-    weight: "кг/м2",
-  },
-  {
-    id: 1112,
-    title: "Акустический потолок SOUNDBOARD/РАЗДЕЛ В РАЗРАБОТКЕ",
-    description:
-      "Потолок с применеием декоративно-акустических панелей SOUNDBOARD",
-    c_id: "6",
-    template: 202,
-    img: "/photo_2024-01-27_23-54-07.jpg",
-    ag_id: "SB.CE",
-    weight: "кг/м2",
-  },
+
   {
     id: 101,
     title: "Перегородка на каркасе 50 мм",
