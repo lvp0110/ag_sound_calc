@@ -580,6 +580,13 @@ const Calculator = () => {
           perimeter = Math.round(2 * (+constR.lenX + +constR.lenZ)); // in mm
         }
 
+        // Преобразуем проемы: lenX и lenZ должны быть числами, а не строками
+        const openingsWithNumbers = constrSent.Openings.map(opening => ({
+          ...opening,
+          lenX: +opening.lenX || 0,
+          lenZ: +opening.lenZ || 0,
+        }));
+
         const newConstrSent = {
           Code: code,
           LenX: +constR.lenX || 0,
@@ -590,7 +597,7 @@ const Calculator = () => {
           dframe: dFrame,
           Area: area,
           Perimeter: perimeter,
-          Openings: [...constrSent.Openings],
+          Openings: openingsWithNumbers,
         };
 
         if (code == "AG.L401" || code == "AG.W101" || code == "AG.W105") {

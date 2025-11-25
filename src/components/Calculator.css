@@ -201,8 +201,8 @@ button {
 
 .const_page p {
   margin: 0;
-  padding: 0;
-  max-width: 100%;
+  padding: 2px;
+  width: 100%;
   word-wrap: break-word;
   text-align: center;
   box-sizing: border-box;
@@ -210,6 +210,7 @@ button {
   z-index: 2;
   color: revert;
   pointer-events: none;
+  background: rgba(128, 128, 128, 0.717);
 }
 
 button:hover {
