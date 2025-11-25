@@ -810,40 +810,29 @@ const Calculator = () => {
                   >
                     {items.length > 0 ? items.map((elem) => {
                       const isSelected = currentItems == elem.id;
+                      const imageSrc = elem.Img || elem.img;
+                      const src = imageSrc && (imageSrc.startsWith('http://') || imageSrc.startsWith('https://'))
+                        ? imageSrc
+                        : imageSrc ? getImageUrl(imageSrc) : null;
+                      
                       return (
-                        <div key={`${elem.id}-${elem.c_id}`}>
+                        <div key={`${elem.id}-${elem.c_id}`} className="const-item-container">
+                          {/* Кнопка const_page */}
                           <button
                             value={elem.id}
-                            className={isSelected ? "const_active" : "const_page"}
+                            className="const_page"
                             onClick={() => handleItemSelect(elem)}
                           >
-                            <p
-                              style={{
-                                zIndex: 1,
-                                color: "revert",
-                                pointerEvents: "none",
-                              }}
-                            >
+                            <p>
                               {elem.title}
                             </p>
-                            {!isSelected && (() => {
-                              const imageSrc = elem.Img || elem.img;
-                              // Если нет изображения, не рендерим img
-                              if (!imageSrc) return null;
-                              
-                              // Если это URL из API (начинается с http:// или https://), используем напрямую
-                              // Иначе преобразуем через getImageUrl (для путей вида /Img_constr/...)
-                              const src = imageSrc.startsWith('http://') || imageSrc.startsWith('https://')
-                                ? imageSrc
-                                : getImageUrl(imageSrc);
-                              return (
-                                <img
-                                  src={src}
-                                  alt=""
-                                  className="img-icon"
-                                />
-                              );
-                            })()}
+                            {src && (
+                              <img
+                                src={src}
+                                alt=""
+                                className="img-icon"
+                              />
+                            )}
                           </button>
                         </div>
                       );
@@ -868,6 +857,7 @@ const Calculator = () => {
                       onClick={(e) => e.stopPropagation()}
                     >
                       <div className="selected-item-forms">
+                        <h3>{selectedItem.title}</h3>
                         {/* Формы конструкций для выбранного элемента */}
                         {/* Полы: template 1, 111, 3, 607.1, 608.1, 609.1, 610.1, 2.1, 9, 9.1 */}
                         {(selectedItem.template == 1 ||

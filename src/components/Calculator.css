@@ -59,7 +59,6 @@
 
 .content-calc > div:not(.subcategory) {
   margin: auto;
-  padding-right: 3px;
   top: 10px;
   position: relative;
   font-family: "Montserrat", sans-serif;
@@ -79,6 +78,27 @@
   max-width: 100%;
   margin: 0;
   top: 0;
+}
+
+.items.content-item > div {
+  box-sizing: border-box;
+  overflow: hidden;
+  position: relative;
+  width: 200px;
+  height: 200px;
+  flex-shrink: 0;
+}
+
+.const-item-container {
+  width: 200px;
+  height: 200px;
+  box-sizing: border-box;
+  flex-shrink: 0;
+  margin: 0;
+  padding: 0;
+  display: block;
+  overflow: hidden;
+  position: relative;
 }
 
 .subcategory {
@@ -154,16 +174,42 @@ button {
 }
 
 .const_page {
-  top: 0;
-  height: 200px;
-  position: relative;
-  width: 200px;
-  flex: 0 0 200px;
-  display: inline-grid;
-  margin-left: 0;
-  margin-top: 0;
+  height: 200px !important;
+  width: 200px !important;
+  max-width: 200px !important;
+  max-height: 200px !important;
+  min-width: 200px !important;
+  min-height: 200px !important;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+  margin: 0 !important;
   font-size: 12px;
-  z-index: 1;
+  padding: 0 !important;
+  padding-bottom: 10px !important;
+  transition: opacity 0.2s ease;
+  box-sizing: border-box;
+  border-radius: 10px;
+  border: solid 1px darkgray;
+  /* Переопределяем все возможные стили из общего button */
+  font-family: "Montserrat", sans-serif !important;
+  box-shadow: 3px 1px 4px 0px #96b3cd;
+  position: relative;
+  overflow: hidden;
+}
+
+.const_page p {
+  margin: 0;
+  padding: 0;
+  max-width: 100%;
+  word-wrap: break-word;
+  text-align: center;
+  box-sizing: border-box;
+  position: relative;
+  z-index: 2;
+  color: revert;
+  pointer-events: none;
 }
 
 button:hover {
@@ -179,14 +225,6 @@ button:hover {
   margin-bottom: 5px;
 }
 
-.const_active {
-  background: darkgray;
-  color: #fff;
-  height: 200px;
-  width: 200px;
-  flex: 0 0 200px;
-  margin-left: 0;
-}
 
 span {
   color: #878181;
@@ -277,9 +315,15 @@ h4 {
 
 .img-icon {
   position: absolute;
-  width: 99%;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
   pointer-events: none;
   border-radius: 10px;
+  box-sizing: border-box;
+  z-index: 1;
 }
 
 .img-icon-type {
@@ -533,6 +577,15 @@ div:where(.swal2-container) .swal2-html-container {
   display: flex;
   flex-direction: column;
   gap: 15px;
+}
+
+.selected-item-forms h3 {
+  color: #6d7277;
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 10px 0;
+  padding: 0;
+  font-family: "Montserrat", sans-serif;
 }
 
 /* Правая часть - таблицы */
