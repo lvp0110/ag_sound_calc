@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useState, useEffect, /* useMemo, */ useCallback, useRef } from "react";
+import { /* useNavigate, */ useParams } from "react-router-dom";
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 import Swal from "sweetalert2";
@@ -12,20 +12,20 @@ import { constRZero, constSentZero, openingZero } from "../constants/defaultValu
 import { getImageUrl } from "../services/api";
 
 const Calculator = () => {
-  const navigate = useNavigate();
+  // const navigate = useNavigate();
   const { id } = useParams();
 
   // State
-  const [typeGklTitle, setTypeGklTitle] = useState("выбрать тип гипсокартона");
-  const [typeWoolTitle, setTypeWoolTitle] = useState("выбрать тип минваты");
+  // const [typeGklTitle, setTypeGklTitle] = useState("выбрать тип гипсокартона");
+  // const [typeWoolTitle, setTypeWoolTitle] = useState("выбрать тип минваты");
   const [currentGkla, setCurrentGkla] = useState("default");
   const [currentWool, setCurrentWool] = useState("default");
   const [unvisible, setUnvisible] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("true");
+  // const [errorMessage, setErrorMessage] = useState("true");
   const [tableConstrToCalc, setTableConstrToCalc] = useState(null);
-  const [counterConstr, setCounterConstr] = useState(0);
-  const [visible, setVisible] = useState(false);
-  const [currentCategory, setCurrentCategory] = useState(0);
+  // const [counterConstr, setCounterConstr] = useState(0);
+  // const [visible, setVisible] = useState(false);
+  // const [currentCategory, setCurrentCategory] = useState(0);
   const [currentSubCategory, setCurrentSubCategory] = useState(0);
   const [currentItems, setCurrentItems] = useState(0);
   // Состояние для отслеживания открытых подкатегорий в каждой секции
@@ -38,11 +38,11 @@ const Calculator = () => {
   const [template, setTemplate] = useState(null);
   const [profileStep, setProfileStep] = useState(600);
   const [dFrame, setDFrame] = useState(false);
-  const [counters, setCounters] = useState(null);
+  // const [counters, setCounters] = useState(null);
   const [currentConstr, setCurrentConstr] = useState("");
   const [ConstrToCalcToSent, setConstrToCalcToSent] = useState([]);
   const [ConstrToCalc, setConstrToCalc] = useState([]);
-  const [isErrorFloor, setIsErrorFloor] = useState(false);
+  // const [isErrorFloor, setIsErrorFloor] = useState(false);
   const [calculatedMaterials, setCalculatedMaterials] = useState([]);
   const [itemsWithImages, setItemsWithImages] = useState(Items); // Начальное значение - базовые items
   
@@ -66,17 +66,17 @@ const Calculator = () => {
   }, []);
 
   const [constR, setConstR] = useState({
-    id: "",
-    idType: "",
+    // id: "",
+    // idType: "",
     title: "",
     type: "",
     lenX: null,
-    lenXp: null,
+    // lenXp: null,
     lenY: null,
     lenZ: null,
-    lenZp: null,
+    // lenZp: null,
     description: "",
-    img: "",
+    // img: "",
     step: null,
     ag_id: "",
     key_id: null,
@@ -103,9 +103,9 @@ const Calculator = () => {
   });
 
   // Computed values
-  const getActiveCategories = useMemo(() => {
-    return [];
-  }, []);
+  // const getActiveCategories = useMemo(() => {
+  //   return [];
+  // }, []);
 
   // Получить подкатегории для конкретной секции
   const getSubCategoriesForSection = useCallback((sectionId) => {
@@ -134,14 +134,15 @@ const Calculator = () => {
       
       // Если секция уже открыта - закрыть её
       if (currentOpened) {
-        return { ...prev, [sectionId]: null };
+        return { F: null, C: null, L: null, W: null, [sectionId]: null };
       }
       
-      // Если секция закрыта - открыть первую подкатегорию
+      // Если секция закрыта - открыть первую подкатегорию и закрыть все остальные
       if (subCategories && subCategories.length > 0) {
         const firstSubCategory = subCategories[0];
         setCurrentSubCategory(firstSubCategory.id);
-        return { ...prev, [sectionId]: firstSubCategory.id };
+        // Закрываем все секции и открываем только выбранную
+        return { F: null, C: null, L: null, W: null, [sectionId]: firstSubCategory.id };
       }
       
       return prev;
@@ -161,6 +162,10 @@ const Calculator = () => {
       setTemplate(item.template);
       setTableConstrToCalc(1);
       setCurrentConstr(item.ag_id);
+      // Устанавливаем currentSubCategory на основе c_id элемента
+      if (item.c_id) {
+        setCurrentSubCategory(item.c_id);
+      }
     }
   }, [currentItems]);
 
@@ -175,7 +180,7 @@ const Calculator = () => {
       }
     } else {
       setTemplate(null);
-      setVisible(false);
+      // setVisible(false);
       setCurrentConstr("");
     }
   }, [currentItems, itemsWithImages]);
@@ -197,9 +202,9 @@ const Calculator = () => {
   }, [currentItems]);
 
   // Methods
-  const hasHistory = () => {
-    return window.history.length > 2;
-  };
+  // const hasHistory = () => {
+  //   return window.history.length > 2;
+  // };
 
   const getContsCodeByMaterials = () => {
     if (currentGkla == "default" && currentWool == "default") {
@@ -251,31 +256,31 @@ const Calculator = () => {
     setOpening({ ...openingZero });
   };
 
-  const setConstrFromCalcToSent = () => {
-    const code = getContsCodeByMaterials();
-    const newConstrSent = {
-      ...constrSent,
-      Code: code,
-      LenX: constR.lenX,
-      LenY: constR.lenY,
-      LenZ: constR.lenZ,
-      AddCeilShift: constR.AddCeilShift,
-      step: +profileStep,
-      dframe: dFrame,
-    };
+  // const setConstrFromCalcToSent = () => {
+  //   const code = getContsCodeByMaterials();
+  //   const newConstrSent = {
+  //     ...constrSent,
+  //     Code: code,
+  //     LenX: constR.lenX,
+  //     LenY: constR.lenY,
+  //     LenZ: constR.lenZ,
+  //     AddCeilShift: constR.AddCeilShift,
+  //     step: +profileStep,
+  //     dframe: dFrame,
+  //   };
 
-    if (code == "AG.L401" || code == "AG.W101" || code == "AG.W105") {
-      newConstrSent.dframe = true;
-    }
-    if (
-      (code == "AG.F615" || code == "AG.F615_vibroflex_LD") &&
-      profileStep == 600
-    ) {
-      newConstrSent.step = 400;
-    }
+  //   if (code == "AG.L401" || code == "AG.W101" || code == "AG.W105") {
+  //     newConstrSent.dframe = true;
+  //   }
+  //   if (
+  //     (code == "AG.F615" || code == "AG.F615_vibroflex_LD") &&
+  //     profileStep == 600
+  //   ) {
+  //     newConstrSent.step = 400;
+  //   }
 
-    setConstrSent(newConstrSent);
-  };
+  //   setConstrSent(newConstrSent);
+  // };
 
   const delConstrFromList = (idConstr) => {
     const indexToDel = ConstrToCalc.findIndex((el) => el.key_id == idConstr);
@@ -368,13 +373,16 @@ const Calculator = () => {
       else if (+constR.lenY > 50000)
         return '<span class="p1"><span class="p1">Введите правильную длину</span></span> <br>В конструкциях ДЛИНОЙ свыше 15 метров необходимо устраивать температурные(деформационные) швы';
     } else if (currentSubCategory == "C" && template == 4) {
-      if (isNaN(+constR.lenX) || +constR.lenX < 200)
+      const lenX = +constR.lenX;
+      const lenY = +constR.lenY;
+      
+      if (constR.lenX === null || constR.lenX === undefined || constR.lenX === "" || isNaN(lenX) || lenX < 200)
         return '<span class="p1">Введите правильную ширину</span> <br>Минимальный размер обрезанной панели ЗИПС,пригодной к монтажу,составляет 200 мм.На обрезанном фрагменте должны присутствовать минимум 2 виброузла и 2 регулиремые опоры для панелей ЗИПС-Z4';
-      else if (+constR.lenX > 50000)
+      else if (lenX > 50000)
         return '<span class="p1">Введите правильную ширину</span> <br>Акустические швы в обязательном порядке устраиваются в дверных проемах,а также в местах сооружения звукоизоляционных перегородок ';
-      else if (isNaN(+constR.lenY) || +constR.lenY < 200)
+      else if (constR.lenY === null || constR.lenY === undefined || constR.lenY === "" || isNaN(lenY) || lenY < 200)
         return '<span class="p1">Введите правильную длину</span> <br>Минимальный размер обрезанной панели ЗИПС,пригодной к монтажу,составляет 200 мм.На обрезанном фрагменте должны присутствовать минимум 2 виброузла и 2 регулиремые опоры для панелей ЗИПС-Z4';
-      else if (+constR.lenY > 50000)
+      else if (lenY > 50000)
         return '<span class="p1">Введите правильную длину</span> <br>Акустические швы в обязательном порядке устраиваются в дверных проемах,а также в местах сооружения звукоизоляционных перегородок';
     }
     return null;
@@ -732,10 +740,14 @@ const Calculator = () => {
                            item.c_id === "W" ? "W" : null;
           
           if (sectionId) {
-            setOpenedSubCategories((prev) => ({
-              ...prev,
+            // Закрываем все секции и открываем только нужную
+            setOpenedSubCategories({
+              F: null,
+              C: null,
+              L: null,
+              W: null,
               [sectionId]: subCategory.id,
-            }));
+            });
           }
         }
       }
@@ -744,25 +756,25 @@ const Calculator = () => {
 
   // Note: setConstrFromCalcToSent is called manually when needed, not in useEffect to avoid infinite loops
 
-  const handleBack = () => {
-    if (hasHistory()) {
-      navigate(-2);
-    } else {
-      navigate("/");
-    }
-  };
+  // const handleBack = () => {
+  //   if (hasHistory()) {
+  //     navigate(-2);
+  //   } else {
+  //     navigate("/");
+  //   }
+  // };
 
   // Debug: проверяем, что компонент рендерится
-  console.log("Calculator rendering", {
-    currentCategory,
-    getActiveCategories: getActiveCategories?.length,
-  });
+  // console.log("Calculator rendering", {
+  //   currentCategory,
+  //   getActiveCategories: getActiveCategories?.length,
+  // });
 
 
   // Проверяем, есть ли открытые секции
-  const hasOpenedSections = Object.values(openedSubCategories).some(
-    (value) => value !== null
-  );
+  // const hasOpenedSections = Object.values(openedSubCategories).some(
+  //   (value) => value !== null
+  // );
 
   return (
     <div>
