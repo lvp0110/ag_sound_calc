@@ -76,22 +76,24 @@
 .items.content-item {
   width: auto;
   max-width: 100%;
-  margin: 0;
+  margin: 0 auto;
   top: 0;
+  justify-content: center;
+  align-items: center;
 }
 
 .items.content-item > div {
   box-sizing: border-box;
   overflow: hidden;
   position: relative;
-  width: 200px;
-  height: 200px;
+  width: clamp(150px, 15vw, 200px);
+  height: clamp(150px, 15vw, 200px);
   flex-shrink: 0;
 }
 
 .const-item-container {
-  width: 200px;
-  height: 200px;
+  width: clamp(150px, 15vw, 200px);
+  height: clamp(150px, 15vw, 200px);
   box-sizing: border-box;
   flex-shrink: 0;
   margin: 0;
@@ -174,18 +176,18 @@ button {
 }
 
 .const_page {
-  height: 200px !important;
-  width: 200px !important;
-  max-width: 200px !important;
-  max-height: 200px !important;
-  min-width: 200px !important;
-  min-height: 200px !important;
+  height: clamp(150px, 15vw, 200px) !important;
+  width: clamp(150px, 15vw, 200px) !important;
+  max-width: clamp(150px, 15vw, 200px) !important;
+  max-height: clamp(150px, 15vw, 200px) !important;
+  min-width: clamp(120px, 12vw, 150px) !important;
+  min-height: clamp(120px, 12vw, 150px) !important;
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
   align-items: center;
   margin: 0 !important;
-  font-size: 12px;
+  font-size: clamp(10px, 1.2vw, 12px);
   padding: 0 !important;
   padding-bottom: 10px !important;
   transition: opacity 0.2s ease;
@@ -197,6 +199,7 @@ button {
   box-shadow: 3px 1px 4px 0px #96b3cd;
   position: relative;
   overflow: hidden;
+  flex: 0 0 auto;
 }
 
 .const_page p {
@@ -433,10 +436,12 @@ div:where(.swal2-container) .swal2-html-container {
   display: flex;
   flex-direction: row;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 15px;
   align-items: flex-start;
   margin-top: 0;
+  justify-content: center;
 }
+
 
 .tbl-in {
   margin-top: 20px;
@@ -628,4 +633,53 @@ div:where(.swal2-container) .swal2-html-container {
   .tbl-in {
     padding-right: 0px;
   }
+
+  /* Адаптивность для кнопок const_page на экранах менее 550px */
+  .const_page {
+    height: clamp(160px, 35vw, 200px) !important;
+    width: clamp(160px, 35vw, 200px) !important;
+    max-width: clamp(160px, 35vw, 200px) !important;
+    max-height: clamp(160px, 35vw, 200px) !important;
+    min-width: clamp(150px, 33vw, 160px) !important;
+    min-height: clamp(150px, 33vw, 160px) !important;
+    font-size: clamp(11px, 2.5vw, 14px);
+  }
+
+  .const-item-container,
+  .items.content-item > div {
+    width: clamp(160px, 35vw, 200px);
+    height: clamp(160px, 35vw, 200px);
+  }
+
+  .items.content-item {
+    max-width: calc(2 * clamp(160px, 35vw, 200px) + 15px + 20px);
+    gap: 10px;
+    justify-content: center;
+    margin: 0 auto;
+  }
 }
+
+/* Адаптивность для кнопок const_page */
+/* @media screen and (max-width: 550px) {
+  .const_page {
+    height: clamp(120px, 20vw, 180px) !important;
+    width: clamp(120px, 20vw, 180px) !important;
+    max-width: clamp(120px, 20vw, 180px) !important;
+    max-height: clamp(120px, 20vw, 180px) !important;
+    min-width: clamp(100px, 18vw, 120px) !important;
+    min-height: clamp(100px, 18vw, 120px) !important;
+    font-size: clamp(9px, 1.5vw, 11px);
+  }
+
+  .const-item-container,
+  .items.content-item > div {
+    width: clamp(120px, 20vw, 180px);
+    height: clamp(120px, 20vw, 180px);
+  }
+
+  .items.content-item {
+    max-width: calc(2 * clamp(120px, 20vw, 180px) + clamp(8px, 2vw, 15px) + 20px);
+  }
+} */
+
+
