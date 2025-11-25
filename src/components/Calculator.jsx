@@ -9,6 +9,7 @@ import Items, { getItemsWithApiImages } from "../data/items";
 import SizeLimits from "../data/sizeLimits";
 import mainSections from "../data/mainSections";
 import { constRZero, constSentZero, openingZero } from "../constants/defaultValues";
+import { getImageUrl } from "../services/api";
 
 const Calculator = () => {
   const navigate = useNavigate();
@@ -539,7 +540,7 @@ const Calculator = () => {
 
         const newConstR = {
           ...constR,
-          imgBlack: IconType?.imgBlack,
+          imgBlack: IconType?.imgBlack ? getImageUrl(IconType.imgBlack) : undefined,
           description: Description?.description,
           key_id: Date.now(),
           title: Constr?.title,
@@ -784,7 +785,7 @@ const Calculator = () => {
               >
                 <div className="section-header">
                   <h2 className="section-title">
-                    <img src={section.icon} alt="" className="section-icon" />
+                    <img src={getImageUrl(section.icon)} alt="" className="section-icon" />
                     {section.title}
                   </h2>
                 </div>
@@ -818,10 +819,11 @@ const Calculator = () => {
                               // Если нет изображения, не рендерим img
                               if (!imageSrc) return null;
                               
-                              // Если это URL из API (начинается с /api/ или http), используем напрямую
-                              const src = imageSrc.startsWith('/api/') || imageSrc.startsWith('http://') || imageSrc.startsWith('https://')
+                              // Если это URL из API (начинается с http:// или https://), используем напрямую
+                              // Иначе преобразуем через getImageUrl (для путей вида /Img_constr/...)
+                              const src = imageSrc.startsWith('http://') || imageSrc.startsWith('https://')
                                 ? imageSrc
-                                : `../../../${imageSrc}`;
+                                : getImageUrl(imageSrc);
                               return (
                                 <img
                                   src={src}

@@ -1,4 +1,4 @@
-import { getImagesMap } from '../services/api';
+import { getImagesMap, getImageUrl } from '../services/api';
 
 const ItemsBase = [
 
@@ -325,7 +325,6 @@ const ItemsBase = [
       "Звукоизолирующий пол с одним слоем системы плит Акуфлор S20",
     c_id: "F",
     template: 2.1,
-    img: "/Img_constr/floor/c2k2_1.png",
     ag_id: "AG.F",
     weight: "-",
   },
@@ -422,17 +421,21 @@ const ItemsBase = [
  */
 const enrichItemsWithImages = (items, imagesMap) => {
   return items.map(item => {
-    const apiImage = imagesMap.get(item.ag_id);
-    // Для элемента с id "P" используем локальное img, если нет в API
-    // Для остальных элементов используем только API изображения
-    const finalImg = apiImage || (item.id === "P" ? item.img : null);
+    // Получаем изображение из API по ag_id (который соответствует Code в API)
+    let apiImage = imagesMap.get(item.ag_id);
+    
+    // Если изображение не найдено в API для элемента "P", используем преобразованный путь
+    // из старого формата /Img_constr/floor/c2k2_1.png в формат API
+    if (!apiImage && item.id === "P") {
+      // Преобразуем путь /Img_constr/floor/c2k2_1.png в формат API через getImageUrl
+      const oldPath = "/Img_constr/floor/c2k2_1.png";
+      apiImage = getImageUrl(oldPath);
+    }
     
     return {
       ...item,
-      // Используем Img из API, для элемента "P" - fallback на локальное img
-      Img: finalImg,
-      // Сохраняем img только для элемента с id "P"
-      ...(item.id === "P" && item.img ? { img: item.img } : {}),
+      // Используем изображение из API или преобразованный путь для элемента "P"
+      Img: apiImage || null,
     };
   });
 };
@@ -447,11 +450,19 @@ export const getItemsWithApiImages = async () => {
     return enrichItemsWithImages(ItemsBase, imagesMap);
   } catch (error) {
     console.error('Error enriching items with API images:', error);
-    // В случае ошибки возвращаем items с fallback на локальные изображения только для элемента "P"
-    return ItemsBase.map(item => ({
-      ...item,
-      Img: item.id === "P" ? item.img : null,
-    }));
+    // В случае ошибки возвращаем items с преобразованными путями для элемента "P"
+    return ItemsBase.map(item => {
+      let img = null;
+      if (item.id === "P") {
+        // Преобразуем путь /Img_constr/floor/c2k2_1.png в формат API
+        const oldPath = "/Img_constr/floor/c2k2_1.png";
+        img = getImageUrl(oldPath);
+      }
+      return {
+        ...item,
+        Img: img,
+      };
+    });
   }
 };
 

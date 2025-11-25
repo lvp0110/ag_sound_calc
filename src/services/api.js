@@ -39,10 +39,10 @@ export const getAllIsolationConstr = async () => {
 
 /**
  * Формирует полный URL для изображения из API
- * @param {string} imageName - Имя файла изображения из API
+ * @param {string} imageName - Имя файла изображения из API или путь вида /Img_constr/...
  * @returns {string} Полный URL изображения
  */
-const getImageUrl = (imageName) => {
+export const getImageUrl = (imageName) => {
   if (!imageName) return '';
   
   // Если это уже полный URL, возвращаем как есть
@@ -52,7 +52,28 @@ const getImageUrl = (imageName) => {
   
   // Формируем URL для изображений из API
   // Изображения находятся по адресу /api/v1/constr/{imageName}
-  const imagesBaseUrl = `${API_BASE_URL}/constr`;
+  // В dev режиме используем localhost:3005, в prod - production URL
+  const imagesBaseUrl = import.meta.env.PROD 
+    ? 'https://db.acoustic.ru:3005/api/v1/constr'
+    : 'http://localhost:3005/api/v1/constr';
+  
+  // Обработка путей вида /Img_constr/floor/c2k2_1.png -> floor_c2k2_1.jpg
+  if (imageName.startsWith('/Img_constr/')) {
+    // Убираем префикс /Img_constr/
+    const pathWithoutPrefix = imageName.replace('/Img_constr/', '');
+    // Разбиваем путь на части: floor/c2k2_1.png
+    const parts = pathWithoutPrefix.split('/');
+    if (parts.length >= 2) {
+      // Извлекаем папку (floor) и имя файла (c2k2_1.png)
+      const folder = parts[0]; // floor
+      const fileName = parts[parts.length - 1]; // c2k2_1.png
+      // Убираем расширение и добавляем .jpg
+      const fileNameWithoutExt = fileName.replace(/\.[^/.]+$/, ''); // c2k2_1
+      // Формируем имя в формате API: floor_c2k2_1.jpg
+      const apiImageName = `${folder}_${fileNameWithoutExt}.jpg`;
+      return `${imagesBaseUrl}/${apiImageName}`;
+    }
+  }
   
   // Если имя файла начинается с /, убираем его
   const cleanImageName = imageName.startsWith('/') ? imageName.slice(1) : imageName;
