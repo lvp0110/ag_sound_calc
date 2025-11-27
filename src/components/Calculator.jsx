@@ -982,7 +982,7 @@ const Calculator = () => {
                               onClick={getStartParam}
                             >
                               
-                              параметры конструкции
+                              параметры
                             </button>
                             {unvisible && (
                               <div
