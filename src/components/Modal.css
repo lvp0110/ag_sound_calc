@@ -53,15 +53,16 @@
 .modal-close {
   position: absolute;
   top: 0;
-  right: 0;
+  right:0;
   width: 2.5em;
   height: 2.5em;
   padding: 0;
   margin: 0;
   border: none;
-  border-radius: 0 0.3125em 0 0.3125em;
+  box-shadow: none;
+  transition: background-color 0.2s;
   background: transparent;
-  color: #ccc;
+  color: #a7a5a5;
   font-family: serif;
   font-size: 1.5em;
   line-height: 2.5em;
@@ -281,13 +282,14 @@
 
 .modal-confirm-button {
   border: 0;
-  border-radius: 0.25em;
+  border-radius: 50%;
   background: initial;
   background-color: #6cabc8;
   color: #fff;
   font-size: 1em;
   padding: 0.625em 1.5em;
-  min-width: 70px;
+  width: 100px;
+  height: 100px;
   cursor: pointer;
   font-weight: 500;
   transition: background-color 0.2s;
