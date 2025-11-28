@@ -1,17 +1,19 @@
 export const constRZero = {
-  id: "",
-  idType: "",
+  // id: "", // Не используется
+  // idType: "", // Не используется
   title: "",
   type: "",
   lenX: null,
   lenY: null,
   lenZ: null,
   description: "",
-  img: "",
+  // img: "", // Не используется
   step: null,
   ag_id: "",
   key_id: null,
   AddCeilShift: 0,
+  // lenXp: null, // Не используется
+  // lenZp: null, // Не используется
 };
 
 export const constSentZero = {

@@ -1,4 +1,4 @@
-import { useState, useEffect, /* useMemo, */ useCallback, useRef } from "react";
+import { useState, useEffect, /* useMemo, */ useCallback, /* useRef */ } from "react";
 import { /* useNavigate, */ useParams } from "react-router-dom";
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
@@ -61,7 +61,7 @@ const Calculator = () => {
   });
   
   // Ref для прокрутки к selected-item-container
-  const selectedItemContainerRef = useRef(null);
+  // const selectedItemContainerRef = useRef(null); // Не используется - вместо него используется document.querySelector
 
   // Загружаем items с изображениями из API при монтировании компонента
   useEffect(() => {
@@ -311,6 +311,7 @@ const Calculator = () => {
     setCalculatedMaterials([]);
   };
 
+
   const checkInput = () => {
     // Получаем текущий элемент для дополнительной проверки
     const currentItem = itemsWithImages.find((el) => el.id == currentItems);
@@ -323,18 +324,18 @@ const Calculator = () => {
                           (itemCId == "C" && itemTemplate == 4) ||
                           (itemAgId && itemAgId.startsWith("AG.Z"));
     
-    console.log("checkInput called:", {
-      currentSubCategory,
-      template,
-      itemTemplate,
-      itemCId,
-      itemAgId,
-      currentItems,
-      currentItem: currentItem?.title,
-      isZIPSCeiling,
-      lenX: constR.lenX,
-      lenY: constR.lenY,
-    });
+    // console.log("checkInput called:", {
+    //   currentSubCategory,
+    //   template,
+    //   itemTemplate,
+    //   itemCId,
+    //   itemAgId,
+    //   currentItems,
+    //   currentItem: currentItem?.title,
+    //   isZIPSCeiling,
+    //   lenX: constR.lenX,
+    //   lenY: constR.lenY,
+    // });
     
     let objectX;
     let max_constr_size;
@@ -411,29 +412,29 @@ const Calculator = () => {
       else if (+constR.lenY > 50000)
         return getValidationMessage('CAT6_T202_LENY_MAX_50000');
     } else if (isZIPSCeiling) {
-      console.log("ZIPS ceiling validation triggered");
+      // console.log("ZIPS ceiling validation triggered");
       const lenX = +constR.lenX || 0;
       const lenY = +constR.lenY || 0;
       
       // Проверка ширины - проверяем все возможные случаи
       if (!constR.lenX || constR.lenX === null || constR.lenX === undefined || constR.lenX === "" || isNaN(lenX) || lenX < 200 || lenX === 0) {
-        console.log("ZIPS ceiling validation: width error", { lenX, constR_lenX: constR.lenX });
+        // console.log("ZIPS ceiling validation: width error", { lenX, constR_lenX: constR.lenX });
         return getValidationMessage('ZIPS_CEILING_LENX_MIN_200');
       }
       if (lenX > 50000) {
-        console.log("ZIPS ceiling validation: width too large", lenX);
+        // console.log("ZIPS ceiling validation: width too large", lenX);
         return getValidationMessage('ZIPS_CEILING_LENX_MAX_50000');
       }
       // Проверка длины - проверяем все возможные случаи, включая 0
       if (!constR.lenY || constR.lenY === null || constR.lenY === undefined || constR.lenY === "" || isNaN(lenY) || lenY < 200 || lenY === 0) {
-        console.log("ZIPS ceiling validation: length error", { lenY, constR_lenY: constR.lenY });
+        // console.log("ZIPS ceiling validation: length error", { lenY, constR_lenY: constR.lenY });
         return getValidationMessage('ZIPS_CEILING_LENY_MIN_200');
       }
       if (lenY > 50000) {
-        console.log("ZIPS ceiling validation: length too large", lenY);
+        // console.log("ZIPS ceiling validation: length too large", lenY);
         return getValidationMessage('ZIPS_CEILING_LENY_MAX_50000');
       }
-      console.log("ZIPS ceiling validation: passed");
+      // console.log("ZIPS ceiling validation: passed");
     }
     return null;
   };
@@ -489,17 +490,17 @@ const Calculator = () => {
         return;
       }
 
-      console.log(
-        "Calculating construction with:",
-        JSON.stringify(constrList, null, 2)
-      );
+      // console.log(
+      //   "Calculating construction with:",
+      //   JSON.stringify(constrList, null, 2)
+      // );
 
       // Используем прокси в dev режиме, прямой URL в production
       const apiUrl = import.meta.env.DEV
         ? "/api/v1/calcIsolation/byProduct"
         : "https://db.acoustic.ru:3005/api/v1/calcIsolation/byProduct";
 
-      console.log("Fetching from URL:", apiUrl);
+      // console.log("Fetching from URL:", apiUrl);
 
       const response = await fetch(apiUrl, {
         method: "POST",
@@ -511,7 +512,7 @@ const Calculator = () => {
         mode: "cors", // Явно указываем режим CORS
       });
 
-      console.log("Response status:", response.status, response.statusText);
+      // console.log("Response status:", response.status, response.statusText);
 
       if (!response.ok) {
         let errorText = '';
@@ -538,13 +539,13 @@ const Calculator = () => {
       }
 
       const data = await response.json();
-      console.log("API response received:", data);
-      console.log("Response data structure:", {
-        hasData: !!data.data,
-        dataLength: data.data?.length,
-        dataType: typeof data,
-        keys: Object.keys(data),
-      });
+      // console.log("API response received:", data);
+      // console.log("Response data structure:", {
+      //   hasData: !!data.data,
+      //   dataLength: data.data?.length,
+      //   dataType: typeof data,
+      //   keys: Object.keys(data),
+      // });
 
       // Обрабатываем разные форматы ответа
       if (data && data.data) {
@@ -592,15 +593,15 @@ const Calculator = () => {
   const addConstrToCalc = () => {
     // Сначала проверяем общую валидацию (для всех типов конструкций, включая ЗИПС потолок)
     const inputError = checkInput();
-    console.log("Validation check:", {
-      inputError,
-      currentSubCategory,
-      template,
-      currentItems,
-      lenX: constR.lenX,
-      lenY: constR.lenY,
-      lenZ: constR.lenZ,
-    });
+    // console.log("Validation check:", {
+    //   inputError,
+    //   currentSubCategory,
+    //   template,
+    //   currentItems,
+    //   lenX: constR.lenX,
+    //   lenY: constR.lenY,
+    //   lenZ: constR.lenZ,
+    // });
     if (inputError) {
       setModal({
         isOpen: true,
@@ -731,17 +732,17 @@ const Calculator = () => {
 
     const deep = JSON.parse(JSON.stringify(newConstrSent));
     const updatedList = [...ConstrToCalcToSent, deep];
-    console.log("Sending to API:", JSON.stringify(updatedList, null, 2));
-    console.log("Construction details:", {
-      code,
-      lenX,
-      lenY,
-      lenZ,
-      area,
-      perimeter,
-      template,
-      currentSubCategory,
-    });
+    // console.log("Sending to API:", JSON.stringify(updatedList, null, 2));
+    // console.log("Construction details:", {
+    //   code,
+    //   lenX,
+    //   lenY,
+    //   lenZ,
+    //   area,
+    //   perimeter,
+    //   template,
+    //   currentSubCategory,
+    // });
 
     setConstrToCalcToSent(updatedList);
     setConstrSent({ ...constSentZero });
@@ -1012,7 +1013,7 @@ const Calculator = () => {
                   
                   return (
                     <div 
-                      ref={selectedItemContainerRef}
+                      // ref={selectedItemContainerRef} // Не используется
                       className="selected-item-container" 
                       onClick={(e) => e.stopPropagation()}
                     >
@@ -1145,6 +1146,90 @@ const Calculator = () => {
                                   marginBottom: "20px",
                                 }}
                               >
+                                <h4 style={{ margin: "1px" }}>выбрать тип гипсокартона</h4>
+                                <input
+                                  className="radio"
+                                  type="radio"
+                                  onChange={(e) =>
+                                    setCurrentGkla(e.target.value)
+                                  }
+                                  id={`gkla_default_${selectedItem.id}`}
+                                  name={`gkla_${selectedItem.id}`}
+                                  value="default"
+                                  checked={currentGkla == "default"}
+                                />
+                                <label className="label">AKU-line 2500x1200x12,5 мм</label>
+                                <input
+                                  className="radio"
+                                  type="radio"
+                                  onChange={(e) =>
+                                    setCurrentGkla(e.target.value)
+                                  }
+                                  id={`gkla_2500P_${selectedItem.id}`}
+                                  name={`gkla_${selectedItem.id}`}
+                                  value="2500P"
+                                  checked={currentGkla == "2500P"}
+                                />
+                                <label className="label">AKU-line Pro 2500x1200x12,5 мм</label>
+                                <input
+                                  className="radio"
+                                  type="radio"
+                                  onChange={(e) =>
+                                    setCurrentGkla(e.target.value)
+                                  }
+                                  id={`gkla_2000_${selectedItem.id}`}
+                                  name={`gkla_${selectedItem.id}`}
+                                  value="2000"
+                                  checked={currentGkla == "2000"}
+                                />
+                                <label className="label">AKU-line 2000x1200x12,5 мм</label>
+                                
+                                <hr />
+                                
+                                <h4 style={{ margin: "1px" }}>выбрать тип минваты</h4>
+                                <input
+                                  className="radio"
+                                  type="radio"
+                                  onChange={(e) =>
+                                    setCurrentWool(e.target.value)
+                                  }
+                                  id={`wool_default_${selectedItem.id}`}
+                                  name={`wool_${selectedItem.id}`}
+                                  value="default"
+                                  checked={currentWool == "default"}
+                                />
+                                <label className="label">Шуманет-Эко</label>
+                                <input
+                                  className="radio"
+                                  type="radio"
+                                  onChange={(e) =>
+                                    setCurrentWool(e.target.value)
+                                  }
+                                  id={`wool_bm_${selectedItem.id}`}
+                                  name={`wool_${selectedItem.id}`}
+                                  value="bm"
+                                  checked={currentWool == "bm"}
+                                />
+                                <label className="label">Шуманет-БМ</label>
+                                <input
+                                  className="radio"
+                                  type="radio"
+                                  onChange={(e) =>
+                                    setCurrentWool(e.target.value)
+                                  }
+                                  id={`wool_sk_${selectedItem.id}`}
+                                  name={`wool_${selectedItem.id}`}
+                                  value="skNeo"
+                                  checked={currentWool == "skNeo"}
+                                />
+                                <label className="label">Шуманет-СК Neo</label>
+                                
+                                <hr />
+                                
+                                <h4 style={{ margin: "1px" }}>шаг профиля</h4>
+                                <div style={{ fontSize: "12px", color: "#666", marginBottom: "5px" }}>
+                                  ✔ шаг профиля при облицовке керамической плиткой не более 400 мм
+                                </div>
                                 <input
                                   className="radio"
                                   type="radio"
@@ -1157,7 +1242,7 @@ const Calculator = () => {
                                   checked={profileStep == 600}
                                 />
                                 <label className="label">
-                                  шаг профиля 600 мм
+                                  шаг профиля 600 мм (макс.высота конструкции 6,5 м)
                                 </label>
                                 <input
                                   className="radio"
@@ -1171,7 +1256,7 @@ const Calculator = () => {
                                   checked={profileStep == 400}
                                 />
                                 <label className="label">
-                                  шаг профиля 400 мм
+                                  шаг профиля 400 мм (макс.высота конструкции 7,5 м)
                                 </label>
                                 <input
                                   className="radio"
@@ -1185,7 +1270,7 @@ const Calculator = () => {
                                   checked={profileStep == 300}
                                 />
                                 <label className="label">
-                                  шаг профиля 300 мм
+                                  шаг профиля 300 мм (макс.высота конструкции 8,5 м)
                                 </label>
                                 <input
                                   className="checkbox"

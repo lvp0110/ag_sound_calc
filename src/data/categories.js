@@ -1,3 +1,4 @@
-const Categories = [];
+// Неиспользуемый файл - Categories не импортируется нигде в проекте
+// const Categories = [];
 
-export default Categories;
+// export default Categories;
