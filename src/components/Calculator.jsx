@@ -10,6 +10,7 @@ import SizeLimits from "../data/sizeLimits";
 import mainSections from "../data/mainSections";
 import { constRZero, constSentZero, openingZero } from "../constants/defaultValues";
 import { getImageUrl } from "../services/api";
+import { getValidationMessage } from "../constants/validationMessages";
 
 const Calculator = () => {
   // const navigate = useNavigate();
@@ -345,13 +346,13 @@ const Calculator = () => {
       max_constr_size = objectX.max_lenZ;
 
       if (isNaN(+constR.lenX) || +constR.lenX < 100)
-        return '<span class="p1">Введите правильную ширину</span> <br> Минимальная ШИРИНА конструкции 100 мм';
+        return getValidationMessage('W_LENX_MIN_100');
       else if (+constR.lenX > 50000)
-        return '<span class="p1">Введите правильную ширину</span> <br> В конструкциях ШИРИНОЙ свыше 15 метров необходимо устраивать температурные(деформационные) швы';
+        return getValidationMessage('W_LENX_MAX_50000');
       else if (isNaN(+constR.lenZ) || +constR.lenZ < 100)
-        return '<span class="p1">Введите правильную высоту</span> <br> Минимальная ВЫСОТА конструкции 100 мм';
+        return getValidationMessage('W_LENZ_MIN_100');
       else if (+constR.lenZ > max_constr_size)
-        return '<span class="p1">Введите правильную высоту</span> <br>Максимальная ВЫСОТА конструкции указана в меню выбора шага профиля';
+        return getValidationMessage('W_LENZ_MAX');
     } else if (currentSubCategory == "L" && template != 6) {
       objectX = SizeLimits.find(
         (el) => el.id_constr == currentItems && el.step == profileStep
@@ -360,13 +361,13 @@ const Calculator = () => {
       max_constr_size = objectX.max_lenZ;
 
       if (isNaN(+constR.lenX) || +constR.lenX < 100)
-        return '<span class="p1">Введите правильную ширину</span> <br>Минимальная ШИРИНА конструкции 100 мм';
+        return getValidationMessage('L_NOT6_LENX_MIN_100');
       else if (+constR.lenX > 50000)
-        return '<span class="p1">Введите правильную ширину</span> <br>В конструкциях ШИРИНОЙ свыше 15 метров необходимо устраивать  температурные(деформационные) швы';
+        return getValidationMessage('L_NOT6_LENX_MAX_50000');
       else if (isNaN(+constR.lenZ) || +constR.lenZ < 100)
-        return '<span class="p1">Введите правильную высоту</span> <br>Минимальная ВЫСОТА конструкции 100 мм';
+        return getValidationMessage('L_NOT6_LENZ_MIN_100');
       else if (+constR.lenZ > max_constr_size)
-        return '<span class="p1">Введите правильную высоту</span> <br>Максимальная ВЫСОТА конструкции указана в меню выбора шага профиля';
+        return getValidationMessage('L_NOT6_LENZ_MAX');
     } else if (currentSubCategory == "L" && template == 6) {
       objectX = SizeLimits.find(
         (el) => el.id_constr == currentItems && el.step == profileStep
@@ -375,40 +376,40 @@ const Calculator = () => {
       max_constr_size = objectX.max_lenZ;
 
       if (isNaN(+constR.lenX) || +constR.lenX < 200)
-        return '<span class="p1">Введите правильную ширину</span> <br>Минимальный размер обрезанной панели ЗИПС,пригодной к монтажу,составляет 200 мм.На обрезанном фрагменте должны присутствовать минимум 2 виброузла и 2 регулиремые опоры для панелей ЗИПС-Z4';
+        return getValidationMessage('L_T6_LENX_MIN_200');
       else if (+constR.lenX > 50000)
-        return '<span class="p1">Введите правильную ширину</span> <br>В конструкциях ШИРИНОЙ свыше 15 метров необходимо устраивать температурные(деформационные) швы';
+        return getValidationMessage('L_T6_LENX_MAX_50000');
       else if (isNaN(+constR.lenZ) || +constR.lenZ < 200)
-        return '<span class="p1">Введите правильную высоту</span> <br>Минимальный размер обрезанной панели ЗИПС,пригодной к монтажу,составляет 200 мм.На обрезанном фрагменте должны присутствовать минимум 2 виброузла и 2 регулиремые опоры для панелей ЗИПС-Z4';
+        return getValidationMessage('L_T6_LENZ_MIN_200');
       else if (+constR.lenZ > max_constr_size)
-        return '<span class="p1">Введите правильную высоту</span> <br>При монтаже панельной системы ЗИПС на ВЫСОТУ более 6 м рекомендуется устраивать деформационный шов  ';
+        return getValidationMessage('L_T6_LENZ_MAX');
     } else if (currentSubCategory == "C" && template == 5) {
       if (isNaN(+constR.lenX) || +constR.lenX < 250)
-        return '<span class="p1">Введите правильную ширину</span> <br>Минимальная ШИРИНА конструкции 250 мм';
+        return getValidationMessage('C_T5_LENX_MIN_250');
       else if (+constR.lenX > 50000)
-        return '<span class="p1">Введите правильную ширину</span> <br>В конструкциях ШИРИНОЙ свыше 15 метров необходимо устраивать температурные(деформационные) швы';
+        return getValidationMessage('C_T5_LENX_MAX_50000');
       else if (isNaN(+constR.lenY) || +constR.lenY < 250)
-        return '<span class="p1">Введите правильную длину</span> <br>Минимальная ДЛИНА конструкции 250 мм';
+        return getValidationMessage('C_T5_LENY_MIN_250');
       else if (+constR.lenY > 50000)
-        return '<span class="p1"><span class="p1">Введите правильную длину</span></span> <br>В конструкциях ДЛИНОЙ свыше 15 метров необходимо устраивать температурные(деформационные) швы';
+        return getValidationMessage('C_T5_LENY_MAX_50000');
     } else if (currentSubCategory == "5" && template == 201) {
       if (isNaN(+constR.lenX) || +constR.lenX < 250)
-        return '<span class="p1">Введите правильную ширину</span> <br>Минимальная ШИРИНА конструкции 250 мм';
+        return getValidationMessage('CAT5_T201_LENX_MIN_250');
       else if (+constR.lenX > 50000)
-        return '<span class="p1">Введите правильную ширину</span> <br>В конструкциях ШИРИНОЙ свыше 15 метров необходимо устраивать температурные(деформационные) швы';
+        return getValidationMessage('CAT5_T201_LENX_MAX_50000');
       else if (isNaN(+constR.lenZ) || +constR.lenZ < 250)
-        return '<span class="p1">Введите правильную высоту</span> <br>Минимальная ВЫСОТА конструкции 250 мм';
+        return getValidationMessage('CAT5_T201_LENZ_MIN_250');
       else if (+constR.lenZ > 50000)
-        return '<span class="p1"><span class="p1">Введите правильную высоту</span></span> <br>В конструкциях ВЫСОТОЙ свыше 15 метров необходимо устраивать температурные(деформационные) швы';
+        return getValidationMessage('CAT5_T201_LENZ_MAX_50000');
     } else if (currentSubCategory == "6" && template == 202) {
       if (isNaN(+constR.lenX) || +constR.lenX < 250)
-        return '<span class="p1">Введите правильную ширину</span> <br>Минимальная ШИРИНА конструкции 250 мм';
+        return getValidationMessage('CAT6_T202_LENX_MIN_250');
       else if (+constR.lenX > 50000)
-        return '<span class="p1">Введите правильную ширину</span> <br>В конструкциях ШИРИНОЙ свыше 15 метров необходимо устраивать температурные(деформационные) швы';
+        return getValidationMessage('CAT6_T202_LENX_MAX_50000');
       else if (isNaN(+constR.lenY) || +constR.lenY < 250)
-        return '<span class="p1">Введите правильную длину</span> <br>Минимальная ДЛИНА конструкции 250 мм';
+        return getValidationMessage('CAT6_T202_LENY_MIN_250');
       else if (+constR.lenY > 50000)
-        return '<span class="p1"><span class="p1">Введите правильную длину</span></span> <br>В конструкциях ДЛИНОЙ свыше 15 метров необходимо устраивать температурные(деформационные) швы';
+        return getValidationMessage('CAT6_T202_LENY_MAX_50000');
     } else if (isZIPSCeiling) {
       console.log("ZIPS ceiling validation triggered");
       const lenX = +constR.lenX || 0;
@@ -417,20 +418,20 @@ const Calculator = () => {
       // Проверка ширины - проверяем все возможные случаи
       if (!constR.lenX || constR.lenX === null || constR.lenX === undefined || constR.lenX === "" || isNaN(lenX) || lenX < 200 || lenX === 0) {
         console.log("ZIPS ceiling validation: width error", { lenX, constR_lenX: constR.lenX });
-        return '<span class="p1">Введите правильную ширину</span> <br>Минимальный размер обрезанной панели ЗИПС,пригодной к монтажу,составляет 200 мм.На обрезанном фрагменте должны присутствовать минимум 2 виброузла и 2 регулиремые опоры для панелей ЗИПС-Z4';
+        return getValidationMessage('ZIPS_CEILING_LENX_MIN_200');
       }
       if (lenX > 50000) {
         console.log("ZIPS ceiling validation: width too large", lenX);
-        return '<span class="p1">Введите правильную ширину</span> <br>В конструкциях ШИРИНОЙ свыше 15 метров необходимо устраивать температурные(деформационные) швы';
+        return getValidationMessage('ZIPS_CEILING_LENX_MAX_50000');
       }
       // Проверка длины - проверяем все возможные случаи, включая 0
       if (!constR.lenY || constR.lenY === null || constR.lenY === undefined || constR.lenY === "" || isNaN(lenY) || lenY < 200 || lenY === 0) {
         console.log("ZIPS ceiling validation: length error", { lenY, constR_lenY: constR.lenY });
-        return '<span class="p1">Введите правильную длину</span> <br>Минимальный размер обрезанной панели ЗИПС,пригодной к монтажу,составляет 200 мм.На обрезанном фрагменте должны присутствовать минимум 2 виброузла и 2 регулиремые опоры для панелей ЗИПС-Z4';
+        return getValidationMessage('ZIPS_CEILING_LENY_MIN_200');
       }
       if (lenY > 50000) {
         console.log("ZIPS ceiling validation: length too large", lenY);
-        return '<span class="p1">Введите правильную длину</span> <br>В конструкциях ДЛИНОЙ свыше 15 метров необходимо устраивать температурные(деформационные) швы';
+        return getValidationMessage('ZIPS_CEILING_LENY_MAX_50000');
       }
       console.log("ZIPS ceiling validation: passed");
     }
@@ -440,21 +441,21 @@ const Calculator = () => {
   const checkInputFloor = () => {
     if (currentSubCategory == "F" && template != 111 && template != 3) {
       if (isNaN(+constR.lenX) || +constR.lenX < 500)
-        return '<span class="p1">Введите правильную ширину</span> <br>Минимальная ШИРИНА конструкции 500 мм';
+        return getValidationMessage('F_NOT111_NOT3_LENX_MIN_500');
       else if (isNaN(+constR.lenY) || +constR.lenY < 500)
-        return '<span class="p1">Введите правильную длину</span> <br>Минимальная ДЛИНА конструкции 500 мм';
+        return getValidationMessage('F_NOT111_NOT3_LENY_MIN_500');
     } else if (currentSubCategory == "F" && template == 111) {
       if (isNaN(+constR.lenX) || +constR.lenX < 200)
-        return '<span class="p1">Введите правильную ширину</span> <br>Обрезанные панели ЗИПС ШИРИНОЙ менее 200 мм не используются';
+        return getValidationMessage('F_T111_LENX_MIN_200');
       else if (isNaN(+constR.lenY) || +constR.lenY < 200)
-        return '<span class="p1">Введите правильную длину</span> <br>Обрезанные панели ЗИПС ДЛИНОЙ менее 200 мм не используются';
+        return getValidationMessage('F_T111_LENY_MIN_200');
       else if (+constR.lenY > 18000)
-        return '<span class="p1">Введите правильную длину</span> <br>Акустические швы в обязательном порядке устраиваются в дверных проемах,а также в местах сооружения звукоизоляционных перегородок';
+        return getValidationMessage('F_T111_LENY_MAX_18000');
     } else if (currentSubCategory == "F" && template == 3) {
       if (isNaN(+constR.lenX) || +constR.lenX < 500)
-        return '<span class="p1">Введите правильную ширину</span> <br>Минимальная ШИРИНА конструкции 500 мм';
+        return getValidationMessage('F_T3_LENX_MIN_500');
       else if (isNaN(+constR.lenY) || +constR.lenY < 500)
-        return '<span class="p1">Введите правильную длину</span> <br>Минимальная ДЛИНА конструкции 500 мм';
+        return getValidationMessage('F_T3_LENY_MIN_500');
     }
     return null;
   };
@@ -462,19 +463,19 @@ const Calculator = () => {
   const checkInputMaxFloor = () => {
     if (currentSubCategory == "F" && template != 111 && template != 3) {
       if (+constR.lenX > 18000)
-        return '<span class="p1">Внимание!</span> <br>Расстояние между деформационными швами не должно превышать 18 метров. Деформационные и термоусадочные швы устраиваются по необходимости в соответсвии с требованиями СП 29.13330.2011. <br> Акустические швы в обязательном порядке устраиваются в дверных проемах,а также в местах сооружения звукоизоляционных перегородок.';
+        return getValidationMessage('F_NOT111_NOT3_LENX_MAX_18000');
       else if (+constR.lenY > 18000)
-        return '<span class="p1">Внимание!</span> <br>Расстояние между деформационными швами не должно превышать 18 метров. Деформационные и термоусадочные швы устраиваются по необходимости в соответсвии с требованиями СП 29.13330.2011. <br>  Акустические швы в обязательном порядке устраиваются в дверных проемах, а также в местах сооружения звукоизоляционных перегородок.';
+        return getValidationMessage('F_NOT111_NOT3_LENY_MAX_18000');
     } else if (currentSubCategory == "F" && template == 111) {
       if (+constR.lenX > 18000)
-        return '<span class="p1">Внимание!</span> <br>Расстояние между деформационными швами не должно превышать 18 метров. Деформационные и термоусадочные швы устраиваются по необходимости в соответсвии с требованиями СП 29.13330.2011. <br> Акустические швы в обязательном порядке устраиваются в дверных проемах,а также в местах сооружения звукоизоляционных перегородок.';
+        return getValidationMessage('F_T111_LENX_MAX_18000');
       else if (+constR.lenY > 18000)
-        return '<span class="p1">Внимание!</span> <br>Расстояние между деформационными швами не должно превышать 18 метров. Деформационные и термоусадочные швы устраиваются по необходимости в соответсвии с требованиями СП 29.13330.2011. <br>  Акустические швы в обязательном порядке устраиваются в дверных проемах, а также в местах сооружения звукоизоляционных перегородок.';
+        return getValidationMessage('F_T111_LENY_MAX_18000');
     } else if (currentSubCategory == "F" && template == 3) {
       if (+constR.lenX > 18000)
-        return '<span class="p1">Внимание!</span> <br>Расстояние между деформационными швами не должно превышать 18 метров. Деформационные и термоусадочные швы устраиваются по необходимости в соответсвии с требованиями СП 29.13330.2011. <br> Акустические швы в обязательном порядке устраиваются в дверных проемах,а также в местах сооружения звукоизоляционных перегородок.';
+        return getValidationMessage('F_T3_LENX_MAX_18000');
       else if (+constR.lenY > 18000)
-        return '<span class="p1">Внимание!</span> <br>Расстояние между деформационными швами не должно превышать 18 метров. Деформационные и термоусадочные швы устраиваются по необходимости в соответсвии с требованиями СП 29.13330.2011. <br>  Акустические швы в обязательном порядке устраиваются в дверных проемах, а также в местах сооружения звукоизоляционных перегородок.';
+        return getValidationMessage('F_T3_LENY_MAX_18000');
     }
     return null;
   };
