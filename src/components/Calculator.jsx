@@ -2,7 +2,7 @@ import { useState, useEffect, /* useMemo, */ useCallback, useRef } from "react";
 import { /* useNavigate, */ useParams } from "react-router-dom";
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
-import Swal from "sweetalert2";
+import Modal from "./Modal";
 import "./Calculator.css";
 import SubCategories from "../data/subCategories";
 import Items, { getItemsWithApiImages } from "../data/items";
@@ -45,6 +45,19 @@ const Calculator = () => {
   // const [isErrorFloor, setIsErrorFloor] = useState(false);
   const [calculatedMaterials, setCalculatedMaterials] = useState([]);
   const [itemsWithImages, setItemsWithImages] = useState(Items); // Начальное значение - базовые items
+  
+  // Состояние для модального окна
+  const [modal, setModal] = useState({
+    isOpen: false,
+    title: null,
+    html: null,
+    icon: null,
+    imageUrl: null,
+    imageWidth: null,
+    imageHeight: null,
+    confirmButtonText: "OK",
+    confirmButtonColor: "#6cabc8",
+  });
   
   // Ref для прокрутки к selected-item-container
   const selectedItemContainerRef = useRef(null);
@@ -298,6 +311,30 @@ const Calculator = () => {
   };
 
   const checkInput = () => {
+    // Получаем текущий элемент для дополнительной проверки
+    const currentItem = itemsWithImages.find((el) => el.id == currentItems);
+    const itemTemplate = currentItem?.template;
+    const itemAgId = currentItem?.ag_id;
+    const itemCId = currentItem?.c_id;
+    
+    // Проверяем, является ли это ЗИПС потолком по ag_id (начинается с AG.Z) или по template и категории
+    const isZIPSCeiling = (currentSubCategory == "C" && (template == 4 || itemTemplate == 4)) ||
+                          (itemCId == "C" && itemTemplate == 4) ||
+                          (itemAgId && itemAgId.startsWith("AG.Z"));
+    
+    console.log("checkInput called:", {
+      currentSubCategory,
+      template,
+      itemTemplate,
+      itemCId,
+      itemAgId,
+      currentItems,
+      currentItem: currentItem?.title,
+      isZIPSCeiling,
+      lenX: constR.lenX,
+      lenY: constR.lenY,
+    });
+    
     let objectX;
     let max_constr_size;
     if (currentSubCategory == "W") {
@@ -372,18 +409,30 @@ const Calculator = () => {
         return '<span class="p1">Введите правильную длину</span> <br>Минимальная ДЛИНА конструкции 250 мм';
       else if (+constR.lenY > 50000)
         return '<span class="p1"><span class="p1">Введите правильную длину</span></span> <br>В конструкциях ДЛИНОЙ свыше 15 метров необходимо устраивать температурные(деформационные) швы';
-    } else if (currentSubCategory == "C" && template == 4) {
-      const lenX = +constR.lenX;
-      const lenY = +constR.lenY;
+    } else if (isZIPSCeiling) {
+      console.log("ZIPS ceiling validation triggered");
+      const lenX = +constR.lenX || 0;
+      const lenY = +constR.lenY || 0;
       
-      if (constR.lenX === null || constR.lenX === undefined || constR.lenX === "" || isNaN(lenX) || lenX < 200)
+      // Проверка ширины - проверяем все возможные случаи
+      if (!constR.lenX || constR.lenX === null || constR.lenX === undefined || constR.lenX === "" || isNaN(lenX) || lenX < 200 || lenX === 0) {
+        console.log("ZIPS ceiling validation: width error", { lenX, constR_lenX: constR.lenX });
         return '<span class="p1">Введите правильную ширину</span> <br>Минимальный размер обрезанной панели ЗИПС,пригодной к монтажу,составляет 200 мм.На обрезанном фрагменте должны присутствовать минимум 2 виброузла и 2 регулиремые опоры для панелей ЗИПС-Z4';
-      else if (lenX > 50000)
-        return '<span class="p1">Введите правильную ширину</span> <br>Акустические швы в обязательном порядке устраиваются в дверных проемах,а также в местах сооружения звукоизоляционных перегородок ';
-      else if (constR.lenY === null || constR.lenY === undefined || constR.lenY === "" || isNaN(lenY) || lenY < 200)
+      }
+      if (lenX > 50000) {
+        console.log("ZIPS ceiling validation: width too large", lenX);
+        return '<span class="p1">Введите правильную ширину</span> <br>В конструкциях ШИРИНОЙ свыше 15 метров необходимо устраивать температурные(деформационные) швы';
+      }
+      // Проверка длины - проверяем все возможные случаи, включая 0
+      if (!constR.lenY || constR.lenY === null || constR.lenY === undefined || constR.lenY === "" || isNaN(lenY) || lenY < 200 || lenY === 0) {
+        console.log("ZIPS ceiling validation: length error", { lenY, constR_lenY: constR.lenY });
         return '<span class="p1">Введите правильную длину</span> <br>Минимальный размер обрезанной панели ЗИПС,пригодной к монтажу,составляет 200 мм.На обрезанном фрагменте должны присутствовать минимум 2 виброузла и 2 регулиремые опоры для панелей ЗИПС-Z4';
-      else if (lenY > 50000)
-        return '<span class="p1">Введите правильную длину</span> <br>Акустические швы в обязательном порядке устраиваются в дверных проемах,а также в местах сооружения звукоизоляционных перегородок';
+      }
+      if (lenY > 50000) {
+        console.log("ZIPS ceiling validation: length too large", lenY);
+        return '<span class="p1">Введите правильную длину</span> <br>В конструкциях ДЛИНОЙ свыше 15 метров необходимо устраивать температурные(деформационные) швы';
+      }
+      console.log("ZIPS ceiling validation: passed");
     }
     return null;
   };
@@ -464,10 +513,26 @@ const Calculator = () => {
       console.log("Response status:", response.status, response.statusText);
 
       if (!response.ok) {
-        const errorText = await response.text();
+        let errorText = '';
+        try {
+          const errorData = await response.json();
+          errorText = errorData.error || errorData.message || JSON.stringify(errorData);
+        } catch (e) {
+          errorText = await response.text();
+        }
         console.error("API error response:", errorText);
+        
+        // Парсим JSON ошибку, если она есть
+        let errorMessage = errorText;
+        try {
+          const errorJson = JSON.parse(errorText);
+          errorMessage = errorJson.error || errorJson.message || errorText;
+        } catch (e) {
+          // Если не JSON, используем как есть
+        }
+        
         throw new Error(
-          `HTTP error! status: ${response.status}, message: ${errorText}`
+          `HTTP error! status: ${response.status}, message: ${errorMessage}`
         );
       }
 
@@ -498,10 +563,23 @@ const Calculator = () => {
         name: error.name,
       });
 
-      Swal.fire({
+      // Формируем понятное сообщение об ошибке
+      let errorMessage = error.message;
+      if (error.message.includes('invalid construction size')) {
+        errorMessage = 'Неверный размер конструкции. Пожалуйста, проверьте введенные размеры. Для ЗИПС потолка минимальный размер составляет 200 мм.';
+      } else if (error.message.includes('404')) {
+        errorMessage = 'Сервер API недоступен. Проверьте подключение к интернету или обратитесь к администратору.';
+      }
+      
+      setModal({
+        isOpen: true,
         title: "Ошибка",
-        html: `Не удалось рассчитать материалы.<br><br>Ошибка: ${error.message}<br><br>Проверьте консоль для деталей.`,
+        html: `Не удалось рассчитать материалы.<br><br>${errorMessage}<br><br>Проверьте консоль для деталей.`,
         icon: "error",
+        imageUrl: null,
+        imageWidth: null,
+        imageHeight: null,
+        confirmButtonText: "OK",
         confirmButtonColor: "#6cabc8",
       });
 
@@ -511,131 +589,170 @@ const Calculator = () => {
   };
 
   const addConstrToCalc = () => {
-    const floorError = checkInputFloor();
-
-    if (floorError) {
-      Swal.fire({
-        html: floorError,
+    // Сначала проверяем общую валидацию (для всех типов конструкций, включая ЗИПС потолок)
+    const inputError = checkInput();
+    console.log("Validation check:", {
+      inputError,
+      currentSubCategory,
+      template,
+      currentItems,
+      lenX: constR.lenX,
+      lenY: constR.lenY,
+      lenZ: constR.lenZ,
+    });
+    if (inputError) {
+      setModal({
+        isOpen: true,
+        title: null,
+        html: inputError,
+        icon: null,
         imageWidth: 60,
         imageHeight: 50,
-        imageUrl: "../../../logo1.png",
+        imageUrl: `${import.meta.env.BASE_URL}logo1.png`,
+        confirmButtonText: "OK",
+        confirmButtonColor: "#6cabc8",
+      });
+      return;
+    }
+
+    // Затем проверяем валидацию для полов
+    const floorError = checkInputFloor();
+    if (floorError) {
+      setModal({
+        isOpen: true,
+        title: null,
+        html: floorError,
+        icon: null,
+        imageWidth: 60,
+        imageHeight: 50,
+        imageUrl: `${import.meta.env.BASE_URL}logo1.png`,
         confirmButtonText: "Ok",
         confirmButtonColor: "#6cabc8",
       });
-    } else {
-      const floorMaxError = checkInputMaxFloor();
-      if (floorMaxError) {
-        Swal.fire({
-          html: floorMaxError,
-          imageWidth: 60,
-          imageHeight: 50,
-          imageUrl: "../../../logo1.png",
-          confirmButtonText: "Принять",
-          confirmButtonColor: "#6cabc8",
-        });
-      }
-      if (checkInput() == null) {
-        const IconType = SubCategories.find(
-          (el) => el.id == currentSubCategory
-        );
-        const Description = itemsWithImages.find((el) => el.id == currentItems);
-        const Constr = itemsWithImages.find((el) => el.id == currentItems);
-        const ConstrType = SubCategories.find(
-          (el) => el.id == currentSubCategory
-        );
-        const ConstrId = itemsWithImages.find((el) => el.id == currentItems);
-        const StepProfile = itemsWithImages.find((el) => el.id == currentItems);
-
-        const newConstR = {
-          ...constR,
-          imgBlack: IconType?.imgBlack ? getImageUrl(IconType.imgBlack) : undefined,
-          description: Description?.description,
-          key_id: Date.now(),
-          title: Constr?.title,
-          type: ConstrType?.title,
-          ag_id: ConstrId?.ag_id,
-          step: StepProfile?.step,
-          weight: StepProfile?.weight,
-        };
-
-        // Update constrSent before adding to list
-        const code = getContsCodeByMaterials();
-
-        // Calculate Area and Perimeter based on construction type
-        // API expects Area and Perimeter as integers (in mm² and mm respectively)
-        let area = 0;
-        let perimeter = 0;
-
-        if (currentSubCategory == "F") {
-          // Floor: Area = lenX * lenY (in mm²)
-          area = Math.round(+constR.lenX * +constR.lenY);
-          perimeter = Math.round(2 * (+constR.lenX + +constR.lenY)); // in mm
-        } else if (currentSubCategory == "C") {
-          // Ceiling: Area = lenX * lenY (in mm²)
-          area = Math.round(+constR.lenX * +constR.lenY);
-          perimeter = Math.round(2 * (+constR.lenX + +constR.lenY)); // in mm
-        } else if (currentSubCategory == "W" || currentSubCategory == "L") {
-          // Wall/Frame: Area = lenX * lenZ (in mm²)
-          area = Math.round(+constR.lenX * +constR.lenZ);
-          perimeter = Math.round(2 * (+constR.lenX + +constR.lenZ)); // in mm
-        }
-
-        // Преобразуем проемы: lenX и lenZ должны быть числами, а не строками
-        const openingsWithNumbers = constrSent.Openings.map(opening => ({
-          ...opening,
-          lenX: +opening.lenX || 0,
-          lenZ: +opening.lenZ || 0,
-        }));
-
-        const newConstrSent = {
-          Code: code,
-          LenX: +constR.lenX || 0,
-          LenY: +constR.lenY || 0,
-          LenZ: +constR.lenZ || 0,
-          AddCeilShift: +constR.AddCeilShift || 0,
-          step: +profileStep,
-          dframe: dFrame,
-          Area: area,
-          Perimeter: perimeter,
-          Openings: openingsWithNumbers,
-        };
-
-        if (code == "AG.L401" || code == "AG.W101" || code == "AG.W105") {
-          newConstrSent.dframe = true;
-        }
-        if (
-          (code == "AG.F615" || code == "AG.F615_vibroflex_LD") &&
-          profileStep == 600
-        ) {
-          newConstrSent.step = 400;
-        }
-
-        const deep = JSON.parse(JSON.stringify(newConstrSent));
-        const updatedList = [...ConstrToCalcToSent, deep];
-        console.log("Sending to API:", updatedList);
-
-        setConstrToCalcToSent(updatedList);
-        setConstrSent({ ...constSentZero });
-        setOpening({ ...openingZero });
-        setConstrToCalc([...ConstrToCalc, newConstR]);
-        calcConstruction(updatedList);
-        setConstR({ ...constRZero });
-        setDFrame(false);
-        setUnvisible(false);
-        setProfileStep(600);
-        setCurrentGkla("default");
-        setCurrentWool("default");
-      } else {
-        Swal.fire({
-          html: checkInput(),
-          imageWidth: 60,
-          imageHeight: 50,
-          imageUrl: "../../../logo1.png",
-          confirmButtonText: "OK",
-          confirmButtonColor: "#6cabc8",
-        });
-      }
+      return;
     }
+
+    // Проверяем максимальные размеры для полов
+    const floorMaxError = checkInputMaxFloor();
+    if (floorMaxError) {
+      setModal({
+        isOpen: true,
+        title: null,
+        html: floorMaxError,
+        icon: null,
+        imageWidth: 60,
+        imageHeight: 50,
+        imageUrl: `${import.meta.env.BASE_URL}logo1.png`,
+        confirmButtonText: "Принять",
+        confirmButtonColor: "#6cabc8",
+      });
+      return;
+    }
+
+    // Если все проверки прошли, добавляем конструкцию
+    const IconType = SubCategories.find(
+      (el) => el.id == currentSubCategory
+    );
+    const Description = itemsWithImages.find((el) => el.id == currentItems);
+    const Constr = itemsWithImages.find((el) => el.id == currentItems);
+    const ConstrType = SubCategories.find(
+      (el) => el.id == currentSubCategory
+    );
+    const ConstrId = itemsWithImages.find((el) => el.id == currentItems);
+    const StepProfile = itemsWithImages.find((el) => el.id == currentItems);
+
+    const newConstR = {
+      ...constR,
+      imgBlack: IconType?.imgBlack ? getImageUrl(IconType.imgBlack) : undefined,
+      description: Description?.description,
+      key_id: Date.now(),
+      title: Constr?.title,
+      type: ConstrType?.title,
+      ag_id: ConstrId?.ag_id,
+      step: StepProfile?.step,
+      weight: StepProfile?.weight,
+    };
+
+    // Update constrSent before adding to list
+    const code = getContsCodeByMaterials();
+
+    // Calculate Area and Perimeter based on construction type
+    // API expects Area and Perimeter as integers (in mm² and mm respectively)
+    let area = 0;
+    let perimeter = 0;
+    let lenX = +constR.lenX || 0;
+    let lenY = +constR.lenY || 0;
+    let lenZ = +constR.lenZ || 0;
+
+    if (currentSubCategory == "F") {
+      // Floor: Area = lenX * lenY (in mm²)
+      area = Math.round(lenX * lenY);
+      perimeter = Math.round(2 * (lenX + lenY)); // in mm
+    } else if (currentSubCategory == "C") {
+      // Ceiling: Area = lenX * lenY (in mm²)
+      area = Math.round(lenX * lenY);
+      perimeter = Math.round(2 * (lenX + lenY)); // in mm
+    } else if (currentSubCategory == "W" || currentSubCategory == "L") {
+      // Wall/Frame: Area = lenX * lenZ (in mm²)
+      area = Math.round(lenX * lenZ);
+      perimeter = Math.round(2 * (lenX + lenZ)); // in mm
+    }
+
+    // Преобразуем проемы: lenX и lenZ должны быть числами, а не строками
+    const openingsWithNumbers = constrSent.Openings.map(opening => ({
+      ...opening,
+      lenX: +opening.lenX || 0,
+      lenZ: +opening.lenZ || 0,
+    }));
+
+    const newConstrSent = {
+      Code: code,
+      LenX: lenX,
+      LenY: lenY,
+      LenZ: lenZ,
+      AddCeilShift: +constR.AddCeilShift || 0,
+      step: +profileStep,
+      dframe: dFrame,
+      Area: area,
+      Perimeter: perimeter,
+      Openings: openingsWithNumbers,
+    };
+
+    if (code == "AG.L401" || code == "AG.W101" || code == "AG.W105") {
+      newConstrSent.dframe = true;
+    }
+    if (
+      (code == "AG.F615" || code == "AG.F615_vibroflex_LD") &&
+      profileStep == 600
+    ) {
+      newConstrSent.step = 400;
+    }
+
+    const deep = JSON.parse(JSON.stringify(newConstrSent));
+    const updatedList = [...ConstrToCalcToSent, deep];
+    console.log("Sending to API:", JSON.stringify(updatedList, null, 2));
+    console.log("Construction details:", {
+      code,
+      lenX,
+      lenY,
+      lenZ,
+      area,
+      perimeter,
+      template,
+      currentSubCategory,
+    });
+
+    setConstrToCalcToSent(updatedList);
+    setConstrSent({ ...constSentZero });
+    setOpening({ ...openingZero });
+    setConstrToCalc([...ConstrToCalc, newConstR]);
+    calcConstruction(updatedList);
+    setConstR({ ...constRZero });
+    setDFrame(false);
+    setUnvisible(false);
+    setProfileStep(600);
+    setCurrentGkla("default");
+    setCurrentWool("default");
   };
 
   const tableToExcel = async () => {
@@ -816,7 +933,6 @@ const Calculator = () => {
                     onClick={(e) => e.stopPropagation()}
                   >
                     {items.length > 0 ? items.map((elem) => {
-                      const isSelected = currentItems == elem.id;
                       const imageSrc = elem.Img || elem.img;
                       const src = imageSrc && (imageSrc.startsWith('http://') || imageSrc.startsWith('https://'))
                         ? imageSrc
@@ -1331,6 +1447,18 @@ const Calculator = () => {
           })}
         </div>
       </div>
+      <Modal
+        isOpen={modal.isOpen}
+        onClose={() => setModal({ ...modal, isOpen: false })}
+        title={modal.title}
+        html={modal.html}
+        icon={modal.icon}
+        imageUrl={modal.imageUrl}
+        imageWidth={modal.imageWidth}
+        imageHeight={modal.imageHeight}
+        confirmButtonText={modal.confirmButtonText}
+        confirmButtonColor={modal.confirmButtonColor}
+      />
     </div>
   );
 };

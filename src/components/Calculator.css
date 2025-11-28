@@ -360,64 +360,6 @@ h4 {
   border: solid 1px rgb(184, 178, 178);
 }
 
-div:where(.swal2-container) {
-  display: grid;
-  position: fixed;
-  z-index: 1060;
-  inset: 0;
-  box-sizing: border-box;
-  grid-template-areas:
-    "top-start top top-end"
-    "center-start center center-end"
-    "bottom-start bottom-center bottom-end";
-  grid-template-rows: minmax(min-content, auto) minmax(min-content, auto) minmax(
-      min-content,
-      auto
-    );
-  height: 100%;
-  width: 100%;
-  padding: 0.625em;
-  overflow-x: hidden;
-  transition: background-color 0.1s;
-  -webkit-overflow-scrolling: touch;
-}
-
-div:where(.swal2-container) button:where(.swal2-styled).swal2-confirm {
-  border: 0;
-  border-radius: 0.25em;
-  background: initial;
-  background-color: #6cabc8;
-  color: #fff;
-  font-size: 1em;
-  height: 70px;
-  width: 70px;
-  position: relative;
-  top: -100px;
-}
-
-div:where(.swal2-container).swal2-center > .swal2-popup {
-  grid-column: 2;
-  grid-row: 2;
-  place-self: center center;
-}
-
-div:where(.swal2-container) .swal2-html-container {
-  z-index: 1;
-  justify-content: center;
-  margin: 1em 1.6em 0.3em;
-  padding: 30px;
-  overflow: auto;
-  color: inherit;
-  font-size: 1.125em;
-  font-weight: normal;
-  line-height: normal;
-  text-align: center;
-  word-wrap: break-word;
-  word-break: break-word;
-  width: auto;
-  top: 0;
-}
-
 .span_gkl {
   font-weight: 600;
   text-decoration: underline;
