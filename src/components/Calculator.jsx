@@ -755,6 +755,42 @@ const Calculator = () => {
     setCurrentWool("default");
   };
 
+  // Обработчик клавиши Enter для кнопки "расчет конструкции"
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      // Проверяем, что нажата клавиша Enter
+      if (event.key === 'Enter' || event.keyCode === 13) {
+        // Проверяем, что кнопка видна (template не null)
+        if (template != null) {
+          // Проверяем, что модальное окно не открыто
+          if (!modal.isOpen) {
+            // Проверяем, что фокус не на textarea или других элементах, где Enter имеет другое значение
+            const activeElement = document.activeElement;
+            const isInputField = activeElement && (
+              activeElement.tagName === 'INPUT' ||
+              activeElement.tagName === 'TEXTAREA'
+            );
+            
+            // Если фокус на input (но не textarea), разрешаем Enter для расчета
+            // Если фокус на textarea, не перехватываем Enter
+            if (!isInputField || activeElement.tagName === 'INPUT') {
+              event.preventDefault();
+              addConstrToCalc();
+            }
+          }
+        }
+      }
+    };
+
+    // Добавляем обработчик события
+    window.addEventListener('keydown', handleKeyDown);
+
+    // Удаляем обработчик при размонтировании компонента
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [template, modal.isOpen, addConstrToCalc]); // Зависимости: template, modal.isOpen и addConstrToCalc
+
   const tableToExcel = async () => {
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet("My Sheet");
