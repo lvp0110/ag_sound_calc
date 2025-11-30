@@ -1076,10 +1076,10 @@ const Calculator = () => {
                                 setConstR({ ...constR, lenY: e.target.value })
                               }
                             />
-                            {selectedItem.template == 5 && (
-                              <input
+                            {selectedItem.template == 5 && selectedItem.id == 503 && (
+                              <input 
                                 type="number"
-                                placeholder="смещение потолка,мм"
+                                placeholder="смещение от потолка,мм"
                                 value={constR.AddCeilShift || ""}
                                 onChange={(e) =>
                                   setConstR({

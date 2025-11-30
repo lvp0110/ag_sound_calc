@@ -240,7 +240,7 @@ span {
 }
 
 input[type="number"] {
-  width: 47.3%;
+  width: 100%;
   height: 30px;
   font-family: "Montserrat", sans-serif;
   margin-top: 6px;
@@ -422,6 +422,8 @@ h4 {
 .partittionWave,
 .framedBx {
   margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
 }
 
 /* Стили для секций */

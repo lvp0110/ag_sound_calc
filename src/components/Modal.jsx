@@ -117,3 +117,4 @@ const Modal = ({ isOpen, onClose, title, html, icon, imageUrl, imageWidth, image
 
 export default Modal;
 
+
