@@ -422,6 +422,17 @@ const Calculator = () => {
     setProfileStep(600);
     setCurrentGkla("default");
     setCurrentWool("default");
+    
+    // Прокрутка к таблице конструкций
+    setTimeout(() => {
+      const constructionTable = document.getElementById("table1");
+      if (constructionTable) {
+        constructionTable.scrollIntoView({
+          behavior: "smooth",
+          block: "start",
+        });
+      }
+    }, 100);
   }, [
     constR,
     currentSubCategory,

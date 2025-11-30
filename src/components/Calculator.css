@@ -288,7 +288,7 @@ h4 {
 
 /* Стили для секций */
 .section-container {
-  margin-bottom: 30px;
+  margin-bottom: 10px;
   padding: 15px;
   border: 1px solid #1391a8;
   border-radius: 10px;
@@ -398,7 +398,7 @@ h4 {
   }
 
   /* Адаптивность для кнопок const_page на экранах менее 550px */
-  .const_page {
+  /* .const_page {
     height: clamp(160px, 35vw, 200px) !important;
     width: clamp(160px, 35vw, 200px) !important;
     max-width: clamp(160px, 35vw, 200px) !important;
@@ -419,5 +419,38 @@ h4 {
     gap: 10px;
     justify-content: center;
     margin: 0 auto;
+  }
+} */
+
+/* Адаптивность для экранов менее 375px - два столбца */
+@media screen and (max-width: 375px) {
+  .items.content-item {
+    max-width: 100% !important;
+    width: 100% !important;
+    gap: 8px !important;
+    justify-content: flex-start !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-sizing: border-box;
+  }
+
+  .const-item-container,
+  .items.content-item > div {
+    width: 48% !important;
+    flex: 0 0 48% !important;
+    max-width: 48% !important;
+    min-width: 0 !important;
+    aspect-ratio: 1 !important;
+    height: auto !important;
+  }
+
+  .const_page {
+    width: 100% !important;
+    height: 100% !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    font-size: clamp(9px, 2.5vw, 11px) !important;
   }
 }
