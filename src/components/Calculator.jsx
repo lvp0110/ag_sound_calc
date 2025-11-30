@@ -1363,22 +1363,58 @@ const Calculator = () => {
                                   className="counter__button_param"
                                   style={{ right: "2px" }}
                                   onClick={addOpening}
+                                  disabled={!opening.lenX || !opening.lenZ || isNaN(+opening.lenX) || isNaN(+opening.lenZ) || +opening.lenX <= 0 || +opening.lenZ <= 0}
                                 >
                                   добавить проем
                                 </button>
                                 {constrSent.Openings.length > 0 && (
-                                  <div>
-                                    {constrSent.Openings.map((op, idx) => (
-                                      <div key={idx}>
-                                        {getOpeningType(op.Type)}: {op.lenX} x{" "}
-                                        {op.lenZ} мм
-                                        <button
-                                          onClick={() => delFromOpenings(idx)}
-                                        >
-                                          удалить
-                                        </button>
-                                      </div>
-                                    ))}
+                                  <div className="tbl-in" style={{ marginTop: "10px", width: "100%" }}>
+                                    <table className="data" style={{ width: "100%" }}>
+                                      <thead>
+                                        <tr>
+                                          <th
+                                            colSpan="3"
+                                            style={{
+                                              fontSize: "14px",
+                                              fontWeight: "bold",
+                                              textAlign: "center",
+                                            }}
+                                          >
+                                            список проемов
+                                          </th>
+                                        </tr>
+                                        <tr>
+                                          <th>тип проема</th>
+                                          <th>размеры, мм</th>
+                                          <th></th>
+                                        </tr>
+                                      </thead>
+                                      <tbody>
+                                        {constrSent.Openings.map((op, idx) => (
+                                          <tr key={idx}>
+                                            <td style={{ textAlign: "center" }}>
+                                              {getOpeningType(op.Type)}
+                                            </td>
+                                            <td style={{ textAlign: "center" }}>
+                                              {op.lenX} x {op.lenZ}
+                                            </td>
+                                            <td>
+                                              <input
+                                                type="button"
+                                                className="counter__button_minus"
+                                                onClick={() => delFromOpenings(idx)}
+                                              />
+                                              <img
+                                                src={`${import.meta.env.BASE_URL}delete-icon.jpg`}
+                                                alt=""
+                                                style={{ height: "30px", opacity: 0.7, cursor: "pointer" }}
+                                                onClick={() => delFromOpenings(idx)}
+                                              />
+                                            </td>
+                                          </tr>
+                                        ))}
+                                      </tbody>
+                                    </table>
                                   </div>
                                 )}
                               </div>
