@@ -1,16 +1,9 @@
-import {
-  useState,
-  useEffect,
-  /* useMemo, */ useCallback /* useRef */,
-} from "react";
-import { /* useNavigate, */ useParams } from "react-router-dom";
-import ExcelJS from "exceljs";
-import { saveAs } from "file-saver";
+import { useState, useEffect, useCallback } from "react";
+import { useParams } from "react-router-dom";
 import Modal from "./Modal";
 import "./Calculator.css";
 import SubCategories from "../data/subCategories";
 import Items, { getItemsWithApiImages } from "../data/items";
-import SizeLimits from "../data/sizeLimits";
 import mainSections from "../data/mainSections";
 import {
   constRZero,
@@ -18,7 +11,16 @@ import {
   openingZero,
 } from "../constants/defaultValues";
 import { getImageUrl } from "../services/api";
-import { getValidationMessage } from "../constants/validationMessages";
+import { validateInput, validateFloorInput, validateFloorMaxInput, getMaxLenZInMeters } from "../utils/validation";
+import { calculateAreaAndPerimeter, getConstructionCode } from "../utils/calculations";
+import { getOpeningType } from "../utils/formatters";
+import { exportTablesToExcel, copyMaterialsToClipboard } from "../utils/excelExport";
+import { calculateConstruction } from "../services/constructionApi";
+import SectionContainer from "./SectionContainer";
+import ItemsList from "./ItemsList";
+import SelectedItemForms from "./SelectedItemForms";
+import ConstructionList from "./tables/ConstructionList";
+import MaterialsList from "./tables/MaterialsList";
 
 const Calculator = () => {
   // const navigate = useNavigate();
@@ -214,64 +216,10 @@ const Calculator = () => {
     }
   }, [currentItems]);
 
-  const getContsCodeByMaterials = () => {
-    if (currentGkla == "default" && currentWool == "default") {
-      return currentConstr;
-    } else if (currentGkla == "default") {
-      return currentConstr + "_" + currentWool;
-    } else if (currentWool == "default") {
-      return currentConstr + "_" + currentGkla;
-    }
-    return currentConstr + "_" + currentGkla + "_" + currentWool;
-  };
-
-  const convertUnits = (material) => {
-    if (material.Units == "м2") {
-      const quantityInM2 = material.Quantity / 1e6;
-      return quantityInM2.toFixed(2);
-    }
-    return material.Quantity;
-  };
-
-  const filterVariable = (variable) => {
-    if (/^\d/.test(variable)) {
-      return variable;
-    } else {
-      return "---";
-    }
-  };
-
-  const getStartParam = () => {
-    setUnvisible(!unvisible);
-  };
-
-  // Получить максимальную высоту конструкции из sizeLimits в метрах
-  const getMaxLenZInMeters = (idConstr, step, subCategory) => {
-    // Ищем запись в sizeLimits по id_constr и step, аналогично функции checkInput
-    // Для категорий W и L используем фильтрацию по id (subCategory) для большей точности
-    const sizeLimit = SizeLimits.find(
-      (el) =>
-        el.id == subCategory &&
-        el.id_constr == idConstr &&
-        el.step == String(step)
-    );
-    if (sizeLimit && sizeLimit.max_lenZ) {
-      // Преобразуем из мм в метры и округляем до 1 знака после запятой
-      return (sizeLimit.max_lenZ / 1000).toFixed(1);
-    }
-    // Если не найдено, возвращаем null (текст не будет показан)
-    return null;
-  };
-
   const delFromOpenings = (index) => {
     const newOpenings = [...constrSent.Openings];
     newOpenings.splice(index, 1);
     setConstrSent({ ...constrSent, Openings: newOpenings });
-  };
-
-  const getOpeningType = (Type) => {
-    if (Type == "OST_Doors") return "дверь";
-    return "окно";
   };
 
   const addOpening = () => {
@@ -280,6 +228,10 @@ const Calculator = () => {
       Openings: [...constrSent.Openings, { ...opening }],
     });
     setOpening({ ...openingZero });
+  };
+
+  const getStartParam = () => {
+    setUnvisible(!unvisible);
   };
 
   const delConstrFromList = (idConstr) => {
@@ -291,275 +243,18 @@ const Calculator = () => {
     setConstrToCalc(newConstrToCalc);
     setConstrToCalcToSent(newConstrToCalcToSent);
     if (newConstrToCalc.length != 0) {
-      calcConstruction(newConstrToCalcToSent);
+      calcConstructionHandler(newConstrToCalcToSent);
       return;
     }
     setCalculatedMaterials({ data: [] });
   };
 
-  const checkInput = () => {
-    // Получаем текущий элемент для дополнительной проверки
-    const currentItem = itemsWithImages.find((el) => el.id == currentItems);
-    const itemTemplate = currentItem?.template;
-    const itemAgId = currentItem?.ag_id;
-    const itemCId = currentItem?.c_id;
-
-    // Проверяем, является ли это ЗИПС потолком по ag_id (начинается с AG.Z) или по template и категории
-    const isZIPSCeiling =
-      (currentSubCategory == "C" && (template == 4 || itemTemplate == 4)) ||
-      (itemCId == "C" && itemTemplate == 4) ||
-      (itemAgId && itemAgId.startsWith("AG.Z"));
-
-    // Закомментировано: отладочный вывод
-    // console.log("checkInput called:", {
-    //   currentSubCategory,
-    //   template,
-    //   itemTemplate,
-    //   itemCId,
-    //   itemAgId,
-    //   currentItems,
-    //   currentItem: currentItem?.title,
-    //   isZIPSCeiling,
-    //   lenX: constR.lenX,
-    //   lenY: constR.lenY,
-    // });
-
-    let objectX;
-    let max_constr_size;
-    if (currentSubCategory == "W") {
-      objectX = SizeLimits.find(
-        (el) => el.id_constr == currentItems && el.step == profileStep
-      );
-      if (!objectX) return null;
-      max_constr_size = objectX.max_lenZ;
-
-      if (isNaN(+constR.lenX) || +constR.lenX < 100)
-        return getValidationMessage("W_LENX_MIN_100");
-      else if (+constR.lenX > 50000)
-        return getValidationMessage("W_LENX_MAX_50000");
-      else if (isNaN(+constR.lenZ) || +constR.lenZ < 100)
-        return getValidationMessage("W_LENZ_MIN_100");
-      else if (+constR.lenZ > max_constr_size)
-        return getValidationMessage("W_LENZ_MAX");
-    } else if (currentSubCategory == "L" && template != 6) {
-      objectX = SizeLimits.find(
-        (el) => el.id_constr == currentItems && el.step == profileStep
-      );
-      if (!objectX) return null;
-      max_constr_size = objectX.max_lenZ;
-
-      if (isNaN(+constR.lenX) || +constR.lenX < 100)
-        return getValidationMessage("L_NOT6_LENX_MIN_100");
-      else if (+constR.lenX > 50000)
-        return getValidationMessage("L_NOT6_LENX_MAX_50000");
-      else if (isNaN(+constR.lenZ) || +constR.lenZ < 100)
-        return getValidationMessage("L_NOT6_LENZ_MIN_100");
-      else if (+constR.lenZ > max_constr_size)
-        return getValidationMessage("L_NOT6_LENZ_MAX");
-    } else if (currentSubCategory == "L" && template == 6) {
-      objectX = SizeLimits.find(
-        (el) => el.id_constr == currentItems && el.step == profileStep
-      );
-      if (!objectX) return null;
-      max_constr_size = objectX.max_lenZ;
-
-      if (isNaN(+constR.lenX) || +constR.lenX < 200)
-        return getValidationMessage("L_T6_LENX_MIN_200");
-      else if (+constR.lenX > 50000)
-        return getValidationMessage("L_T6_LENX_MAX_50000");
-      else if (isNaN(+constR.lenZ) || +constR.lenZ < 200)
-        return getValidationMessage("L_T6_LENZ_MIN_200");
-      else if (+constR.lenZ > max_constr_size)
-        return getValidationMessage("L_T6_LENZ_MAX");
-    } else if (currentSubCategory == "C" && template == 5) {
-      if (isNaN(+constR.lenX) || +constR.lenX < 250)
-        return getValidationMessage("C_T5_LENX_MIN_250");
-      else if (+constR.lenX > 50000)
-        return getValidationMessage("C_T5_LENX_MAX_50000");
-      else if (isNaN(+constR.lenY) || +constR.lenY < 250)
-        return getValidationMessage("C_T5_LENY_MIN_250");
-      else if (+constR.lenY > 50000)
-        return getValidationMessage("C_T5_LENY_MAX_50000");
-    } else if (currentSubCategory == "5" && template == 201) {
-      if (isNaN(+constR.lenX) || +constR.lenX < 250)
-        return getValidationMessage("CAT5_T201_LENX_MIN_250");
-      else if (+constR.lenX > 50000)
-        return getValidationMessage("CAT5_T201_LENX_MAX_50000");
-      else if (isNaN(+constR.lenZ) || +constR.lenZ < 250)
-        return getValidationMessage("CAT5_T201_LENZ_MIN_250");
-      else if (+constR.lenZ > 50000)
-        return getValidationMessage("CAT5_T201_LENZ_MAX_50000");
-    } else if (currentSubCategory == "6" && template == 202) {
-      if (isNaN(+constR.lenX) || +constR.lenX < 250)
-        return getValidationMessage("CAT6_T202_LENX_MIN_250");
-      else if (+constR.lenX > 50000)
-        return getValidationMessage("CAT6_T202_LENX_MAX_50000");
-      else if (isNaN(+constR.lenY) || +constR.lenY < 250)
-        return getValidationMessage("CAT6_T202_LENY_MIN_250");
-      else if (+constR.lenY > 50000)
-        return getValidationMessage("CAT6_T202_LENY_MAX_50000");
-    } else if (isZIPSCeiling) {
-      // Закомментировано: отладочный вывод
-      // console.log("ZIPS ceiling validation triggered");
-      const lenX = +constR.lenX || 0;
-      const lenY = +constR.lenY || 0;
-
-      // Проверка ширины - проверяем все возможные случаи
-      if (
-        !constR.lenX ||
-        constR.lenX === null ||
-        constR.lenX === undefined ||
-        constR.lenX === "" ||
-        isNaN(lenX) ||
-        lenX < 200 ||
-        lenX === 0
-      ) {
-        // Закомментировано: отладочный вывод
-        // console.log("ZIPS ceiling validation: width error", { lenX, constR_lenX: constR.lenX });
-        return getValidationMessage("ZIPS_CEILING_LENX_MIN_200");
-      }
-      if (lenX > 50000) {
-        // Закомментировано: отладочный вывод
-        // console.log("ZIPS ceiling validation: width too large", lenX);
-        return getValidationMessage("ZIPS_CEILING_LENX_MAX_50000");
-      }
-      // Проверка длины - проверяем все возможные случаи, включая 0
-      if (
-        !constR.lenY ||
-        constR.lenY === null ||
-        constR.lenY === undefined ||
-        constR.lenY === "" ||
-        isNaN(lenY) ||
-        lenY < 200 ||
-        lenY === 0
-      ) {
-        // Закомментировано: отладочный вывод
-        // console.log("ZIPS ceiling validation: length error", { lenY, constR_lenY: constR.lenY });
-        return getValidationMessage("ZIPS_CEILING_LENY_MIN_200");
-      }
-      if (lenY > 50000) {
-        // Закомментировано: отладочный вывод
-        // console.log("ZIPS ceiling validation: length too large", lenY);
-        return getValidationMessage("ZIPS_CEILING_LENY_MAX_50000");
-      }
-      // Закомментировано: отладочный вывод
-      // console.log("ZIPS ceiling validation: passed");
-    }
-    return null;
-  };
-
-  const checkInputFloor = () => {
-    if (currentSubCategory == "F" && template != 111 && template != 3) {
-      if (isNaN(+constR.lenX) || +constR.lenX < 500)
-        return getValidationMessage("F_NOT111_NOT3_LENX_MIN_500");
-      else if (isNaN(+constR.lenY) || +constR.lenY < 500)
-        return getValidationMessage("F_NOT111_NOT3_LENY_MIN_500");
-    } else if (currentSubCategory == "F" && template == 111) {
-      if (isNaN(+constR.lenX) || +constR.lenX < 200)
-        return getValidationMessage("F_T111_LENX_MIN_200");
-      else if (isNaN(+constR.lenY) || +constR.lenY < 200)
-        return getValidationMessage("F_T111_LENY_MIN_200");
-      else if (+constR.lenY > 18000)
-        return getValidationMessage("F_T111_LENY_MAX_18000");
-    } else if (currentSubCategory == "F" && template == 3) {
-      if (isNaN(+constR.lenX) || +constR.lenX < 500)
-        return getValidationMessage("F_T3_LENX_MIN_500");
-      else if (isNaN(+constR.lenY) || +constR.lenY < 500)
-        return getValidationMessage("F_T3_LENY_MIN_500");
-    }
-    return null;
-  };
-
-  const checkInputMaxFloor = () => {
-    if (currentSubCategory == "F" && template != 111 && template != 3) {
-      if (+constR.lenX > 18000)
-        return getValidationMessage("F_NOT111_NOT3_LENX_MAX_18000");
-      else if (+constR.lenY > 18000)
-        return getValidationMessage("F_NOT111_NOT3_LENY_MAX_18000");
-    } else if (currentSubCategory == "F" && template == 111) {
-      if (+constR.lenX > 18000)
-        return getValidationMessage("F_T111_LENX_MAX_18000");
-      else if (+constR.lenY > 18000)
-        return getValidationMessage("F_T111_LENY_MAX_18000");
-    } else if (currentSubCategory == "F" && template == 3) {
-      if (+constR.lenX > 18000)
-        return getValidationMessage("F_T3_LENX_MAX_18000");
-      else if (+constR.lenY > 18000)
-        return getValidationMessage("F_T3_LENY_MAX_18000");
-    }
-    return null;
-  };
-
-  const calcConstruction = async (constrList) => {
+  const calcConstructionHandler = async (constrList) => {
     try {
-      // Проверяем, что список не пустой
-      if (!constrList || constrList.length === 0) {
-        console.warn("Empty construction list");
-        setCalculatedMaterials({ data: [] });
-        return;
-      }
-
-      // Используем прокси в dev режиме, прямой URL в production
-      const apiUrl = import.meta.env.DEV
-        ? "/api/v1/calcIsolation/byProduct"
-        : "https://db.acoustic.ru:3005/api/v1/calcIsolation/byProduct";
-
-      const response = await fetch(apiUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Accept: "application/json",
-        },
-        body: JSON.stringify(constrList),
-        mode: "cors", // Явно указываем режим CORS
-      });
-
-      if (!response.ok) {
-        let errorText = "";
-        try {
-          const errorData = await response.json();
-          errorText =
-            errorData.error || errorData.message || JSON.stringify(errorData);
-        } catch (e) {
-          errorText = await response.text();
-        }
-        console.error("API error response:", errorText);
-
-        // Парсим JSON ошибку, если она есть
-        let errorMessage = errorText;
-        try {
-          const errorJson = JSON.parse(errorText);
-          errorMessage = errorJson.error || errorJson.message || errorText;
-        } catch (e) {
-          // Если не JSON, используем как есть
-        }
-
-        throw new Error(
-          `HTTP error! status: ${response.status}, message: ${errorMessage}`
-        );
-      }
-
-      const data = await response.json();
-
-      // Обрабатываем разные форматы ответа
-      if (data && data.data) {
-        setCalculatedMaterials(data);
-      } else if (Array.isArray(data)) {
-        // Если API возвращает массив напрямую
-        setCalculatedMaterials({ data: data });
-      } else {
-        console.warn("Unexpected response format:", data);
-        setCalculatedMaterials({ data: [] });
-      }
+      const data = await calculateConstruction(constrList);
+      setCalculatedMaterials(data);
     } catch (error) {
       console.error("Error calculating construction:", error);
-      console.error("Error details:", {
-        message: error.message,
-        stack: error.stack,
-        name: error.name,
-      });
-
-      // Формируем понятное сообщение об ошибке
       let errorMessage = error.message;
       if (error.message.includes("invalid construction size")) {
         errorMessage =
@@ -580,15 +275,29 @@ const Calculator = () => {
         confirmButtonText: "OK",
         confirmButtonColor: "#6cabc8",
       });
-
-      // Устанавливаем пустые данные, чтобы не показывать старые
       setCalculatedMaterials({ data: [] });
     }
   };
 
+  // Обработчики экспорта
+  const handleExportToExcel = async () => {
+    await exportTablesToExcel();
+  };
+
+  const handleCopyToClipboard = () => {
+    copyMaterialsToClipboard();
+  };
+
   const addConstrToCalc = useCallback(() => {
-    // Сначала проверяем общую валидацию (для всех типов конструкций, включая ЗИПС потолок)
-    const inputError = checkInput();
+    // Валидация входных данных
+    const inputError = validateInput(
+      constR,
+      currentSubCategory,
+      currentItems,
+      template,
+      profileStep,
+      itemsWithImages
+    );
 
     if (inputError) {
       setModal({
@@ -605,8 +314,8 @@ const Calculator = () => {
       return;
     }
 
-    // Затем проверяем валидацию для полов
-    const floorError = checkInputFloor();
+    // Валидация для полов
+    const floorError = validateFloorInput(constR, currentSubCategory, template);
     if (floorError) {
       setModal({
         isOpen: true,
@@ -622,8 +331,8 @@ const Calculator = () => {
       return;
     }
 
-    // Проверяем максимальные размеры для полов
-    const floorMaxError = checkInputMaxFloor();
+    // Валидация максимальных размеров для полов
+    const floorMaxError = validateFloorMaxInput(constR, currentSubCategory, template);
     if (floorMaxError) {
       setModal({
         isOpen: true,
@@ -655,30 +364,19 @@ const Calculator = () => {
       weight: Constr?.weight,
     };
 
-    // Update constrSent before adding to list
-    const code = getContsCodeByMaterials();
+    // Получаем код конструкции
+    const code = getConstructionCode(currentConstr, currentGkla, currentWool);
 
-    // Calculate Area and Perimeter based on construction type
-    // API expects Area and Perimeter as integers (in mm² and mm respectively)
-    let area = 0;
-    let perimeter = 0;
-    let lenX = +constR.lenX || 0;
-    let lenY = +constR.lenY || 0;
-    let lenZ = +constR.lenZ || 0;
-
-    if (currentSubCategory == "F") {
-      // Floor: Area = lenX * lenY (in mm²)
-      area = Math.round(lenX * lenY);
-      perimeter = Math.round(2 * (lenX + lenY)); // in mm
-    } else if (currentSubCategory == "C") {
-      // Ceiling: Area = lenX * lenY (in mm²)
-      area = Math.round(lenX * lenY);
-      perimeter = Math.round(2 * (lenX + lenY)); // in mm
-    } else if (currentSubCategory == "W" || currentSubCategory == "L") {
-      // Wall/Frame: Area = lenX * lenZ (in mm²)
-      area = Math.round(lenX * lenZ);
-      perimeter = Math.round(2 * (lenX + lenZ)); // in mm
-    }
+    // Вычисляем площадь и периметр
+    const lenX = +constR.lenX || 0;
+    const lenY = +constR.lenY || 0;
+    const lenZ = +constR.lenZ || 0;
+    const { area, perimeter } = calculateAreaAndPerimeter(
+      lenX,
+      lenY,
+      lenZ,
+      currentSubCategory
+    );
 
     // Преобразуем проемы: lenX и lenZ должны быть числами, а не строками
     const openingsWithNumbers = constrSent.Openings.map((opening) => ({
@@ -717,7 +415,7 @@ const Calculator = () => {
     setConstrSent({ ...constSentZero });
     setOpening({ ...openingZero });
     setConstrToCalc([...ConstrToCalc, newConstR]);
-    calcConstruction(updatedList);
+    calcConstructionHandler(updatedList);
     setConstR({ ...constRZero });
     setDFrame(false);
     setUnvisible(false);
@@ -775,95 +473,6 @@ const Calculator = () => {
     };
   }, [template, modal.isOpen, addConstrToCalc]); // Зависимости: template, modal.isOpen и addConstrToCalc
 
-  const tableToExcel = async () => {
-    const workbook = new ExcelJS.Workbook();
-    const worksheet = workbook.addWorksheet("My Sheet");
-
-    const addTableDataToSheet = (tableId) => {
-      const table = document.getElementById(tableId);
-      if (!table) return;
-      const rows = table.querySelectorAll("tr");
-
-      rows[0].querySelectorAll("th").forEach((th, index) => {
-        const cell = worksheet.getCell(1, index + 1);
-        cell.value = th.innerText;
-        cell.font = { bold: true, color: { argb: "FF000000" } };
-        cell.fill = {
-          type: "pattern",
-          pattern: "solid",
-          fgColor: { argb: "FFDCDCDC" },
-        };
-      });
-
-      for (let i = 1; i < rows.length; i++) {
-        const data = [];
-        const cells = rows[i].querySelectorAll("th,td");
-        cells.forEach((td) => data.push(td.innerText));
-        worksheet.addRow(data);
-      }
-
-      worksheet.addRow([]);
-    };
-
-    addTableDataToSheet("table1");
-    addTableDataToSheet("table2");
-
-    worksheet.eachRow({ includeEmpty: true }, function (row) {
-      row.eachCell({ includeEmpty: true }, function (cell) {
-        cell.border = {
-          top: { style: "thin" },
-          left: { style: "thin" },
-          bottom: { style: "thin" },
-          right: { style: "thin" },
-        };
-      });
-    });
-
-    worksheet.columns.forEach(function (column) {
-      let maxLength = 0;
-      column.eachCell({ includeEmpty: true }, function (cell) {
-        const columnLength = cell.value ? cell.value.toString().length : 0;
-        maxLength = Math.max(maxLength, columnLength + 2);
-      });
-      column.width = maxLength < 10 ? 10 : maxLength;
-    });
-
-    const buffer = await workbook.xlsx.writeBuffer();
-    const blob = new Blob([buffer], {
-      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-    });
-    saveAs(blob, "Tables.xlsx");
-  };
-
-  const copyTableToClipboard = () => {
-    const table = document.getElementById("table2");
-    if (!table) return;
-    const rows = table.querySelectorAll("tr");
-    let textToCopy = "";
-
-    for (let i = 2; i < rows.length; i++) {
-      const cells = rows[i].querySelectorAll("td");
-      if (cells.length > 0 && cells[0].innerText.trim() === "---") {
-        continue;
-      }
-      const rowText = [];
-      for (let j = 0; j < cells.length - 1; j++) {
-        rowText.push(cells[j].innerText);
-      }
-      textToCopy += rowText.join("\t") + "\n";
-    }
-
-    navigator.clipboard
-      .writeText(textToCopy)
-      .then(() => {
-        alert(
-          "Данные скопированы в буфер обмена. Для получения расчета конструкций необходимо вставить данные в ERP/Заказ клиента/Товары/Заполнить/Загрузить из внешнего файла/Артикул "
-        );
-      })
-      .catch((err) => {
-        console.error("Ошибка при копировании: ", err);
-      });
-  };
 
   // Initialize from route params
   useEffect(() => {
@@ -1742,13 +1351,13 @@ const Calculator = () => {
                           {template != null && (
                             <div className="buttons-container">
                               <button
-                                onClick={copyTableToClipboard}
+                                onClick={handleCopyToClipboard}
                                 className="add_design_button"
                               >
                                 экспорт в ERP
                               </button>
                               <button
-                                onClick={tableToExcel}
+                                onClick={handleExportToExcel}
                                 className="add_design_button"
                               >
                                 сохранить в Excel
@@ -1762,133 +1371,13 @@ const Calculator = () => {
                           {tableConstrToCalc != null &&
                             ConstrToCalc.length > 0 && (
                               <>
-                                <div className="tbl-in">
-                                  <table className="data" id="table1">
-                                    <thead>
-                                      <tr>
-                                        <th
-                                          colSpan="5"
-                                          style={{
-                                            fontSize: "14px",
-                                            fontWeight: "bold",
-                                            textAlign: "center",
-                                          }}
-                                        >
-                                          cписок конструкций
-                                        </th>
-                                      </tr>
-                                      <tr>
-                                        <th>шифр</th>
-                                        <th>название</th>
-                                        <th>масса</th>
-                                        <th></th>
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      {ConstrToCalc.map((constRItem) => (
-                                        <tr key={constRItem.key_id}>
-                                          <td style={{ textAlign: "right" }}>
-                                            {constRItem.ag_id}
-                                          </td>
-                                          <td style={{ textAlign: "center" }}>
-                                            {constRItem.title} ,
-                                            {constRItem.lenX} x{" "}
-                                            {constRItem.lenY} {constRItem.lenZ}{" "}
-                                            мм
-                                          </td>
-                                          <td>{constRItem.weight}</td>
-                                          <td>
-                                            <input
-                                              type="button"
-                                              className="counter__button_minus"
-                                              onClick={() =>
-                                                delConstrFromList(
-                                                  constRItem.key_id
-                                                )
-                                              }
-                                            />
-                                            <img
-                                              src={`${
-                                                import.meta.env.BASE_URL
-                                              }delete-icon.jpg`}
-                                              alt=""
-                                              style={{
-                                                height: "30px",
-                                                opacity: 0.7,
-                                              }}
-                                              onClick={() =>
-                                                delConstrFromList(
-                                                  constRItem.key_id
-                                                )
-                                              }
-                                            />
-                                          </td>
-                                        </tr>
-                                      ))}
-                                    </tbody>
-                                  </table>
-                                </div>
-
-                                <div className="tbl-in">
-                                  <table className="data" id="table2">
-                                    <thead>
-                                      <tr>
-                                        <th
-                                          colSpan="5"
-                                          style={{
-                                            fontSize: "14px",
-                                            fontWeight: "bold",
-                                            textAlign: "center",
-                                          }}
-                                        >
-                                          cписок материалов
-                                        </th>
-                                      </tr>
-                                      <tr>
-                                        <th>артикул</th>
-                                        <th>название</th>
-                                        <th style={{ display: "none" }}></th>
-                                        <th>кол-во</th>
-                                        <th>ед.изм</th>
-                                      </tr>
-                                    </thead>
-                                    <tbody>
-                                      {calculatedMaterials &&
-                                      calculatedMaterials.data &&
-                                      calculatedMaterials.data.length > 0 ? (
-                                        calculatedMaterials.data.map(
-                                          (Material, index) => (
-                                            <tr key={index}>
-                                              <td>
-                                                {filterVariable(Material.Code)}
-                                              </td>
-                                              <td>{Material.Name}</td>
-                                              <td
-                                                style={{ display: "none" }}
-                                              ></td>
-                                              <td>{convertUnits(Material)}</td>
-                                              <td>{Material.Units}</td>
-                                            </tr>
-                                          )
-                                        )
-                                      ) : (
-                                        <tr>
-                                          <td
-                                            colSpan="5"
-                                            style={{
-                                              textAlign: "center",
-                                              padding: "20px",
-                                            }}
-                                          >
-                                            {calculatedMaterials
-                                              ? "Нет данных для отображения"
-                                              : "Загрузка..."}
-                                          </td>
-                                        </tr>
-                                      )}
-                                    </tbody>
-                                  </table>
-                                </div>
+                                <ConstructionList
+                                  constructions={ConstrToCalc}
+                                  onDelete={delConstrFromList}
+                                />
+                                <MaterialsList
+                                  calculatedMaterials={calculatedMaterials}
+                                />
                               </>
                             )}
                         </div>
