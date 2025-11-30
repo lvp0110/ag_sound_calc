@@ -251,6 +251,21 @@ const Calculator = () => {
     setUnvisible(!unvisible);
   };
 
+  // Получить максимальную высоту конструкции из sizeLimits в метрах
+  const getMaxLenZInMeters = (idConstr, step, subCategory) => {
+    // Ищем запись в sizeLimits по id_constr и step, аналогично функции checkInput
+    // Для категорий W и L используем фильтрацию по id (subCategory) для большей точности
+    const sizeLimit = SizeLimits.find(
+      (el) => el.id == subCategory && el.id_constr == idConstr && el.step == String(step)
+    );
+    if (sizeLimit && sizeLimit.max_lenZ) {
+      // Преобразуем из мм в метры и округляем до 1 знака после запятой
+      return (sizeLimit.max_lenZ / 1000).toFixed(1);
+    }
+    // Если не найдено, возвращаем null (текст не будет показан)
+    return null;
+  };
+
   const delFromOpenings = (index) => {
     const newOpenings = [...constrSent.Openings];
     newOpenings.splice(index, 1);
@@ -1265,7 +1280,10 @@ const Calculator = () => {
                                           checked={profileStep == 600}
                                         />
                                         <label className="label" htmlFor={`step600_${selectedItem.id}`}>
-                                          шаг профиля 600 мм (макс.высота конструкции 6,5 м)
+                                          шаг профиля 600 мм {(() => {
+                                            const maxHeight = getMaxLenZInMeters(selectedItem.id, 600, currentSubCategory);
+                                            return maxHeight ? `(макс.высота конструкции ${maxHeight} м)` : '';
+                                          })()}
                                         </label>
                                       </div>
                                       <div style={{ display: "flex", alignItems: "center", marginBottom: "4px" }}>
@@ -1281,7 +1299,10 @@ const Calculator = () => {
                                           checked={profileStep == 400}
                                         />
                                         <label className="label" htmlFor={`step400_${selectedItem.id}`}>
-                                          шаг профиля 400 мм (макс.высота конструкции 7,5 м)
+                                          шаг профиля 400 мм {(() => {
+                                            const maxHeight = getMaxLenZInMeters(selectedItem.id, 400, currentSubCategory);
+                                            return maxHeight ? `(макс.высота конструкции ${maxHeight} м)` : '';
+                                          })()}
                                         </label>
                                       </div>
                                       <div style={{ display: "flex", alignItems: "center", marginBottom: "4px" }}>
@@ -1297,7 +1318,10 @@ const Calculator = () => {
                                           checked={profileStep == 300}
                                         />
                                         <label className="label" htmlFor={`step300_${selectedItem.id}`}>
-                                          шаг профиля 300 мм (макс.высота конструкции 8,5 м)
+                                          шаг профиля 300 мм {(() => {
+                                            const maxHeight = getMaxLenZInMeters(selectedItem.id, 300, currentSubCategory);
+                                            return maxHeight ? `(макс.высота конструкции ${maxHeight} м)` : '';
+                                          })()}
                                         </label>
                                       </div>
                                     </>
