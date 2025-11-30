@@ -1141,149 +1141,167 @@ const Calculator = () => {
                             {unvisible && (
                               <div
                                 style={{
-                                  display: "contents",
+                                  display: "flex",
+                                  flexDirection: "column",
                                   top: "10px",
                                   marginBottom: "20px",
                                 }}
                               >
-                                <h4 style={{ margin: "1px" }}>выбрать тип гипсокартона</h4>
-                                <input
-                                  className="radio"
-                                  type="radio"
-                                  onChange={(e) =>
-                                    setCurrentGkla(e.target.value)
-                                  }
-                                  id={`gkla_default_${selectedItem.id}`}
-                                  name={`gkla_${selectedItem.id}`}
-                                  value="default"
-                                  checked={currentGkla == "default"}
-                                />
-                                <label className="label">AKU-line 2500x1200x12,5 мм</label>
-                                <input
-                                  className="radio"
-                                  type="radio"
-                                  onChange={(e) =>
-                                    setCurrentGkla(e.target.value)
-                                  }
-                                  id={`gkla_2500P_${selectedItem.id}`}
-                                  name={`gkla_${selectedItem.id}`}
-                                  value="2500P"
-                                  checked={currentGkla == "2500P"}
-                                />
-                                <label className="label">AKU-line Pro 2500x1200x12,5 мм</label>
-                                <input
-                                  className="radio"
-                                  type="radio"
-                                  onChange={(e) =>
-                                    setCurrentGkla(e.target.value)
-                                  }
-                                  id={`gkla_2000_${selectedItem.id}`}
-                                  name={`gkla_${selectedItem.id}`}
-                                  value="2000"
-                                  checked={currentGkla == "2000"}
-                                />
-                                <label className="label">AKU-line 2000x1200x12,5 мм</label>
+                                <h4 style={{ background: "lightgray",padding: 4 }}>выбрать тип гипсокартона</h4>
+                                <div style={{ display: "flex", alignItems: "center", marginBottom: "4px" }}>
+                                  <input
+                                    className="radio"
+                                    type="radio"
+                                    onChange={(e) =>
+                                      setCurrentGkla(e.target.value)
+                                    }
+                                    id={`gkla_default_${selectedItem.id}`}
+                                    name={`gkla_${selectedItem.id}`}
+                                    value="default"
+                                    checked={currentGkla == "default"}
+                                  />
+                                  <label className="label" htmlFor={`gkla_default_${selectedItem.id}`}>AKU-line 2500x1200x12,5 мм</label>
+                                </div>
+                                <div style={{ display: "flex", alignItems: "center", marginBottom: "4px" }}>
+                                  <input
+                                    className="radio"
+                                    type="radio"
+                                    onChange={(e) =>
+                                      setCurrentGkla(e.target.value)
+                                    }
+                                    id={`gkla_2500P_${selectedItem.id}`}
+                                    name={`gkla_${selectedItem.id}`}
+                                    value="2500P"
+                                    checked={currentGkla == "2500P"}
+                                  />
+                                  <label className="label" htmlFor={`gkla_2500P_${selectedItem.id}`}>AKU-line Pro 2500x1200x12,5 мм</label>
+                                </div>
+                                <div style={{ display: "flex", alignItems: "center", marginBottom: "4px" }}>
+                                  <input
+                                    className="radio"
+                                    type="radio"
+                                    onChange={(e) =>
+                                      setCurrentGkla(e.target.value)
+                                    }
+                                    id={`gkla_2000_${selectedItem.id}`}
+                                    name={`gkla_${selectedItem.id}`}
+                                    value="2000"
+                                    checked={currentGkla == "2000"}
+                                  />
+                                  <label className="label" htmlFor={`gkla_2000_${selectedItem.id}`}>AKU-line 2000x1200x12,5 мм</label>
+                                </div>
                                 
-                                <hr />
                                 
-                                <h4 style={{ margin: "1px" }}>выбрать тип минваты</h4>
-                                <input
-                                  className="radio"
-                                  type="radio"
-                                  onChange={(e) =>
-                                    setCurrentWool(e.target.value)
-                                  }
-                                  id={`wool_default_${selectedItem.id}`}
-                                  name={`wool_${selectedItem.id}`}
-                                  value="default"
-                                  checked={currentWool == "default"}
-                                />
-                                <label className="label">Шуманет-Эко</label>
-                                <input
-                                  className="radio"
-                                  type="radio"
-                                  onChange={(e) =>
-                                    setCurrentWool(e.target.value)
-                                  }
-                                  id={`wool_bm_${selectedItem.id}`}
-                                  name={`wool_${selectedItem.id}`}
-                                  value="bm"
-                                  checked={currentWool == "bm"}
-                                />
-                                <label className="label">Шуманет-БМ</label>
-                                <input
-                                  className="radio"
-                                  type="radio"
-                                  onChange={(e) =>
-                                    setCurrentWool(e.target.value)
-                                  }
-                                  id={`wool_sk_${selectedItem.id}`}
-                                  name={`wool_${selectedItem.id}`}
-                                  value="skNeo"
-                                  checked={currentWool == "skNeo"}
-                                />
-                                <label className="label">Шуманет-СК Neo</label>
+                                <h4 style={{ background: "lightgray",padding: 4 }}>выбрать тип минваты</h4>
+                                <div style={{ display: "flex", alignItems: "center", marginBottom: "4px" }}>
+                                  <input
+                                    className="radio"
+                                    type="radio"
+                                    onChange={(e) =>
+                                      setCurrentWool(e.target.value)
+                                    }
+                                    id={`wool_default_${selectedItem.id}`}
+                                    name={`wool_${selectedItem.id}`}
+                                    value="default"
+                                    checked={currentWool == "default"}
+                                  />
+                                  <label className="label" htmlFor={`wool_default_${selectedItem.id}`}>Шуманет-Эко</label>
+                                </div>
+                                <div style={{ display: "flex", alignItems: "center", marginBottom: "4px" }}>
+                                  <input
+                                    className="radio"
+                                    type="radio"
+                                    onChange={(e) =>
+                                      setCurrentWool(e.target.value)
+                                    }
+                                    id={`wool_bm_${selectedItem.id}`}
+                                    name={`wool_${selectedItem.id}`}
+                                    value="bm"
+                                    checked={currentWool == "bm"}
+                                  />
+                                  <label className="label" htmlFor={`wool_bm_${selectedItem.id}`}>Шуманет-БМ</label>
+                                </div>
+                                <div style={{ display: "flex", alignItems: "center", marginBottom: "4px" }}>
+                                  <input
+                                    className="radio"
+                                    type="radio"
+                                    onChange={(e) =>
+                                      setCurrentWool(e.target.value)
+                                    }
+                                    id={`wool_sk_${selectedItem.id}`}
+                                    name={`wool_${selectedItem.id}`}
+                                    value="skNeo"
+                                    checked={currentWool == "skNeo"}
+                                  />
+                                  <label className="label" htmlFor={`wool_sk_${selectedItem.id}`}>Шуманет-СК Neo</label>
+                                </div>
                                 
-                                <hr />
                                 
-                                <h4 style={{ margin: "1px" }}>шаг профиля</h4>
+                                <h4 style={{ background: "lightgray",padding: 4 }}>шаг профиля</h4>
                                 <div style={{ fontSize: "12px", color: "#666", marginBottom: "5px" }}>
                                   ✔ шаг профиля при облицовке керамической плиткой не более 400 мм
                                 </div>
-                                <input
-                                  className="radio"
-                                  type="radio"
-                                  onChange={(e) =>
-                                    setProfileStep(e.target.value)
-                                  }
-                                  id={`step600_${selectedItem.id}`}
-                                  name={`steps_${selectedItem.id}`}
-                                  value="600"
-                                  checked={profileStep == 600}
-                                />
-                                <label className="label">
-                                  шаг профиля 600 мм (макс.высота конструкции 6,5 м)
-                                </label>
-                                <input
-                                  className="radio"
-                                  type="radio"
-                                  onChange={(e) =>
-                                    setProfileStep(e.target.value)
-                                  }
-                                  id={`step400_${selectedItem.id}`}
-                                  name={`steps_${selectedItem.id}`}
-                                  value="400"
-                                  checked={profileStep == 400}
-                                />
-                                <label className="label">
-                                  шаг профиля 400 мм (макс.высота конструкции 7,5 м)
-                                </label>
-                                <input
-                                  className="radio"
-                                  type="radio"
-                                  onChange={(e) =>
-                                    setProfileStep(e.target.value)
-                                  }
-                                  id={`step300_${selectedItem.id}`}
-                                  name={`steps_${selectedItem.id}`}
-                                  value="300"
-                                  checked={profileStep == 300}
-                                />
-                                <label className="label">
-                                  шаг профиля 300 мм (макс.высота конструкции 8,5 м)
-                                </label>
-                                <input
-                                  className="checkbox"
-                                  type="checkbox"
-                                  onChange={(e) => setDFrame(e.target.checked)}
-                                  id={`dframe_${selectedItem.id}`}
-                                  checked={dFrame}
-                                />
-                                <label className="label">
-                                  добавить сдвоенный каркас
-                                </label>
-                                <hr />
-                                <h4 style={{ margin: "1px" }}>размер проема</h4>
+                                <div style={{ display: "flex", alignItems: "center", marginBottom: "4px" }}>
+                                  <input
+                                    className="radio"
+                                    type="radio"
+                                    onChange={(e) =>
+                                      setProfileStep(e.target.value)
+                                    }
+                                    id={`step600_${selectedItem.id}`}
+                                    name={`steps_${selectedItem.id}`}
+                                    value="600"
+                                    checked={profileStep == 600}
+                                  />
+                                  <label className="label" htmlFor={`step600_${selectedItem.id}`}>
+                                    шаг профиля 600 мм (макс.высота конструкции 6,5 м)
+                                  </label>
+                                </div>
+                                <div style={{ display: "flex", alignItems: "center", marginBottom: "4px" }}>
+                                  <input
+                                    className="radio"
+                                    type="radio"
+                                    onChange={(e) =>
+                                      setProfileStep(e.target.value)
+                                    }
+                                    id={`step400_${selectedItem.id}`}
+                                    name={`steps_${selectedItem.id}`}
+                                    value="400"
+                                    checked={profileStep == 400}
+                                  />
+                                  <label className="label" htmlFor={`step400_${selectedItem.id}`}>
+                                    шаг профиля 400 мм (макс.высота конструкции 7,5 м)
+                                  </label>
+                                </div>
+                                <div style={{ display: "flex", alignItems: "center", marginBottom: "4px" }}>
+                                  <input
+                                    className="radio"
+                                    type="radio"
+                                    onChange={(e) =>
+                                      setProfileStep(e.target.value)
+                                    }
+                                    id={`step300_${selectedItem.id}`}
+                                    name={`steps_${selectedItem.id}`}
+                                    value="300"
+                                    checked={profileStep == 300}
+                                  />
+                                  <label className="label" htmlFor={`step300_${selectedItem.id}`}>
+                                    шаг профиля 300 мм (макс.высота конструкции 8,5 м)
+                                  </label>
+                                </div>
+                                <div style={{ display: "flex", alignItems: "center", marginBottom: "4px" }}>
+                                  <input
+                                    className="checkbox"
+                                    type="checkbox"
+                                    onChange={(e) => setDFrame(e.target.checked)}
+                                    id={`dframe_${selectedItem.id}`}
+                                    checked={dFrame}
+                                  />
+                                  <label className="label" htmlFor={`dframe_${selectedItem.id}`}>
+                                    добавить сдвоенный каркас
+                                  </label>
+                                </div>
+                                <h4 style={{ background: "lightgray",padding: 4 }}>размер проема</h4>
                                 <input
                                   type="number"
                                   placeholder="ширина проема,мм"
@@ -1307,36 +1325,40 @@ const Calculator = () => {
                                   }
                                 />
                                 <h4 style={{ margin: "1px" }}>тип проема</h4>
-                                <input
-                                  className="radio"
-                                  type="radio"
-                                  onChange={(e) =>
-                                    setOpening({
-                                      ...opening,
-                                      Type: e.target.value,
-                                    })
-                                  }
-                                  id={`doors_${selectedItem.id}`}
-                                  name={`opening_${selectedItem.id}`}
-                                  value="OST_Doors"
-                                  checked={opening.Type == "OST_Doors"}
-                                />
-                                <label className="label">дверь</label>
-                                <input
-                                  className="radio"
-                                  type="radio"
-                                  onChange={(e) =>
-                                    setOpening({
-                                      ...opening,
-                                      Type: e.target.value,
-                                    })
-                                  }
-                                  id={`wind_${selectedItem.id}`}
-                                  name={`opening_${selectedItem.id}`}
-                                  value="OST_Windows"
-                                  checked={opening.Type == "OST_Windows"}
-                                />
-                                <label className="label">окно</label>
+                                <div style={{ display: "flex", alignItems: "center", marginBottom: "4px" }}>
+                                  <input
+                                    className="radio"
+                                    type="radio"
+                                    onChange={(e) =>
+                                      setOpening({
+                                        ...opening,
+                                        Type: e.target.value,
+                                      })
+                                    }
+                                    id={`doors_${selectedItem.id}`}
+                                    name={`opening_${selectedItem.id}`}
+                                    value="OST_Doors"
+                                    checked={opening.Type == "OST_Doors"}
+                                  />
+                                  <label className="label" htmlFor={`doors_${selectedItem.id}`}>дверь</label>
+                                </div>
+                                <div style={{ display: "flex", alignItems: "center", marginBottom: "4px" }}>
+                                  <input
+                                    className="radio"
+                                    type="radio"
+                                    onChange={(e) =>
+                                      setOpening({
+                                        ...opening,
+                                        Type: e.target.value,
+                                      })
+                                    }
+                                    id={`wind_${selectedItem.id}`}
+                                    name={`opening_${selectedItem.id}`}
+                                    value="OST_Windows"
+                                    checked={opening.Type == "OST_Windows"}
+                                  />
+                                  <label className="label" htmlFor={`wind_${selectedItem.id}`}>окно</label>
+                                </div>
                                 <button
                                   className="counter__button_param"
                                   style={{ right: "2px" }}
