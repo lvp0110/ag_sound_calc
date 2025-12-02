@@ -12,8 +12,21 @@ const getApiBaseUrl = () => {
   // В production проверяем наличие прокси из переменных окружения
   const proxyUrl = import.meta.env.VITE_API_PROXY_URL || import.meta.env.VITE_API_URL;
   if (proxyUrl) {
-    console.log('[API] Using proxy:', proxyUrl);
-    return proxyUrl;
+    // Нормализуем URL прокси
+    let normalizedUrl = proxyUrl.trim().replace(/\/+$/, '');
+    
+    // Исправляем /apiv1 на /api/v1, если есть
+    if (normalizedUrl.includes('/apiv1')) {
+      normalizedUrl = normalizedUrl.replace(/\/apiv1\/?$/, '/api/v1');
+    }
+    
+    // Убеждаемся, что URL заканчивается на /api/v1
+    if (!normalizedUrl.endsWith('/api/v1')) {
+      normalizedUrl = normalizedUrl.replace(/\/api\/v1\/?$/, '') + '/api/v1';
+    }
+    
+    console.log('[API] Using proxy:', normalizedUrl);
+    return normalizedUrl;
   }
   
   // Если прокси не настроен, используем прямой URL (может быть CORS ошибка)
@@ -77,9 +90,20 @@ export const getImageUrl = (imageName) => {
     // В production используем прокси, если настроен
     const proxyUrl = import.meta.env.VITE_API_PROXY_URL || import.meta.env.VITE_API_URL;
     if (proxyUrl) {
-      // Убираем /api/v1 из конца, если есть, и добавляем /constr
-      const base = proxyUrl.replace(/\/api\/v1\/?$/, '');
-      return `${base}/api/v1/constr`;
+      // Нормализуем URL прокси
+      let normalizedUrl = proxyUrl.trim().replace(/\/+$/, '');
+      
+      // Исправляем /apiv1 на /api/v1, если есть
+      if (normalizedUrl.includes('/apiv1')) {
+        normalizedUrl = normalizedUrl.replace(/\/apiv1\/?$/, '/api/v1');
+      }
+      
+      // Убеждаемся, что URL заканчивается на /api/v1
+      if (!normalizedUrl.endsWith('/api/v1')) {
+        normalizedUrl = normalizedUrl.replace(/\/api\/v1\/?$/, '') + '/api/v1';
+      }
+      
+      return `${normalizedUrl}/constr`;
     }
     
     return 'https://db.acoustic.ru:3005/api/v1/constr';

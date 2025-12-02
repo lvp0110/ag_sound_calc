@@ -23,9 +23,13 @@
 2. Перейдите в **Settings** → **Secrets and variables** → **Actions**
 3. Нажмите **"New repository secret"**
 4. Создайте секрет с именем `VITE_API_PROXY_URL` (или `VITE_API_URL`)
-5. В значение вставьте URL вашего Worker + `/api/v1`
-   - Пример: `https://your-worker.your-subdomain.workers.dev/api/v1`
+5. В значение вставьте URL вашего Worker + `/api/v1` (обязательно со слешами!)
+   - ✅ Правильно: `https://your-worker.workers.dev/api/v1`
+   - ❌ Неправильно: `https://your-worker.workers.dev/apiv1` (без слешей)
+   - ❌ Неправильно: `https://your-worker.workers.dev/api/v1/` (со слешем в конце)
 6. Нажмите **"Add secret"**
+
+**Важно:** URL должен заканчиваться на `/api/v1` (без слеша в конце, но со слешами между `api` и `v1`)
 
 ### Шаг 3: Пересоберите проект
 
