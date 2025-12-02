@@ -41,15 +41,23 @@ const API_BASE_URL = getApiBaseUrl();
  * @returns {Promise<Array>} Массив конструкций с полями Code и Img
  */
 export const getAllIsolationConstr = async () => {
+  const url = `${API_BASE_URL}/AllIsolationConstr`;
+  console.log('[API] Fetching:', url);
+  
   try {
-    const response = await fetch(`${API_BASE_URL}/AllIsolationConstr`, {
+    const startTime = performance.now();
+    const response = await fetch(url, {
       method: 'GET',
       headers: {
         'accept': 'application/json',
       },
     });
 
+    const fetchTime = performance.now() - startTime;
+    console.log(`[API] Response received in ${fetchTime.toFixed(2)}ms, status:`, response.status);
+
     if (!response.ok) {
+      console.error(`[API] HTTP error! status: ${response.status}, url: ${url}`);
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
@@ -57,12 +65,14 @@ export const getAllIsolationConstr = async () => {
     
     // Возвращаем массив данных из поля data
     if (result.code === 200 && result.data) {
+      console.log(`[API] Successfully fetched ${result.data.length} constructions`);
       return result.data;
     }
     
+    console.warn('[API] Unexpected response format:', result);
     return [];
   } catch (error) {
-    console.error('Error fetching isolation constructions:', error);
+    console.error('[API] Error fetching isolation constructions:', error, 'URL:', url);
     return [];
   }
 };
