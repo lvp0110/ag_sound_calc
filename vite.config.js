@@ -3,6 +3,10 @@ import react from '@vitejs/plugin-react'
 
 // https://vite.dev/config/
 export default defineConfig({
+  // Base path для GitHub Pages
+  // Если репозиторий называется username.github.io, установите base: '/'
+  // Для остальных репозиториев путь будет /repository-name/
+  base: process.env.BASE_PATH || '/',
   plugins: [react()],
   server: {
     port: 5173, // Явно указываем порт

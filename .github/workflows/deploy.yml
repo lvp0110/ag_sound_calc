@@ -33,10 +33,10 @@ jobs:
 
       - name: Build
         env:
-          # Автоматически определяем BASE_PATH из названия репозитория
-          # Если репозиторий называется username.github.io, замените на BASE_PATH: /
-          # Для остальных репозиториев путь будет /repository-name/
-          BASE_PATH: /${{ github.event.repository.name }}/
+          # Base path для GitHub Pages
+          # Репозиторий: ag_sound_calc
+          # URL: https://lvp0110.github.io/ag_sound_calc/
+          BASE_PATH: /ag_sound_calc/
           # Опционально: используйте прокси для обхода CORS
           # Создайте секрет VITE_API_PROXY_URL или VITE_API_URL в настройках репозитория
           # Settings → Secrets and variables → Actions
