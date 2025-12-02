@@ -1,9 +1,13 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Calculator from './components/Calculator';
 
+// Определяем basename для GitHub Pages
+// В production используем base path из Vite, в dev - пустая строка
+const basename = import.meta.env.BASE_URL || '/';
+
 function App() {
   return (
-    <Router>
+    <Router basename={basename}>
       <Routes>
         <Route path="/calc/:id?" element={<Calculator />} />
         <Route path="/" element={<Navigate to="/calc" replace />} />
