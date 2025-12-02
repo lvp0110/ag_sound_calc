@@ -29,7 +29,9 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        run: |
+          npm ci || npm install
+          npm list --depth=0 || true
 
       - name: Build
         env:
@@ -43,7 +45,11 @@ jobs:
           # Поддерживаются оба варианта названий
           VITE_API_PROXY_URL: ${{ secrets.VITE_API_PROXY_URL }}
           VITE_API_URL: ${{ secrets.VITE_API_URL }}
-        run: npm run build
+        run: |
+          echo "Building with BASE_PATH: /ag_sound_calc/"
+          npm run build
+          echo "Build completed successfully"
+          ls -la dist/ || echo "dist directory not found"
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
