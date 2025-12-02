@@ -11,26 +11,22 @@ export default defineConfig({
   base: process.env.BASE_PATH || '/',
   plugins: [
     react(),
-    // Плагин для копирования 404.html в dist (для GitHub Pages SPA routing)
+    // Плагин для копирования index.html в 404.html (для GitHub Pages SPA routing)
+    // GitHub Pages будет использовать 404.html для всех несуществующих путей
+    // React Router на клиенте обработает маршрут
     {
       name: 'copy-404',
       closeBundle() {
         const distPath = join(process.cwd(), 'dist')
-        const public404Path = join(process.cwd(), 'public', '404.html')
-        const dist404Path = join(distPath, '404.html')
         const distIndexPath = join(distPath, 'index.html')
+        const dist404Path = join(distPath, '404.html')
         try {
-          // Копируем 404.html из public
-          copyFileSync(public404Path, dist404Path)
-          console.log('✓ Copied 404.html to dist')
+          // Просто копируем index.html в 404.html
+          // Это стандартный подход для SPA на GitHub Pages
+          copyFileSync(distIndexPath, dist404Path)
+          console.log('✓ Copied index.html to 404.html for GitHub Pages SPA routing')
         } catch (error) {
-          // Если 404.html не найден, копируем index.html как 404.html
-          try {
-            copyFileSync(distIndexPath, dist404Path)
-            console.log('✓ Copied index.html to 404.html as fallback')
-          } catch (fallbackError) {
-            console.warn('Could not copy 404.html:', error.message)
-          }
+          console.warn('Could not copy index.html to 404.html:', error.message)
         }
       }
     }
