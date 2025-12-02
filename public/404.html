@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Redirecting...</title>
+    <script>
+      // GitHub Pages SPA redirect
+      // Сохраняем текущий путь и параметры
+      const path = window.location.pathname;
+      const search = window.location.search;
+      const hash = window.location.hash;
+      const basePath = '/ag_sound_calc';
+      
+      // Убираем basePath из пути, если он есть
+      let indexPath = path.replace(basePath, '') || '/';
+      
+      // Если путь пустой или только слеш, редиректим на /calc
+      if (indexPath === '/' || indexPath === '') {
+        indexPath = '/calc';
+      }
+      
+      // Редиректим на index.html с сохранением пути
+      const redirectUrl = basePath + '/index.html' + indexPath + search + hash;
+      window.location.replace(redirectUrl);
+    </script>
+  </head>
+  <body>
+    <p>Redirecting...</p>
+  </body>
+</html>
+
