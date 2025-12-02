@@ -7,9 +7,25 @@ export const calculateConstruction = async (constrList) => {
     return { data: [] };
   }
 
-  const apiUrl = import.meta.env.DEV
-    ? "/api/v1/calcIsolation/byProduct"
-    : "https://db.acoustic.ru:3005/api/v1/calcIsolation/byProduct";
+  // Определяем URL для расчета конструкций
+  const getApiUrl = () => {
+    if (import.meta.env.DEV) {
+      return "/api/v1/calcIsolation/byProduct";
+    }
+    
+    // В production проверяем наличие прокси
+    const proxyUrl = import.meta.env.VITE_API_PROXY_URL || import.meta.env.VITE_API_URL;
+    if (proxyUrl) {
+      // Убеждаемся, что URL заканчивается на /api/v1
+      const base = proxyUrl.endsWith('/api/v1') ? proxyUrl : `${proxyUrl}/api/v1`;
+      return `${base}/calcIsolation/byProduct`;
+    }
+    
+    // Если прокси не настроен, используем прямой URL (может быть CORS ошибка)
+    return "https://db.acoustic.ru:3005/api/v1/calcIsolation/byProduct";
+  };
+
+  const apiUrl = getApiUrl();
 
   const response = await fetch(apiUrl, {
     method: "POST",

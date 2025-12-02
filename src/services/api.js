@@ -2,9 +2,26 @@
  * API сервис для получения данных о конструкциях
  */
 
-const API_BASE_URL = import.meta.env.PROD 
-  ? 'https://db.acoustic.ru:3005/api/v1' 
-  : '/api/v1';
+// Определяем базовый URL API с поддержкой прокси
+const getApiBaseUrl = () => {
+  // В dev режиме используем прокси через Vite
+  if (import.meta.env.DEV) {
+    return '/api/v1';
+  }
+  
+  // В production проверяем наличие прокси из переменных окружения
+  const proxyUrl = import.meta.env.VITE_API_PROXY_URL || import.meta.env.VITE_API_URL;
+  if (proxyUrl) {
+    console.log('[API] Using proxy:', proxyUrl);
+    return proxyUrl;
+  }
+  
+  // Если прокси не настроен, используем прямой URL (может быть CORS ошибка)
+  console.warn('[API] No proxy configured, using direct URL (CORS may fail)');
+  return 'https://db.acoustic.ru:3005/api/v1';
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 /**
  * Получает все конструкции изоляции из API
@@ -52,10 +69,23 @@ export const getImageUrl = (imageName) => {
   
   // Формируем URL для изображений из API
   // Изображения находятся по адресу /api/v1/constr/{imageName}
-  // В dev режиме используем localhost:3005, в prod - production URL
-  const imagesBaseUrl = import.meta.env.PROD 
-    ? 'https://db.acoustic.ru:3005/api/v1/constr'
-    : 'http://localhost:3005/api/v1/constr';
+  const getImagesBaseUrl = () => {
+    if (import.meta.env.DEV) {
+      return 'http://localhost:3005/api/v1/constr';
+    }
+    
+    // В production используем прокси, если настроен
+    const proxyUrl = import.meta.env.VITE_API_PROXY_URL || import.meta.env.VITE_API_URL;
+    if (proxyUrl) {
+      // Убираем /api/v1 из конца, если есть, и добавляем /constr
+      const base = proxyUrl.replace(/\/api\/v1\/?$/, '');
+      return `${base}/api/v1/constr`;
+    }
+    
+    return 'https://db.acoustic.ru:3005/api/v1/constr';
+  };
+  
+  const imagesBaseUrl = getImagesBaseUrl();
   
   // Обработка путей вида /Img_constr/floor/c2k2_1.png -> floor_c2k2_1.jpg
   if (imageName.startsWith('/Img_constr/')) {
