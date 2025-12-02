@@ -185,17 +185,28 @@ h4 {
   background-color: rgb(205 204 204);
   color: #6d7277;
   border-collapse: collapse;
+  width: 100%;
+  max-width: 100%;
+  table-layout: auto;
+  word-wrap: break-word;
+  box-sizing: border-box;
 }
 
 .data th {
   padding: 3px;
   text-align: center;
   font-weight: 600;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  hyphens: auto;
 }
 
 .data td {
   padding: 3px;
   text-align: center;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  hyphens: auto;
 }
 
 .data tr:nth-child(even) {
@@ -261,12 +272,20 @@ h4 {
 .tbl-in {
   margin-top: 20px;
   padding-right: 20px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-x: auto;
+  overflow-y: visible;
 }
 
 .tables-and-buttons-container {
   display: flex;
   flex-direction: column;
   width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
 }
 
 .buttons-container {
@@ -362,17 +381,27 @@ h4 {
   flex: 0 0 60%;
   max-width: 60%;
   min-width: 0;
-  width: 50%;
+  width: 60%;
   display: flex;
   flex-direction: column;
+  box-sizing: border-box;
+  overflow-x: hidden;
 }
 
 .selected-item-container .tables-and-buttons-container .tbl-in {
   width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-x: auto;
+  overflow-y: visible;
 }
 
 .selected-item-container .tables-and-buttons-container .data {
   width: 100%;
+  max-width: 100%;
+  table-layout: auto;
+  word-wrap: break-word;
+  box-sizing: border-box;
 }
 
 /* Адаптивность для мобильных устройств */
@@ -390,11 +419,15 @@ h4 {
   .selected-item-container .tables-and-buttons-container {
     flex: 0 0 100%;
     max-width: 100%;
-    width: 100%;  
-
+    width: 100%;
+    box-sizing: border-box;
+    overflow-x: hidden;
   }
   .tbl-in {
     padding-right: 0px;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
   }
 
   /* Адаптивность для кнопок const_page на экранах менее 550px */
