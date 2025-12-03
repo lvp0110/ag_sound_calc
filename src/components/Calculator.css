@@ -33,6 +33,7 @@
   width: clamp(150px, 15vw, 200px);
   height: clamp(150px, 15vw, 200px);
   flex-shrink: 0;
+  border-radius: 10px;
 }
 
 .const-item-container {
