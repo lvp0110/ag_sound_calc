@@ -31,12 +31,32 @@ const ItemsList = ({ items, onItemSelect, selectedItemId }) => {
             ? getImageUrl(imageSrc)
             : null;
 
+        // Проверяем, является ли это ЗИПС для потолка (ID: 201-205)
+        // Также проверяем по названию на случай, если структура данных отличается
+        const isZIPSCeiling = (elem.c_id === "C" && elem.id >= 201 && elem.id <= 205) ||
+                              (elem.c_id === "C" && elem.title && elem.title.includes("ЗИПС"));
+        
+        const buttonClassName = isZIPSCeiling 
+          ? "const_page const_page-zips-ceiling" 
+          : "const_page";
+        const buttonStyle = isZIPSCeiling 
+          ? { 
+              transform: 'rotate(-90deg)', 
+              transformOrigin: 'center center',
+              WebkitTransform: 'rotate(-90deg)',
+              msTransform: 'rotate(-90deg)',
+              MozTransform: 'rotate(-90deg)'
+            }
+          : {};
+
         return (
           <div key={`${elem.id}-${elem.c_id}`} className="const-item-container">
             <button
               value={elem.id}
-              className="const_page"
+              className={buttonClassName}
               onClick={() => onItemSelect(elem)}
+              data-zips-ceiling={isZIPSCeiling ? "true" : undefined}
+              style={buttonStyle}
             >
               <p>{elem.title}</p>
               {src && <img src={src} alt="" className="img-icon" />}
@@ -49,4 +69,5 @@ const ItemsList = ({ items, onItemSelect, selectedItemId }) => {
 };
 
 export default ItemsList;
+
 

@@ -228,6 +228,31 @@ h4 {
   z-index: 1;
 }
 
+/* Поворот кнопок ЗИПС для потолка на 90 градусов влево */
+.const_page-zips-ceiling,
+.const_page[data-zips-ceiling="true"],
+.const-item-container .const_page[data-zips-ceiling="true"] {
+  transform: rotate(-90deg) !important;
+  -webkit-transform: rotate(-90deg) !important;
+  -ms-transform: rotate(-90deg) !important;
+  -moz-transform: rotate(-90deg) !important;
+  transform-origin: center center !important;
+  -webkit-transform-origin: center center !important;
+  -moz-transform-origin: center center !important;
+}
+
+/* Поворачиваем текст обратно, чтобы он был читаемым */
+.const_page-zips-ceiling p,
+.const_page[data-zips-ceiling="true"] p {
+  transform: rotate(90deg) !important;
+  -webkit-transform: rotate(90deg) !important;
+  -ms-transform: rotate(90deg) !important;
+  -moz-transform: rotate(90deg) !important;
+  transform-origin: center center !important;
+  -webkit-transform-origin: center center !important;
+  -moz-transform-origin: center center !important;
+}
+
 .counter__button_plus {
   width: 100%;
   height: 35px;

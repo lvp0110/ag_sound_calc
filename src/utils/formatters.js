@@ -28,3 +28,5 @@ export const getOpeningType = (Type) => {
   return "окно";
 };
 
+
+

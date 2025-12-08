@@ -66,3 +66,5 @@ const ConstructionList = ({ constructions, onDelete }) => {
 
 export default ConstructionList;
 
+
+

@@ -198,3 +198,5 @@ export const validateFloorMaxInput = (constR, currentSubCategory, template) => {
   return null;
 };
 
+
+

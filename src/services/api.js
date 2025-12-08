@@ -46,13 +46,20 @@ export const getAllIsolationConstr = async () => {
   
   try {
     const startTime = performance.now();
+    
+    // Создаем AbortController для таймаута
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 секунд таймаут
+    
     const response = await fetch(url, {
       method: 'GET',
       headers: {
         'accept': 'application/json',
       },
+      signal: controller.signal,
     });
 
+    clearTimeout(timeoutId);
     const fetchTime = performance.now() - startTime;
     console.log(`[API] Response received in ${fetchTime.toFixed(2)}ms, status:`, response.status);
 
@@ -72,7 +79,11 @@ export const getAllIsolationConstr = async () => {
     console.warn('[API] Unexpected response format:', result);
     return [];
   } catch (error) {
-    console.error('[API] Error fetching isolation constructions:', error, 'URL:', url);
+    if (error.name === 'AbortError') {
+      console.error('[API] Request timeout:', url);
+    } else {
+      console.error('[API] Error fetching isolation constructions:', error, 'URL:', url);
+    }
     return [];
   }
 };
@@ -88,6 +99,13 @@ export const getImageUrl = (imageName) => {
   // Если это уже полный URL, возвращаем как есть
   if (imageName.startsWith('http://') || imageName.startsWith('https://')) {
     return imageName;
+  }
+  
+  // Локальные иконки (начинающиеся с icon_) загружаем из public/ как статические ресурсы
+  // Эти файлы не должны идти через API прокси
+  if (imageName.startsWith('icon_')) {
+    // В Vite статические ресурсы из public/ доступны напрямую через корень
+    return `/${imageName}`;
   }
   
   // Формируем URL для изображений из API

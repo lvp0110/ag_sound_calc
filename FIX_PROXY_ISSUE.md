@@ -62,3 +62,5 @@ my-proxy-123.workers.dev/api/v1/AllIsolationConstr
 - `PROXY_SETUP_GUIDE.md` - подробная инструкция
 - `cloudflare-worker-proxy.js` - готовый код для прокси
 
+
+

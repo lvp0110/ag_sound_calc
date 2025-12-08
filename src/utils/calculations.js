@@ -36,3 +36,5 @@ export const getConstructionCode = (currentConstr, currentGkla, currentWool) => 
   return currentConstr + "_" + currentGkla + "_" + currentWool;
 };
 
+
+
