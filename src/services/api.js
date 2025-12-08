@@ -101,15 +101,6 @@ export const getImageUrl = (imageName) => {
     return imageName;
   }
   
-  // Локальные иконки (начинающиеся с icon_) загружаем из public/ как статические ресурсы
-  // Эти файлы не должны идти через API прокси
-  if (imageName.startsWith('icon_')) {
-    // Учитываем BASE_URL (например, GitHub Pages) и избегаем двойных слешей
-    const baseUrl = (import.meta.env.BASE_URL || '/').replace(/\/+$/, '/');
-    const cleanName = imageName.startsWith('/') ? imageName.slice(1) : imageName;
-    return `${baseUrl}${cleanName}`;
-  }
-  
   // Формируем URL для изображений из API
   // Изображения находятся по адресу /api/v1/constr/{imageName}
   const getImagesBaseUrl = () => {
