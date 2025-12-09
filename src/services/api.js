@@ -107,6 +107,16 @@ export const getImageUrl = (imageName, useFallback = false) => {
     return imageName;
   }
   
+  // Специальный случай: картинки потолков ЗИПС хранятся без папки zips_ceiling на API.
+  // Если приходит путь zips_ceiling/filename.jpg — отправляем только filename.jpg.
+  const zipsCeilingPrefix = 'zips_ceiling/';
+  if (imageName.includes(zipsCeilingPrefix)) {
+    const fileName = imageName.split(zipsCeilingPrefix).pop();
+    if (fileName) {
+      imageName = fileName;
+    }
+  }
+  
   // Обрабатываем имя изображения
   let processedImageName = imageName;
   if (imageName.startsWith('/Img_constr/')) {

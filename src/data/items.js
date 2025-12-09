@@ -1,12 +1,12 @@
 import { getImagesMap, getImageUrl, getImageUrlWithFallback } from '../services/api';
 
-// Новые изображения потолков ЗИПС (лежат в public/zips_ceiling)
-const zipsCeilingLocalImages = {
-  201: "/zips_ceiling/ceiling_zips_vector.jpg",
-  202: "/zips_ceiling/ceiling_zips_module.jpg",
-  203: "/zips_ceiling/ceiling_zips_IIIultra.jpg",
-  204: "/zips_ceiling/ceiling_zips_Z4.jpg",
-  205: "/zips_ceiling/ceiling_zips_cinema.jpg",
+// Новые файлы для потолков ЗИПС (загружаются через API, а не локально)
+const zipsCeilingApiImages = {
+  201: "zips_ceiling/ceiling_zips_vector.jpg",
+  202: "zips_ceiling/ceiling_zips_module.jpg",
+  203: "zips_ceiling/ceiling_zips_IIIultra.jpg",
+  204: "zips_ceiling/ceiling_zips_Z4.jpg",
+  205: "zips_ceiling/ceiling_zips_cinema.jpg",
 };
 
 const ItemsBase = [
@@ -430,13 +430,13 @@ const ItemsBase = [
  */
 const enrichItemsWithImages = (items, imagesMap) => {
   return items.map(item => {
-    // Потолки ЗИПС: сразу используем локальные файлы из public (без запроса к API)
-    if (item.c_id === "C" && zipsCeilingLocalImages[item.id]) {
-      const localImg = zipsCeilingLocalImages[item.id];
+    // Для потолков ЗИПС принудительно используем новые имена файлов через API,
+    // чтобы не подставлялись старые картинки из ответа API
+    if (item.c_id === "C" && zipsCeilingApiImages[item.id]) {
+      const newImgPath = zipsCeilingApiImages[item.id];
       return {
         ...item,
-        Img: localImg,
-        img: localImg,
+        Img: getImageUrlWithFallback(newImgPath),
       };
     }
 

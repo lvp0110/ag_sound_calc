@@ -44,13 +44,7 @@ const ItemsList = ({ items, onItemSelect, selectedItemId }) => {
     <div className="items content-item">
       {items.map((elem) => {
         const imageSrc = elem.Img || elem.img;
-        const isZipsCeilingImage =
-          typeof imageSrc === "string" && imageSrc.includes("zips_ceiling");
-
-        // Для зипс-потолков используем локальный путь напрямую, чтобы избежать 404 с API
-        const src = isZipsCeilingImage
-          ? imageSrc.startsWith("/") ? imageSrc : `/${imageSrc}`
-          : imageSrc
+        const src = imageSrc
           ? imageSrc.startsWith("http://") || imageSrc.startsWith("https://")
             ? imageSrc
             : getImageUrlWithFallback(imageSrc)
@@ -98,10 +92,16 @@ const ItemsList = ({ items, onItemSelect, selectedItemId }) => {
                   decoding="async"
                   data-image-key={`${elem.id}-${imageSrc}`}
                   onError={(e) => {
-                    if (isZipsCeilingImage) {
-                      const fileName = (imageSrc || "").split("/").pop();
+                    // Для zips_ceiling пробуем без папки, если первый запрос дал 404
+                    if (
+                      imageSrc &&
+                      imageSrc.includes("zips_ceiling/") &&
+                      !e.target.dataset.retried
+                    ) {
+                      const fileName = imageSrc.split("zips_ceiling/").pop();
                       if (fileName) {
-                        e.target.src = `/zips_ceiling/${fileName}`;
+                        e.target.dataset.retried = "true";
+                        e.target.src = getImageUrlWithFallback(fileName);
                         return;
                       }
                     }

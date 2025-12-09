@@ -586,14 +586,7 @@ const Calculator = () => {
                     {items.length > 0 ? (
                       items.map((elem) => {
                         const imageSrc = elem.Img || elem.img;
-                        const isZipsCeilingImage =
-                          typeof imageSrc === "string" &&
-                          imageSrc.includes("zips_ceiling");
-
-                        // Для зипс-потолков сразу берём локальный путь (public), без API
-                        const src = isZipsCeilingImage
-                          ? imageSrc.startsWith("/") ? imageSrc : `/${imageSrc}`
-                          : imageSrc
+                        const src = imageSrc
                           ? imageSrc.startsWith("http://") ||
                             imageSrc.startsWith("https://")
                             ? imageSrc
@@ -628,10 +621,16 @@ const Calculator = () => {
                                   loading="lazy"
                                   decoding="async"
                                   onError={(e) => {
-                                    if (isZipsCeilingImage) {
-                                      const fileName = (imageSrc || "").split("/").pop();
+                                    // Специальный fallback для zips_ceiling: пробуем без папки
+                                    if (
+                                      imageSrc &&
+                                      imageSrc.includes("zips_ceiling/") &&
+                                      !e.target.dataset.retried
+                                    ) {
+                                      const fileName = imageSrc.split("zips_ceiling/").pop();
                                       if (fileName) {
-                                        e.target.src = `/zips_ceiling/${fileName}`;
+                                        e.target.dataset.retried = "true";
+                                        e.target.src = getImageUrlWithFallback(fileName);
                                         return;
                                       }
                                     }
