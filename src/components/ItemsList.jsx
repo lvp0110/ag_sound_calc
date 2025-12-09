@@ -44,19 +44,12 @@ const ItemsList = ({ items, onItemSelect, selectedItemId }) => {
     <div className="items content-item">
       {items.map((elem) => {
         const imageSrc = elem.Img || elem.img;
-        const isLocalZipsCeilingImage =
-          typeof imageSrc === "string" &&
-          (imageSrc.startsWith("/zips_ceiling/") ||
-            imageSrc.startsWith("zips_ceiling/") ||
-            imageSrc.includes("ceiling_zips_"));
+        const isZipsCeilingImage =
+          typeof imageSrc === "string" && imageSrc.includes("zips_ceiling");
 
-        const normalizeLocal = (path) => {
-          if (!path) return path;
-          return path.startsWith("/") ? path : `/${path}`;
-        };
-
-        const src = isLocalZipsCeilingImage
-          ? normalizeLocal(imageSrc)
+        // Для зипс-потолков используем локальный путь напрямую, чтобы избежать 404 с API
+        const src = isZipsCeilingImage
+          ? imageSrc.startsWith("/") ? imageSrc : `/${imageSrc}`
           : imageSrc
           ? imageSrc.startsWith("http://") || imageSrc.startsWith("https://")
             ? imageSrc
@@ -105,9 +98,14 @@ const ItemsList = ({ items, onItemSelect, selectedItemId }) => {
                   decoding="async"
                   data-image-key={`${elem.id}-${imageSrc}`}
                   onError={(e) => {
-                    if (!isLocalZipsCeilingImage) {
-                      handleImageError(elem, imageSrc);
+                    if (isZipsCeilingImage) {
+                      const fileName = (imageSrc || "").split("/").pop();
+                      if (fileName) {
+                        e.target.src = `/zips_ceiling/${fileName}`;
+                        return;
+                      }
                     }
+                    handleImageError(elem, imageSrc);
                   }}
                 />
               )}

@@ -586,17 +586,13 @@ const Calculator = () => {
                     {items.length > 0 ? (
                       items.map((elem) => {
                         const imageSrc = elem.Img || elem.img;
-                        const isLocalZipsCeilingImage =
+                        const isZipsCeilingImage =
                           typeof imageSrc === "string" &&
-                          (imageSrc.startsWith("/zips_ceiling/") ||
-                            imageSrc.startsWith("zips_ceiling/") ||
-                            imageSrc?.includes("ceiling_zips_"));
-                        const normalizeLocal = (path) => {
-                          if (!path) return path;
-                          return path.startsWith("/") ? path : `/${path}`;
-                        };
-                        const src = isLocalZipsCeilingImage
-                          ? normalizeLocal(imageSrc)
+                          imageSrc.includes("zips_ceiling");
+
+                        // Для зипс-потолков сразу берём локальный путь (public), без API
+                        const src = isZipsCeilingImage
+                          ? imageSrc.startsWith("/") ? imageSrc : `/${imageSrc}`
                           : imageSrc
                           ? imageSrc.startsWith("http://") ||
                             imageSrc.startsWith("https://")
@@ -632,9 +628,12 @@ const Calculator = () => {
                                   loading="lazy"
                                   decoding="async"
                                   onError={(e) => {
-                                    if (isLocalZipsCeilingImage) {
-                                      e.target.style.display = 'none';
-                                      return;
+                                    if (isZipsCeilingImage) {
+                                      const fileName = (imageSrc || "").split("/").pop();
+                                      if (fileName) {
+                                        e.target.src = `/zips_ceiling/${fileName}`;
+                                        return;
+                                      }
                                     }
                                     // Пробуем загрузить через прямой URL
                                     if (imageSrc) {
