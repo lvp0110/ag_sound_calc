@@ -1,4 +1,5 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
 import FloorForm from "./forms/FloorForm";
 import CeilingForm from "./forms/CeilingForm";
 import FacingForm from "./forms/FacingForm";
@@ -35,15 +36,14 @@ const SelectedItemForms = ({
   const isFacingTemplate = [6, 50, 75, 100, 101, 50.1, 75.1, 100.1, 101.1, 50.2, 75.2, 100.2, 8.1].includes(template);
   const isSoundboardTemplate = [201, 202].includes(template);
   const isVerticalSoundboard = template === 201 && selectedItem?.c_id === "5";
+  const navigate = useNavigate();
 
   const getStartParam = () => {
     setUnvisible(!unvisible);
   };
 
   const handleInfoClick = () => {
-    // Обработчик клика на кнопку информации
-    // Можно добавить логику показа модального окна или другой функционал
-    console.log("Информация о:", selectedItem.title);
+    navigate(`/info/${selectedItem.ag_id}`);
   };
 
   return (

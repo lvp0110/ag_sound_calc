@@ -312,3 +312,32 @@ export const preloadImages = async (imageData, batchSize = 3) => {
   }
 };
 
+/**
+ * Получает данные конкретной конструкции по коду
+ * @param {string} code - Код конструкции (например, "AG.W101")
+ * @returns {Promise<Object|null>} Объект с данными конструкции или null, если не найдена
+ */
+export const getConstructionByCode = async (code) => {
+  if (!code) return null;
+  
+  try {
+    const constructions = await getAllIsolationConstr();
+    const construction = constructions.find(item => item.Code === code);
+    
+    if (construction) {
+      // Обрабатываем изображения
+      if (construction.Img) {
+        construction.Img = getImageUrlWithFallback(construction.Img);
+      }
+      if (construction.CadImg) {
+        construction.CadImg = getImageUrlWithFallback(construction.CadImg);
+      }
+    }
+    
+    return construction || null;
+  } catch (error) {
+    console.error('[API] Error fetching construction by code:', error);
+    return null;
+  }
+};
+

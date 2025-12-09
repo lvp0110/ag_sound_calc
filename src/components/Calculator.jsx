@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import Modal from "./Modal";
 import "./Calculator.css";
 import SubCategories from "../data/subCategories";
@@ -24,7 +24,7 @@ import ConstructionList from "./tables/ConstructionList";
 import MaterialsList from "./tables/MaterialsList";
 
 const Calculator = () => {
-  // const navigate = useNavigate();
+  const navigate = useNavigate();
   const { id } = useParams();
 
   // State
@@ -695,7 +695,7 @@ const Calculator = () => {
                             <button 
                               className="info-button" 
                               onClick={() => {
-                                console.log("Информация о:", selectedItem.title);
+                                navigate(`/info/${selectedItem.ag_id}`);
                               }}
                               aria-label="Информация"
                               title="Информация"

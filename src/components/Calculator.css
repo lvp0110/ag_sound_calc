@@ -480,6 +480,108 @@ h4 {
   height: 18px;
 }
 
+/* Стили для страницы информации об элементе */
+.item-info-container {
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 20px;
+  background-color: #f5f5f5;
+}
+
+.item-info-content {
+  max-width: 1200px;
+  width: 100%;
+  background: #ffffff;
+  border-radius: 10px;
+  padding: 30px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.item-info-header h1 {
+  font-family: "Montserrat", sans-serif;
+  font-size: 28px;
+  color: #333;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.item-info-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+}
+
+.item-info-images-column {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+}
+
+.item-info-image {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.item-info-img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 10px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.item-info-details {
+  width: 100%;
+}
+
+.item-info-section {
+  margin-bottom: 25px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.item-info-section:last-child {
+  border-bottom: none;
+}
+
+.item-info-section h3 {
+  font-family: "Montserrat", sans-serif;
+  font-size: 20px;
+  color: #6cabc8;
+  margin-bottom: 10px;
+}
+
+.item-info-section p {
+  font-family: "Montserrat", sans-serif;
+  font-size: 16px;
+  color: #666;
+  line-height: 1.6;
+}
+
+/* Двухколоночный layout для экранов более 768px */
+@media screen and (min-width: 769px) {
+  .item-info-layout {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+
+  .item-info-images-column {
+    flex: 0 0 45%;
+    max-width: 45%;
+    position: sticky;
+    top: 20px;
+  }
+
+  .item-info-details {
+    flex: 0 0 50%;
+    max-width: 50%;
+    margin-top: 0;
+  }
+}
+
 /* Правая часть - таблицы */
 .selected-item-container .tables-and-buttons-container {
   flex: 0 0 60%;
