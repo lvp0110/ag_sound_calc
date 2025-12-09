@@ -491,6 +491,8 @@ const ConstructionParameters = ({
                         opacity: 0.7,
                         cursor: "pointer",
                       }}
+                      loading="lazy"
+                      decoding="async"
                       onClick={() => onDeleteOpening(idx)}
                     />
                   </td>
@@ -505,6 +507,8 @@ const ConstructionParameters = ({
 };
 
 export default ConstructionParameters;
+
+
 
 
 

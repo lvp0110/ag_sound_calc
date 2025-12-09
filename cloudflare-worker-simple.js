@@ -1,15 +1,23 @@
 /**
- * ПРОСТАЯ ВЕРСИЯ CORS Proxy для API запросов к db.acoustic.ru:3005
+ * УЛУЧШЕННАЯ ВЕРСИЯ CORS Proxy для API запросов к db.acoustic.ru:3005
+ * 
+ * ОСОБЕННОСТИ:
+ * - Кэширование изображений на 7 дней
+ * - Кэширование JSON данных на 1 час
+ * - Оптимизация для работы без VPN
+ * - Поддержка всех методов HTTP
  * 
  * ИНСТРУКЦИЯ:
  * 1. Скопируйте ВЕСЬ код ниже (начиная со следующей строки)
  * 2. Вставьте в редактор Cloudflare Worker
  * 3. Сохраните и задеплойте
+ * 4. Установите переменную окружения API_BASE_URL в настройках Worker (опционально)
  */
 
 export default {
-  async fetch(request) {
-    const API_BASE_URL = 'https://db.acoustic.ru:3005';
+  async fetch(request, env, ctx) {
+    // Можно использовать переменную окружения или значение по умолчанию
+    const API_BASE_URL = env.API_BASE_URL || 'https://db.acoustic.ru:3005';
     
     // CORS заголовки
     const corsHeaders = {
@@ -33,6 +41,35 @@ export default {
       const apiPath = url.pathname + url.search;
       const apiUrl = `${API_BASE_URL}${apiPath}`;
 
+      // Определяем, является ли запрос запросом изображения
+      const isImageRequest = /\.(jpg|jpeg|png|gif|webp|svg|ico)$/i.test(apiPath) || 
+                             apiPath.includes('/constr/');
+
+      // Для GET запросов проверяем кэш
+      const cache = caches.default;
+      if (request.method === 'GET') {
+        // Создаем ключ для кэша из URL запроса
+        const cacheKey = new Request(request.url, {
+          method: 'GET',
+          headers: request.headers,
+        });
+        
+        const cachedResponse = await cache.match(cacheKey);
+        if (cachedResponse) {
+          // Возвращаем кэшированный ответ с CORS заголовками
+          const headers = new Headers(cachedResponse.headers);
+          Object.keys(corsHeaders).forEach(key => {
+            headers.set(key, corsHeaders[key]);
+          });
+          headers.set('CF-Cache-Status', 'HIT');
+          return new Response(cachedResponse.body, {
+            status: cachedResponse.status,
+            statusText: cachedResponse.statusText,
+            headers: headers,
+          });
+        }
+      }
+
       // Создаем заголовки для запроса к API
       const requestHeaders = new Headers();
       const contentType = request.headers.get('content-type');
@@ -45,6 +82,7 @@ export default {
       }
 
       // Выполняем запрос к API
+      // Cloudflare Workers автоматически обрабатывают таймауты (по умолчанию 100 секунд)
       const response = await fetch(apiUrl, {
         method: request.method,
         headers: requestHeaders,
@@ -54,8 +92,8 @@ export default {
       // Получаем тело ответа
       const responseBody = await response.arrayBuffer();
 
-      // Возвращаем ответ с CORS заголовками
-      return new Response(responseBody, {
+      // Создаем новый ответ
+      const newResponse = new Response(responseBody, {
         status: response.status,
         statusText: response.statusText,
         headers: {
@@ -63,6 +101,28 @@ export default {
           'Content-Type': response.headers.get('Content-Type') || 'application/json',
         },
       });
+
+      // Кэшируем GET запросы
+      if (request.method === 'GET' && response.status === 200) {
+        // Для изображений кэшируем на 7 дней
+        // Для остальных данных - на 1 час
+        const cacheTime = isImageRequest ? 7 * 24 * 60 * 60 : 60 * 60;
+        
+        const cacheResponse = newResponse.clone();
+        cacheResponse.headers.set('Cache-Control', `public, max-age=${cacheTime}`);
+        cacheResponse.headers.set('CF-Cache-Status', 'MISS');
+        
+        // Создаем ключ для кэша из оригинального запроса
+        const cacheKey = new Request(request.url, {
+          method: 'GET',
+          headers: request.headers,
+        });
+        
+        // Кэшируем ответ асинхронно
+        ctx.waitUntil(cache.put(cacheKey, cacheResponse));
+      }
+
+      return newResponse;
     } catch (error) {
       return new Response(
         JSON.stringify({ 
@@ -80,6 +140,8 @@ export default {
     }
   }
 };
+
+
 
 
 

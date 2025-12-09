@@ -10,7 +10,7 @@ import {
   constSentZero,
   openingZero,
 } from "../constants/defaultValues";
-import { getImageUrl } from "../services/api";
+import { getImageUrl, preloadImages } from "../services/api";
 import { validateInput, validateFloorInput, validateFloorMaxInput, getMaxLenZInMeters } from "../utils/validation";
 import { calculateAreaAndPerimeter, getConstructionCode } from "../utils/calculations";
 import { getOpeningType } from "../utils/formatters";
@@ -76,6 +76,12 @@ const Calculator = () => {
     };
 
     loadItemsWithImages();
+  }, []);
+
+  // Предзагружаем иконки секций для улучшения производительности
+  useEffect(() => {
+    const sectionIcons = mainSections.map(section => getImageUrl(section.icon));
+    preloadImages(sectionIcons, 4); // Загружаем по 4 иконки параллельно
   }, []);
 
   const [constR, setConstR] = useState({
@@ -549,6 +555,11 @@ const Calculator = () => {
                       src={getImageUrl(section.icon)}
                       alt=""
                       className="section-icon"
+                      loading="lazy"
+                      decoding="async"
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                      }}
                     />
                     {section.title}
                   </h2>
@@ -585,7 +596,16 @@ const Calculator = () => {
                             >
                               <p>{elem.title}</p>
                               {src && (
-                                <img src={src} alt="" className="img-icon" />
+                                <img 
+                                  src={src} 
+                                  alt="" 
+                                  className="img-icon"
+                                  loading="lazy"
+                                  decoding="async"
+                                  onError={(e) => {
+                                    e.target.style.display = 'none';
+                                  }}
+                                />
                               )}
                             </button>
                           </div>
@@ -1262,6 +1282,8 @@ const Calculator = () => {
                                                             .BASE_URL
                                                         }delete-icon.jpg`}
                                                         alt=""
+                                                        loading="lazy"
+                                                        decoding="async"
                                                         style={{
                                                           height: "30px",
                                                           opacity: 0.7,

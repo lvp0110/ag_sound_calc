@@ -27,6 +27,12 @@ const SectionContainer = ({
             src={getImageUrl(section.icon)}
             alt=""
             className="section-icon"
+            loading="lazy"
+            decoding="async"
+            onError={(e) => {
+              // Скрываем изображение при ошибке загрузки
+              e.target.style.display = 'none';
+            }}
           />
           {section.title}
         </h2>
@@ -53,6 +59,8 @@ const SectionContainer = ({
 };
 
 export default SectionContainer;
+
+
 
 
 

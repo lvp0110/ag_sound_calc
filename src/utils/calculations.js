@@ -40,3 +40,5 @@ export const getConstructionCode = (currentConstr, currentGkla, currentWool) => 
 
 
 
+
+

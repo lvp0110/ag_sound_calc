@@ -108,7 +108,7 @@ export const getImageUrl = (imageName) => {
       return 'http://localhost:3005/api/v1/constr';
     }
     
-    // В production используем прокси, если настроен
+    // В production используем прокси через Cloudflare Worker, если настроен
     const proxyUrl = import.meta.env.VITE_API_PROXY_URL || import.meta.env.VITE_API_URL;
     if (proxyUrl) {
       // Нормализуем URL прокси
@@ -124,9 +124,12 @@ export const getImageUrl = (imageName) => {
         normalizedUrl = normalizedUrl.replace(/\/api\/v1\/?$/, '') + '/api/v1';
       }
       
+      // Используем прокси для изображений (Cloudflare Worker будет кэшировать их)
       return `${normalizedUrl}/constr`;
     }
     
+    // Если прокси не настроен, используем прямой URL (может быть заблокирован)
+    console.warn('[API] No proxy configured for images, using direct URL');
     return 'https://db.acoustic.ru:3005/api/v1/constr';
   };
   
@@ -171,5 +174,44 @@ export const getImagesMap = async () => {
   });
   
   return imagesMap;
+};
+
+/**
+ * Предзагружает изображение
+ * @param {string} imageUrl - URL изображения для предзагрузки
+ * @returns {Promise<void>}
+ */
+export const preloadImage = (imageUrl) => {
+  return new Promise((resolve, reject) => {
+    if (!imageUrl) {
+      resolve();
+      return;
+    }
+    
+    const img = new Image();
+    img.onload = () => resolve();
+    img.onerror = () => {
+      console.warn('[API] Failed to preload image:', imageUrl);
+      resolve(); // Не отклоняем промис, чтобы не блокировать загрузку
+    };
+    img.src = imageUrl;
+  });
+};
+
+/**
+ * Предзагружает несколько изображений параллельно
+ * @param {string[]} imageUrls - Массив URL изображений для предзагрузки
+ * @param {number} batchSize - Количество параллельных загрузок (по умолчанию 5)
+ * @returns {Promise<void>}
+ */
+export const preloadImages = async (imageUrls, batchSize = 5) => {
+  const validUrls = imageUrls.filter(url => url);
+  if (validUrls.length === 0) return;
+  
+  // Загружаем изображения батчами для избежания перегрузки
+  for (let i = 0; i < validUrls.length; i += batchSize) {
+    const batch = validUrls.slice(i, i + batchSize);
+    await Promise.all(batch.map(url => preloadImage(url)));
+  }
 };
 

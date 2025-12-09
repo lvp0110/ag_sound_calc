@@ -59,7 +59,19 @@ const ItemsList = ({ items, onItemSelect, selectedItemId }) => {
               style={buttonStyle}
             >
               <p>{elem.title}</p>
-              {src && <img src={src} alt="" className="img-icon" />}
+              {src && (
+                <img 
+                  src={src} 
+                  alt="" 
+                  className="img-icon" 
+                  loading="lazy"
+                  decoding="async"
+                  onError={(e) => {
+                    // Скрываем изображение при ошибке загрузки
+                    e.target.style.display = 'none';
+                  }}
+                />
+              )}
             </button>
           </div>
         );

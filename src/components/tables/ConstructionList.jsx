@@ -53,6 +53,8 @@ const ConstructionList = ({ constructions, onDelete }) => {
                     height: "30px",
                     opacity: 0.7,
                   }}
+                  loading="lazy"
+                  decoding="async"
                   onClick={() => onDelete(constRItem.key_id)}
                 />
               </td>
@@ -65,6 +67,8 @@ const ConstructionList = ({ constructions, onDelete }) => {
 };
 
 export default ConstructionList;
+
+
 
 
 

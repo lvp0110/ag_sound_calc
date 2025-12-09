@@ -91,6 +91,12 @@ const Modal = ({ isOpen, onClose, title, html, icon, imageUrl, imageWidth, image
             alt="" 
             className="modal-image" 
             style={{ width: imageWidth, height: imageHeight }}
+            loading="eager"
+            decoding="async"
+            onError={(e) => {
+              // Показываем placeholder при ошибке загрузки
+              e.target.style.display = 'none';
+            }}
           />
         )}
         {!imageUrl && getIconElement()}
@@ -116,6 +122,8 @@ const Modal = ({ isOpen, onClose, title, html, icon, imageUrl, imageWidth, image
 };
 
 export default Modal;
+
+
 
 
 
