@@ -83,6 +83,24 @@ button {
   position: absolute;
 }
 
+/* Предотвращаем сжатие изображения в кнопке минус */
+.counter__button_minus + img {
+  width: auto !important;
+  min-width: 30px;
+  height: 30px !important;
+  object-fit: contain;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 1;
+}
+
+/* Ячейка таблицы с кнопкой удаления не должна сжиматься */
+.data td:has(.counter__button_minus) {
+  min-width: 50px;
+  white-space: nowrap;
+  width: auto;
+}
+
 .const_page {
   height: clamp(150px, 15vw, 200px) !important;
   width: clamp(150px, 15vw, 200px) !important;
@@ -413,13 +431,53 @@ h4 {
   gap: 15px;
 }
 
+.selected-item-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
 .selected-item-forms h3 {
   color: #6d7277;
   font-size: 18px;
   font-weight: 600;
-  margin: 0 0 10px 0;
+  margin: 0;
   padding: 0;
   font-family: "Montserrat", sans-serif;
+  flex: 1;
+}
+
+.info-button {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 1px solid #6d7277;
+  border-radius: 50%;
+  background: #ffffff;
+  color: #3fc3ee;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.info-button:hover {
+  background: #f0f0f0;
+  border-color: #3fc3ee;
+  transform: scale(1.1);
+}
+
+.info-button:active {
+  transform: scale(0.95);
+}
+
+.info-button svg {
+  width: 18px;
+  height: 18px;
 }
 
 /* Правая часть - таблицы */
@@ -474,6 +532,22 @@ h4 {
     width: 100%;
     max-width: 100%;
     box-sizing: border-box;
+  }
+
+  /* Предотвращаем сжатие изображения в кнопке минус на мобильных устройствах */
+  .counter__button_minus + img {
+    width: auto !important;
+    min-width: 30px !important;
+    height: 30px !important;
+    max-width: none !important;
+    object-fit: contain;
+    flex-shrink: 0;
+  }
+
+  /* Ячейка с кнопкой удаления не должна сжиматься */
+  .data td:has(.counter__button_minus) {
+    min-width: 50px !important;
+    white-space: nowrap;
   }
 
   /* Адаптивность для кнопок const_page на экранах менее 550px */
@@ -531,5 +605,21 @@ h4 {
     min-width: 0 !important;
     min-height: 0 !important;
     font-size: clamp(9px, 2.5vw, 11px) !important;
+  }
+
+  /* Предотвращаем сжатие изображения в кнопке минус на очень маленьких экранах */
+  .counter__button_minus + img {
+    width: auto !important;
+    min-width: 30px !important;
+    height: 30px !important;
+    max-width: none !important;
+    object-fit: contain;
+    flex-shrink: 0;
+  }
+
+  /* Ячейка с кнопкой удаления не должна сжиматься */
+  .data td:has(.counter__button_minus) {
+    min-width: 50px !important;
+    white-space: nowrap;
   }
 }

@@ -690,7 +690,28 @@ const Calculator = () => {
                         onClick={(e) => e.stopPropagation()}
                       >
                         <div className="selected-item-forms">
-                          <h3>{selectedItem.title}</h3>
+                          <div className="selected-item-header">
+                            <h3>{selectedItem.title}</h3>
+                            <button 
+                              className="info-button" 
+                              onClick={() => {
+                                console.log("Информация о:", selectedItem.title);
+                              }}
+                              aria-label="Информация"
+                              title="Информация"
+                            >
+                              <svg 
+                                width="20" 
+                                height="20" 
+                                viewBox="0 0 20 20" 
+                                fill="none" 
+                                xmlns="http://www.w3.org/2000/svg"
+                              >
+                                <circle cx="10" cy="10" r="9" stroke="currentColor" strokeWidth="2" fill="none"/>
+                                <text x="10" y="14" textAnchor="middle" fontSize="14" fontWeight="bold" fill="currentColor" fontStyle="italic">i</text>
+                              </svg>
+                            </button>
+                          </div>
                           {/* Формы конструкций для выбранного элемента */}
                           {/* Полы: template 1, 111, 3, 607.1, 608.1, 609.1, 610.1, 2.1, 9, 9.1 */}
                           {(selectedItem.template == 1 ||

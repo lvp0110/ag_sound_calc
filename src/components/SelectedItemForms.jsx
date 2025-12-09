@@ -40,9 +40,34 @@ const SelectedItemForms = ({
     setUnvisible(!unvisible);
   };
 
+  const handleInfoClick = () => {
+    // Обработчик клика на кнопку информации
+    // Можно добавить логику показа модального окна или другой функционал
+    console.log("Информация о:", selectedItem.title);
+  };
+
   return (
     <div className="selected-item-forms">
-      <h3>{selectedItem.title}</h3>
+      <div className="selected-item-header">
+        <h3>{selectedItem.title}</h3>
+        <button 
+          className="info-button" 
+          onClick={handleInfoClick}
+          aria-label="Информация"
+          title="Информация"
+        >
+          <svg 
+            width="20" 
+            height="20" 
+            viewBox="0 0 20 20" 
+            fill="none" 
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <circle cx="10" cy="10" r="9" stroke="currentColor" strokeWidth="2" fill="none"/>
+            <text x="10" y="14" textAnchor="middle" fontSize="14" fontWeight="bold" fill="currentColor" fontStyle="italic">i</text>
+          </svg>
+        </button>
+      </div>
 
       {isFloorTemplate && (
         <FloorForm
