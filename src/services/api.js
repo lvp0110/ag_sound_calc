@@ -34,6 +34,14 @@ const getApiBaseUrl = () => {
   return 'https://db.acoustic.ru:3005/api/v1';
 };
 
+// В публичных билд-окружениях (GitHub Pages) принудительно избегаем Cloudflare Worker,
+// т.к. он часто блокируется без VPN. Можно выключить вручную через VITE_DISABLE_WORKER=true.
+const isPublicStaticHost = () => {
+  if (typeof window === 'undefined') return false;
+  const host = window.location.hostname;
+  return host.endsWith('.github.io') || host.includes('localhost');
+};
+
 const API_BASE_URL = getApiBaseUrl();
 
 /**
@@ -138,9 +146,12 @@ export const getImageUrl = (imageName, useFallback = false) => {
     return `http://localhost:3005/api/v1/constr/${processedImageName}`;
   }
   
-  // В production используем прокси через Cloudflare Worker, если настроен и не используется fallback
-  // Можно отключить Worker через VITE_DISABLE_WORKER=true
-  if (!useFallback && import.meta.env.VITE_DISABLE_WORKER !== 'true') {
+  // В production используем прокси через Cloudflare Worker, если настроен и не используется fallback.
+  // Пропускаем worker, если он отключён или хост github.io (часто блокируется без VPN).
+  const disableWorker =
+    import.meta.env.VITE_DISABLE_WORKER === 'true' || isPublicStaticHost();
+
+  if (!useFallback && !disableWorker) {
     const proxyUrl = import.meta.env.VITE_API_PROXY_URL || import.meta.env.VITE_API_URL;
     if (proxyUrl) {
       let normalizedUrl = proxyUrl.trim().replace(/\/+$/, '');
