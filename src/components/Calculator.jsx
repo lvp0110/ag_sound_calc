@@ -586,14 +586,31 @@ const Calculator = () => {
                     {items.length > 0 ? (
                       items.map((elem) => {
                         const imageSrc = elem.Img || elem.img;
-                        const src =
-                          imageSrc &&
-                          (imageSrc.startsWith("http://") ||
-                            imageSrc.startsWith("https://"))
+                        const isLocalZipsCeilingImage =
+                          typeof imageSrc === "string" &&
+                          (imageSrc.startsWith("/zips_ceiling/") ||
+                            imageSrc.startsWith("zips_ceiling/") ||
+                            imageSrc?.includes("ceiling_zips_"));
+                        const normalizeLocal = (path) => {
+                          if (!path) return path;
+                          return path.startsWith("/") ? path : `/${path}`;
+                        };
+                        const src = isLocalZipsCeilingImage
+                          ? normalizeLocal(imageSrc)
+                          : imageSrc
+                          ? imageSrc.startsWith("http://") ||
+                            imageSrc.startsWith("https://")
                             ? imageSrc
-                            : imageSrc
-                            ? getImageUrlWithFallback(imageSrc)
-                            : null;
+                            : getImageUrlWithFallback(imageSrc)
+                          : null;
+
+                        const isSelected = currentItems == elem.id;
+                        const buttonClassName = [
+                          "const_page",
+                          isSelected ? "const_page--selected" : null,
+                        ]
+                          .filter(Boolean)
+                          .join(" ");
 
                         return (
                           <div
@@ -603,7 +620,7 @@ const Calculator = () => {
                             {/* Кнопка const_page */}
                             <button
                               value={elem.id}
-                              className="const_page"
+                              className={buttonClassName}
                               onClick={() => handleItemSelect(elem)}
                             >
                               <p>{elem.title}</p>
@@ -615,6 +632,10 @@ const Calculator = () => {
                                   loading="lazy"
                                   decoding="async"
                                   onError={(e) => {
+                                    if (isLocalZipsCeilingImage) {
+                                      e.target.style.display = 'none';
+                                      return;
+                                    }
                                     // Пробуем загрузить через прямой URL
                                     if (imageSrc) {
                                       const fallbackUrl = getImageUrl(imageSrc, true);

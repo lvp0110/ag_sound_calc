@@ -44,22 +44,38 @@ const ItemsList = ({ items, onItemSelect, selectedItemId }) => {
     <div className="items content-item">
       {items.map((elem) => {
         const imageSrc = elem.Img || elem.img;
-        const src =
-          imageSrc &&
-          (imageSrc.startsWith("http://") || imageSrc.startsWith("https://"))
+        const isLocalZipsCeilingImage =
+          typeof imageSrc === "string" &&
+          (imageSrc.startsWith("/zips_ceiling/") ||
+            imageSrc.startsWith("zips_ceiling/") ||
+            imageSrc.includes("ceiling_zips_"));
+
+        const normalizeLocal = (path) => {
+          if (!path) return path;
+          return path.startsWith("/") ? path : `/${path}`;
+        };
+
+        const src = isLocalZipsCeilingImage
+          ? normalizeLocal(imageSrc)
+          : imageSrc
+          ? imageSrc.startsWith("http://") || imageSrc.startsWith("https://")
             ? imageSrc
-            : imageSrc
-            ? getImageUrlWithFallback(imageSrc)
-            : null;
+            : getImageUrlWithFallback(imageSrc)
+          : null;
 
         // Проверяем, является ли это ЗИПС для потолка (ID: 201-205)
         // Также проверяем по названию на случай, если структура данных отличается
         const isZIPSCeiling = (elem.c_id === "C" && elem.id >= 201 && elem.id <= 205) ||
                               (elem.c_id === "C" && elem.title && elem.title.includes("ЗИПС"));
         
-        const buttonClassName = isZIPSCeiling 
-          ? "const_page const_page-zips-ceiling" 
-          : "const_page";
+        const isSelected = selectedItemId === elem.id;
+        const buttonClassName = [
+          "const_page",
+          isZIPSCeiling ? "const_page-zips-ceiling" : null,
+          isSelected ? "const_page--selected" : null,
+        ]
+          .filter(Boolean)
+          .join(" ");
         const buttonStyle = isZIPSCeiling 
           ? { 
               transform: 'rotate(-90deg)', 
@@ -89,7 +105,9 @@ const ItemsList = ({ items, onItemSelect, selectedItemId }) => {
                   decoding="async"
                   data-image-key={`${elem.id}-${imageSrc}`}
                   onError={(e) => {
-                    handleImageError(elem, imageSrc);
+                    if (!isLocalZipsCeilingImage) {
+                      handleImageError(elem, imageSrc);
+                    }
                   }}
                 />
               )}

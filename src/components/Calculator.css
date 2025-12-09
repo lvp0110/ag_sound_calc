@@ -124,6 +124,11 @@ button {
   background: rgba(128, 128, 128, 0.717);
 }
 
+.const_page--selected {
+  border: 4px solid #5f9ea0 !important;
+  opacity: 0.5;
+}
+
 button:hover {
   opacity: 0.8;
 }

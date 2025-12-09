@@ -1,5 +1,14 @@
 import { getImagesMap, getImageUrl, getImageUrlWithFallback } from '../services/api';
 
+// Локальные изображения для потолочных систем ЗИПС (c_id: "C")
+const zipsCeilingImages = {
+  201: "/zips_ceiling/ceiling_zips_vector.jpg",
+  202: "/zips_ceiling/ceiling_zips_module.jpg",
+  203: "/zips_ceiling/ceiling_zips_IIIultra.jpg",
+  204: "/zips_ceiling/ceiling_zips_Z4.jpg",
+  205: "/zips_ceiling/ceiling_zips_cinema.jpg",
+};
+
 const ItemsBase = [
 
   {
@@ -146,6 +155,7 @@ const ItemsBase = [
     template: 4,
     ag_id: "AG.Z201",
     weight: "39 кг/м2",
+    img: zipsCeilingImages[201],
   },
   {
     id: 202,
@@ -156,6 +166,7 @@ const ItemsBase = [
     template: 4,
     ag_id: "AG.Z202",
     weight: "40,5 кг/м2",
+    img: zipsCeilingImages[202],
   },
   {
     id: 203,
@@ -166,6 +177,7 @@ const ItemsBase = [
     template: 4,
     ag_id: "AG.Z203",
     weight: "40 кг/м2",
+    img: zipsCeilingImages[203],
   },
   {
     id: 204,
@@ -176,6 +188,7 @@ const ItemsBase = [
     template: 4,
     ag_id: "AG.Z204",
     weight: "40,5 кг/м2",
+    img: zipsCeilingImages[204],
   },
   {
     id: 205,
@@ -186,6 +199,7 @@ const ItemsBase = [
     template: 4,
     ag_id: "AG.Z205",
     weight: "41 кг/м2",
+    img: zipsCeilingImages[205],
   },
   {
     id: 401,
@@ -421,6 +435,16 @@ const ItemsBase = [
  */
 const enrichItemsWithImages = (items, imagesMap) => {
   return items.map(item => {
+    // Для потолочных систем ЗИПС показываем локальные изображения из public/zips_ceiling
+    if (item.c_id === "C" && zipsCeilingImages[item.id]) {
+      const localImg = zipsCeilingImages[item.id];
+      return {
+        ...item,
+        Img: localImg,
+        img: localImg,
+      };
+    }
+
     // Получаем изображение из API по ag_id (который соответствует Code в API)
     let apiImage = imagesMap.get(item.ag_id);
     
