@@ -1,5 +1,5 @@
-import React from "react";
-import { getImageUrl } from "../services/api";
+import React, { useState } from "react";
+import { getImageUrl, getImageUrlWithFallback } from "../services/api";
 import ItemsList from "./ItemsList";
 
 /**
@@ -15,6 +15,24 @@ const SectionContainer = ({
   selectedItemId,
   children,
 }) => {
+  const [imageError, setImageError] = useState(false);
+
+  const handleImageError = (e) => {
+    if (!imageError) {
+      setImageError(true);
+      // Пробуем загрузить через прямой URL
+      const fallbackUrl = getImageUrl(section.icon, true);
+      const img = new Image();
+      img.onload = () => {
+        e.target.src = fallbackUrl;
+      };
+      img.src = fallbackUrl;
+    } else {
+      // Если и прямой URL не сработал, скрываем изображение
+      e.target.style.display = 'none';
+    }
+  };
+
   return (
     <div
       className="section-container"
@@ -24,15 +42,12 @@ const SectionContainer = ({
       <div className="section-header">
         <h2 className="section-title">
           <img
-            src={getImageUrl(section.icon)}
+            src={getImageUrlWithFallback(section.icon)}
             alt=""
             className="section-icon"
             loading="lazy"
             decoding="async"
-            onError={(e) => {
-              // Скрываем изображение при ошибке загрузки
-              e.target.style.display = 'none';
-            }}
+            onError={handleImageError}
           />
           {section.title}
         </h2>

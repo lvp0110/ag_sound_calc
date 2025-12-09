@@ -1,10 +1,13 @@
-import React from "react";
-import { getImageUrl } from "../services/api";
+import React, { useState } from "react";
+import { getImageUrl, getImageUrlWithFallback } from "../services/api";
 
 /**
  * Компонент списка элементов конструкции
  */
 const ItemsList = ({ items, onItemSelect, selectedItemId }) => {
+  // Состояние для отслеживания ошибок загрузки изображений
+  const [imageErrors, setImageErrors] = useState(new Set());
+
   if (items.length === 0) {
     return (
       <div
@@ -19,6 +22,24 @@ const ItemsList = ({ items, onItemSelect, selectedItemId }) => {
     );
   }
 
+  const handleImageError = (elem, imageSrc) => {
+    const errorKey = `${elem.id}-${imageSrc}`;
+    if (!imageErrors.has(errorKey)) {
+      setImageErrors(prev => new Set([...prev, errorKey]));
+      // Пробуем загрузить через прямой URL
+      const fallbackUrl = getImageUrl(imageSrc, true);
+      const img = new Image();
+      img.onload = () => {
+        // Если прямой URL работает, обновляем изображение
+        const element = document.querySelector(`[data-image-key="${errorKey}"]`);
+        if (element) {
+          element.src = fallbackUrl;
+        }
+      };
+      img.src = fallbackUrl;
+    }
+  };
+
   return (
     <div className="items content-item">
       {items.map((elem) => {
@@ -28,7 +49,7 @@ const ItemsList = ({ items, onItemSelect, selectedItemId }) => {
           (imageSrc.startsWith("http://") || imageSrc.startsWith("https://"))
             ? imageSrc
             : imageSrc
-            ? getImageUrl(imageSrc)
+            ? getImageUrlWithFallback(imageSrc)
             : null;
 
         // Проверяем, является ли это ЗИПС для потолка (ID: 201-205)
@@ -66,9 +87,9 @@ const ItemsList = ({ items, onItemSelect, selectedItemId }) => {
                   className="img-icon" 
                   loading="lazy"
                   decoding="async"
+                  data-image-key={`${elem.id}-${imageSrc}`}
                   onError={(e) => {
-                    // Скрываем изображение при ошибке загрузки
-                    e.target.style.display = 'none';
+                    handleImageError(elem, imageSrc);
                   }}
                 />
               )}

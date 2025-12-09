@@ -1,4 +1,4 @@
-import { getImagesMap, getImageUrl } from '../services/api';
+import { getImagesMap, getImageUrl, getImageUrlWithFallback } from '../services/api';
 
 const ItemsBase = [
 
@@ -427,9 +427,9 @@ const enrichItemsWithImages = (items, imagesMap) => {
     // Если изображение не найдено в API для элемента "P", используем преобразованный путь
     // из старого формата /Img_constr/floor/c2k2_1.png в формат API
     if (!apiImage && item.id === "P") {
-      // Преобразуем путь /Img_constr/floor/c2k2_1.png в формат API через getImageUrl
+      // Преобразуем путь /Img_constr/floor/c2k2_1.png в формат API через getImageUrlWithFallback
       const oldPath = "/Img_constr/floor/c2k2_1.png";
-      apiImage = getImageUrl(oldPath);
+      apiImage = getImageUrlWithFallback(oldPath);
     }
     
     return {
@@ -456,7 +456,7 @@ export const getItemsWithApiImages = async () => {
       if (item.id === "P") {
         // Преобразуем путь /Img_constr/floor/c2k2_1.png в формат API
         const oldPath = "/Img_constr/floor/c2k2_1.png";
-        img = getImageUrl(oldPath);
+        img = getImageUrlWithFallback(oldPath);
       }
       return {
         ...item,

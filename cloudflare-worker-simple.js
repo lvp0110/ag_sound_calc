@@ -82,12 +82,54 @@ export default {
       }
 
       // Выполняем запрос к API
-      // Cloudflare Workers автоматически обрабатывают таймауты (по умолчанию 100 секунд)
-      const response = await fetch(apiUrl, {
-        method: request.method,
-        headers: requestHeaders,
-        body: request.body,
-      });
+      // Cloudflare Workers имеют встроенный таймаут: 30 секунд для free плана, 50 секунд для paid
+      let response;
+      try {
+        response = await fetch(apiUrl, {
+          method: request.method,
+          headers: requestHeaders,
+          body: request.body,
+          // Увеличиваем таймаут через signal (если доступно)
+          // Cloudflare Workers автоматически обрабатывают таймауты
+        });
+      } catch (fetchError) {
+        // Обработка ошибок сети (таймауты, недоступность сервера и т.д.)
+        console.error('[Worker] Fetch error:', fetchError.message, 'URL:', apiUrl);
+        return new Response(
+          JSON.stringify({ 
+            error: fetchError.message || 'Network error',
+            message: 'Не удалось подключиться к API серверу. Возможно, требуется VPN или сервер недоступен.',
+            apiUrl: apiUrl,
+            type: 'network_error'
+          }), 
+          {
+            status: 504,
+            headers: {
+              ...corsHeaders,
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+      }
+
+      // Проверяем статус ответа
+      if (!response.ok) {
+        console.error('[Worker] API error:', response.status, 'URL:', apiUrl);
+        return new Response(
+          JSON.stringify({ 
+            error: `API returned status ${response.status}`,
+            message: 'API сервер вернул ошибку',
+            status: response.status
+          }), 
+          {
+            status: response.status,
+            headers: {
+              ...corsHeaders,
+              'Content-Type': 'application/json',
+            },
+          }
+        );
+      }
 
       // Получаем тело ответа
       const responseBody = await response.arrayBuffer();

@@ -10,7 +10,7 @@ import {
   constSentZero,
   openingZero,
 } from "../constants/defaultValues";
-import { getImageUrl, preloadImages } from "../services/api";
+import { getImageUrl, getImageUrlWithFallback, preloadImages } from "../services/api";
 import { validateInput, validateFloorInput, validateFloorMaxInput, getMaxLenZInMeters } from "../utils/validation";
 import { calculateAreaAndPerimeter, getConstructionCode } from "../utils/calculations";
 import { getOpeningType } from "../utils/formatters";
@@ -80,8 +80,11 @@ const Calculator = () => {
 
   // Предзагружаем иконки секций для улучшения производительности
   useEffect(() => {
-    const sectionIcons = mainSections.map(section => getImageUrl(section.icon));
-    preloadImages(sectionIcons, 4); // Загружаем по 4 иконки параллельно
+    const sectionIcons = mainSections.map(section => ({
+      url: getImageUrlWithFallback(section.icon),
+      name: section.icon
+    }));
+    preloadImages(sectionIcons, 2); // Загружаем по 2 иконки параллельно (меньше для избежания перегрузки)
   }, []);
 
   const [constR, setConstR] = useState({
@@ -360,7 +363,7 @@ const Calculator = () => {
 
     const newConstR = {
       ...constR,
-      imgBlack: IconType?.imgBlack ? getImageUrl(IconType.imgBlack) : undefined,
+      imgBlack: IconType?.imgBlack ? getImageUrlWithFallback(IconType.imgBlack) : undefined,
       description: Constr?.description,
       key_id: Date.now(),
       title: Constr?.title,
@@ -552,13 +555,22 @@ const Calculator = () => {
                 <div className="section-header">
                   <h2 className="section-title">
                     <img
-                      src={getImageUrl(section.icon)}
+                      src={getImageUrlWithFallback(section.icon)}
                       alt=""
                       className="section-icon"
                       loading="lazy"
                       decoding="async"
                       onError={(e) => {
-                        e.target.style.display = 'none';
+                        // Пробуем загрузить через прямой URL
+                        const fallbackUrl = getImageUrl(section.icon, true);
+                        const img = new Image();
+                        img.onload = () => {
+                          e.target.src = fallbackUrl;
+                        };
+                        img.onerror = () => {
+                          e.target.style.display = 'none';
+                        };
+                        img.src = fallbackUrl;
                       }}
                     />
                     {section.title}
@@ -580,7 +592,7 @@ const Calculator = () => {
                             imageSrc.startsWith("https://"))
                             ? imageSrc
                             : imageSrc
-                            ? getImageUrl(imageSrc)
+                            ? getImageUrlWithFallback(imageSrc)
                             : null;
 
                         return (
@@ -603,7 +615,20 @@ const Calculator = () => {
                                   loading="lazy"
                                   decoding="async"
                                   onError={(e) => {
-                                    e.target.style.display = 'none';
+                                    // Пробуем загрузить через прямой URL
+                                    if (imageSrc) {
+                                      const fallbackUrl = getImageUrl(imageSrc, true);
+                                      const img = new Image();
+                                      img.onload = () => {
+                                        e.target.src = fallbackUrl;
+                                      };
+                                      img.onerror = () => {
+                                        e.target.style.display = 'none';
+                                      };
+                                      img.src = fallbackUrl;
+                                    } else {
+                                      e.target.style.display = 'none';
+                                    }
                                   }}
                                 />
                               )}
