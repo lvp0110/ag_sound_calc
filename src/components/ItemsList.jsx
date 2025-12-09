@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { getImageUrl, getImageUrlWithFallback } from "../services/api";
+import { getResponsiveImageProps } from "../utils/responsiveImages";
 
 /**
  * Компонент списка элементов конструкции
@@ -44,10 +45,8 @@ const ItemsList = ({ items, onItemSelect, selectedItemId }) => {
     <div className="items content-item">
       {items.map((elem) => {
         const imageSrc = elem.Img || elem.img;
-        const src = imageSrc
-          ? imageSrc.startsWith("http://") || imageSrc.startsWith("https://")
-            ? imageSrc
-            : getImageUrlWithFallback(imageSrc)
+        const imageProps = imageSrc
+          ? getResponsiveImageProps(imageSrc, 'item')
           : null;
 
         // Проверяем, является ли это ЗИПС для потолка (ID: 201-205)
@@ -83,9 +82,9 @@ const ItemsList = ({ items, onItemSelect, selectedItemId }) => {
               style={buttonStyle}
             >
               <p>{elem.title}</p>
-              {src && (
+              {imageProps && imageProps.src && (
                 <img 
-                  src={src} 
+                  {...imageProps}
                   alt="" 
                   className="img-icon" 
                   loading="lazy"
@@ -101,7 +100,10 @@ const ItemsList = ({ items, onItemSelect, selectedItemId }) => {
                       const fileName = imageSrc.split("zips_ceiling/").pop();
                       if (fileName) {
                         e.target.dataset.retried = "true";
-                        e.target.src = getImageUrlWithFallback(fileName);
+                        const fallbackProps = getResponsiveImageProps(fileName, 'item');
+                        e.target.src = fallbackProps.src;
+                        if (fallbackProps.srcSet) e.target.srcSet = fallbackProps.srcSet;
+                        if (fallbackProps.sizes) e.target.sizes = fallbackProps.sizes;
                         return;
                       }
                     }

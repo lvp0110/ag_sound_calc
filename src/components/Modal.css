@@ -77,6 +77,9 @@
   margin: 1.25em auto 0;
   max-width: 100%;
   height: auto;
+  /* Responsive images support */
+  width: 100%;
+  object-fit: contain;
 }
 
 .modal-icon {

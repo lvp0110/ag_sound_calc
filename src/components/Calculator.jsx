@@ -11,6 +11,7 @@ import {
   openingZero,
 } from "../constants/defaultValues";
 import { getImageUrl, getImageUrlWithFallback, preloadImages } from "../services/api";
+import { getResponsiveImageProps } from "../utils/responsiveImages";
 import { validateInput, validateFloorInput, validateFloorMaxInput, getMaxLenZInMeters } from "../utils/validation";
 import { calculateAreaAndPerimeter, getConstructionCode } from "../utils/calculations";
 import { getOpeningType } from "../utils/formatters";
@@ -555,7 +556,7 @@ const Calculator = () => {
                 <div className="section-header">
                   <h2 className="section-title">
                     <img
-                      src={getImageUrlWithFallback(section.icon)}
+                      {...getResponsiveImageProps(section.icon, 'section')}
                       alt=""
                       className="section-icon"
                       loading="lazy"
@@ -586,11 +587,8 @@ const Calculator = () => {
                     {items.length > 0 ? (
                       items.map((elem) => {
                         const imageSrc = elem.Img || elem.img;
-                        const src = imageSrc
-                          ? imageSrc.startsWith("http://") ||
-                            imageSrc.startsWith("https://")
-                            ? imageSrc
-                            : getImageUrlWithFallback(imageSrc)
+                        const imageProps = imageSrc
+                          ? getResponsiveImageProps(imageSrc, 'item')
                           : null;
 
                         const isSelected = currentItems == elem.id;
@@ -613,9 +611,9 @@ const Calculator = () => {
                               onClick={() => handleItemSelect(elem)}
                             >
                               <p>{elem.title}</p>
-                              {src && (
+                              {imageProps && imageProps.src && (
                                 <img 
-                                  src={src} 
+                                  {...imageProps}
                                   alt="" 
                                   className="img-icon"
                                   loading="lazy"
@@ -630,7 +628,10 @@ const Calculator = () => {
                                       const fileName = imageSrc.split("zips_ceiling/").pop();
                                       if (fileName) {
                                         e.target.dataset.retried = "true";
-                                        e.target.src = getImageUrlWithFallback(fileName);
+                                        const fallbackProps = getResponsiveImageProps(fileName, 'item');
+                                        e.target.src = fallbackProps.src;
+                                        if (fallbackProps.srcSet) e.target.srcSet = fallbackProps.srcSet;
+                                        if (fallbackProps.sizes) e.target.sizes = fallbackProps.sizes;
                                         return;
                                       }
                                     }

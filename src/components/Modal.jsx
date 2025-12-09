@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import './Modal.css';
+import { getResponsiveImageProps } from '../utils/responsiveImages';
 
 const Modal = ({ isOpen, onClose, title, html, icon, imageUrl, imageWidth, imageHeight, confirmButtonText = 'OK', confirmButtonColor = '#6cabc8' }) => {
   useEffect(() => {
@@ -85,20 +86,30 @@ const Modal = ({ isOpen, onClose, title, html, icon, imageUrl, imageWidth, image
         <button type="button" className="modal-close" onClick={onClose} aria-label="Close">
           ×
         </button>
-        {imageUrl && (
-          <img 
-            src={imageUrl} 
-            alt="" 
-            className="modal-image" 
-            style={{ width: imageWidth, height: imageHeight }}
-            loading="eager"
-            decoding="async"
-            onError={(e) => {
-              // Показываем placeholder при ошибке загрузки
-              e.target.style.display = 'none';
-            }}
-          />
-        )}
+        {imageUrl && (() => {
+          // Проверяем, является ли это URL из API или статическим
+          const isApiImage = imageUrl.includes('/api/v1/constr/') || 
+                           imageUrl.includes('/constr/') ||
+                           imageUrl.includes('.workers.dev');
+          const imageProps = isApiImage 
+            ? getResponsiveImageProps(imageUrl, 'modal')
+            : { src: imageUrl };
+          
+          return (
+            <img 
+              {...imageProps}
+              alt="" 
+              className="modal-image" 
+              style={{ width: imageWidth, height: imageHeight }}
+              loading="eager"
+              decoding="async"
+              onError={(e) => {
+                // Показываем placeholder при ошибке загрузки
+                e.target.style.display = 'none';
+              }}
+            />
+          );
+        })()}
         {!imageUrl && getIconElement()}
         {title && <h2 className="modal-title">{title}</h2>}
         {html && (

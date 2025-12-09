@@ -28,3 +28,16 @@ body {
   min-height: 100vh;
   text-align: left;
 }
+
+/* Responsive Images - общие стили */
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* Улучшенная поддержка responsive images */
+img[srcset] {
+  width: 100%;
+  height: auto;
+}

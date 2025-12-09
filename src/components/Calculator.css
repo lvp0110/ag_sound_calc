@@ -231,6 +231,9 @@ h4 {
   border-radius: 10px;
   box-sizing: border-box;
   z-index: 1;
+  /* Responsive images support */
+  max-width: 100%;
+  height: auto;
 }
 
 /* Поворот кнопок ЗИПС для потолка на 90 градусов влево */
@@ -372,6 +375,18 @@ h4 {
   height: 80px;
   background: cadetblue;
   border-radius: 10px;
+  /* Responsive images support */
+  max-width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+
+/* Responsive images для секционных иконок на мобильных устройствах */
+@media screen and (max-width: 550px) {
+  .section-icon {
+    width: 60px;
+    height: 60px;
+  }
 }
 
 /* Блок для выбранного элемента */

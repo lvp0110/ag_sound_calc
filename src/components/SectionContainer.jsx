@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { getImageUrl, getImageUrlWithFallback } from "../services/api";
+import { getResponsiveImageProps } from "../utils/responsiveImages";
 import ItemsList from "./ItemsList";
 
 /**
@@ -42,7 +43,7 @@ const SectionContainer = ({
       <div className="section-header">
         <h2 className="section-title">
           <img
-            src={getImageUrlWithFallback(section.icon)}
+            {...getResponsiveImageProps(section.icon, 'section')}
             alt=""
             className="section-icon"
             loading="lazy"
