@@ -205,37 +205,47 @@ h4 {
 
 
 .data {
-  font-size: 12px;
-  background-color: rgb(205 204 204);
-  color: #6d7277;
+  font-size: 13px;
+  background-color: #f7f8fa;
+  color: #2d3436;
   border-collapse: collapse;
   width: 100%;
   max-width: 100%;
   table-layout: auto;
   word-wrap: break-word;
   box-sizing: border-box;
+  border: 1px solid #dfe5eb;
 }
 
 .data th {
-  padding: 3px;
+  padding: 8px 10px;
   text-align: center;
   font-weight: 600;
   word-wrap: break-word;
   overflow-wrap: break-word;
   hyphens: auto;
+  background-color: #eef2f7;
+  color: #1f2933;
+  border-bottom: 1px solid #d1d9e0;
 }
 
 .data td {
-  padding: 3px;
+  padding: 8px 10px;
   text-align: center;
   word-wrap: break-word;
   overflow-wrap: break-word;
   hyphens: auto;
+  line-height: 1.4;
+  border-top: 1px solid #e5e9ef;
 }
 
 .data tr:nth-child(even) {
-  background-color: rgb(225 226 227);
-  color: #737272;
+  background-color: #f1f4f8;
+  color: #2d3436;
+}
+
+.data tbody tr:hover {
+  background-color: #e8f1fb;
 }
 
 .img-icon {
@@ -323,7 +333,6 @@ h4 {
 
 .tbl-in {
   margin-top: 20px;
-  padding-right: 20px;
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
@@ -338,6 +347,7 @@ h4 {
   max-width: 100%;
   box-sizing: border-box;
   overflow-x: hidden;
+  padding-right: 20px;
 }
 
 .buttons-container {
@@ -628,6 +638,7 @@ h4 {
     width: 100%;
     box-sizing: border-box;
     overflow-x: hidden;
+    padding-right: 0;
   }
   .tbl-in {
     padding-right: 0px;
