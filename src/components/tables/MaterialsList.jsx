@@ -1,10 +1,25 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { convertUnits, filterVariable } from "../../utils/formatters";
 
 /**
  * Таблица со списком материалов
  */
 const MaterialsList = ({ calculatedMaterials }) => {
+  const [isNarrowScreen, setIsNarrowScreen] = useState(false);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(max-width: 768px)");
+    const handleChange = (event) => setIsNarrowScreen(event.matches);
+
+    // Устанавливаем начальное значение и подписываемся на изменения ширины
+    handleChange(mediaQuery);
+    mediaQuery.addEventListener("change", handleChange);
+
+    return () => {
+      mediaQuery.removeEventListener("change", handleChange);
+    };
+  }, []);
+
   const hasData =
     calculatedMaterials &&
     calculatedMaterials.data &&
@@ -16,7 +31,7 @@ const MaterialsList = ({ calculatedMaterials }) => {
         <thead>
           <tr>
             <th
-              colSpan="5"
+              colSpan={isNarrowScreen ? 4 : 5}
               style={{
                 fontSize: "14px",
                 fontWeight: "bold",
@@ -27,7 +42,7 @@ const MaterialsList = ({ calculatedMaterials }) => {
             </th>
           </tr>
           <tr>
-            <th>артикул</th>
+            {!isNarrowScreen && <th>артикул</th>}
             <th>название</th>
             <th style={{ display: "none" }}></th>
             <th>кол-во</th>
@@ -38,7 +53,9 @@ const MaterialsList = ({ calculatedMaterials }) => {
           {hasData ? (
             calculatedMaterials.data.map((Material, index) => (
               <tr key={index}>
-                <td>{filterVariable(Material.Code)}</td>
+                {!isNarrowScreen && (
+                  <td>{filterVariable(Material.Code)}</td>
+                )}
                 <td>{Material.Name}</td>
                 <td style={{ display: "none" }}></td>
                 <td>{convertUnits(Material)}</td>
@@ -48,7 +65,7 @@ const MaterialsList = ({ calculatedMaterials }) => {
           ) : (
             <tr>
               <td
-                colSpan="5"
+                colSpan={isNarrowScreen ? 4 : 5}
                 style={{
                   textAlign: "center",
                   padding: "20px",
