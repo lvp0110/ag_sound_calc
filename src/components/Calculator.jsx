@@ -27,27 +27,55 @@ const Calculator = () => {
   const navigate = useNavigate();
   const { id } = useParams();
 
+  // Ключ для sessionStorage
+  const STORAGE_KEY = 'calculator_state';
+
+  // Функция для загрузки состояния из sessionStorage
+  const loadStateFromStorage = () => {
+    try {
+      const savedState = sessionStorage.getItem(STORAGE_KEY);
+      if (savedState) {
+        return JSON.parse(savedState);
+      }
+    } catch (error) {
+      console.error('Failed to load state from storage:', error);
+    }
+    return null;
+  };
+
+  // Функция для сохранения состояния в sessionStorage
+  const saveStateToStorage = (state) => {
+    try {
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    } catch (error) {
+      console.error('Failed to save state to storage:', error);
+    }
+  };
+
+  // Загружаем сохраненное состояние
+  const savedState = loadStateFromStorage();
+
   // State
-  const [currentGkla, setCurrentGkla] = useState("default");
-  const [currentWool, setCurrentWool] = useState("default");
-  const [unvisible, setUnvisible] = useState(false);
-  const [tableConstrToCalc, setTableConstrToCalc] = useState(null);
-  const [currentSubCategory, setCurrentSubCategory] = useState(0);
-  const [currentItems, setCurrentItems] = useState(0);
+  const [currentGkla, setCurrentGkla] = useState(savedState?.currentGkla || "default");
+  const [currentWool, setCurrentWool] = useState(savedState?.currentWool || "default");
+  const [unvisible, setUnvisible] = useState(savedState?.unvisible || false);
+  const [tableConstrToCalc, setTableConstrToCalc] = useState(savedState?.tableConstrToCalc || null);
+  const [currentSubCategory, setCurrentSubCategory] = useState(savedState?.currentSubCategory || 0);
+  const [currentItems, setCurrentItems] = useState(savedState?.currentItems || 0);
   // Состояние для отслеживания открытых подкатегорий в каждой секции
-  const [openedSubCategories, setOpenedSubCategories] = useState({
+  const [openedSubCategories, setOpenedSubCategories] = useState(savedState?.openedSubCategories || {
     F: null, // null или id подкатегории
     C: null,
     L: null,
     W: null,
   });
-  const [template, setTemplate] = useState(null);
-  const [profileStep, setProfileStep] = useState(600);
-  const [dFrame, setDFrame] = useState(false);
-  const [currentConstr, setCurrentConstr] = useState("");
-  const [ConstrToCalcToSent, setConstrToCalcToSent] = useState([]);
-  const [ConstrToCalc, setConstrToCalc] = useState([]);
-  const [calculatedMaterials, setCalculatedMaterials] = useState({ data: [] });
+  const [template, setTemplate] = useState(savedState?.template || null);
+  const [profileStep, setProfileStep] = useState(savedState?.profileStep || 600);
+  const [dFrame, setDFrame] = useState(savedState?.dFrame || false);
+  const [currentConstr, setCurrentConstr] = useState(savedState?.currentConstr || "");
+  const [ConstrToCalcToSent, setConstrToCalcToSent] = useState(savedState?.ConstrToCalcToSent || []);
+  const [ConstrToCalc, setConstrToCalc] = useState(savedState?.ConstrToCalc || []);
+  const [calculatedMaterials, setCalculatedMaterials] = useState(savedState?.calculatedMaterials || { data: [] });
   const [itemsWithImages, setItemsWithImages] = useState(Items); // Начальное значение - базовые items
 
   // Состояние для модального окна
@@ -78,6 +106,80 @@ const Calculator = () => {
 
     loadItemsWithImages();
   }, []);
+
+  // Сохраняем состояние в sessionStorage при изменении критических данных
+  useEffect(() => {
+    const stateToSave = {
+      currentGkla,
+      currentWool,
+      unvisible,
+      tableConstrToCalc,
+      currentSubCategory,
+      currentItems,
+      openedSubCategories,
+      template,
+      profileStep,
+      dFrame,
+      currentConstr,
+      ConstrToCalcToSent,
+      ConstrToCalc,
+      calculatedMaterials,
+    };
+    saveStateToStorage(stateToSave);
+  }, [
+    currentGkla,
+    currentWool,
+    unvisible,
+    tableConstrToCalc,
+    currentSubCategory,
+    currentItems,
+    openedSubCategories,
+    template,
+    profileStep,
+    dFrame,
+    currentConstr,
+    ConstrToCalcToSent,
+    ConstrToCalc,
+    calculatedMaterials,
+  ]);
+
+  // Сохраняем состояние при размонтировании компонента
+  useEffect(() => {
+    return () => {
+      const stateToSave = {
+        currentGkla,
+        currentWool,
+        unvisible,
+        tableConstrToCalc,
+        currentSubCategory,
+        currentItems,
+        openedSubCategories,
+        template,
+        profileStep,
+        dFrame,
+        currentConstr,
+        ConstrToCalcToSent,
+        ConstrToCalc,
+        calculatedMaterials,
+      };
+      saveStateToStorage(stateToSave);
+    };
+  }, [
+    currentGkla,
+    currentWool,
+    unvisible,
+    tableConstrToCalc,
+    currentSubCategory,
+    currentItems,
+    openedSubCategories,
+    template,
+    profileStep,
+    dFrame,
+    currentConstr,
+    ConstrToCalcToSent,
+    ConstrToCalc,
+    calculatedMaterials,
+  ]);
 
   // Предзагружаем иконки секций для улучшения производительности
   useEffect(() => {
@@ -289,6 +391,16 @@ const Calculator = () => {
     }
   };
 
+  // Восстанавливаем расчеты при монтировании, если они были сохранены
+  // Проверяем, нужно ли пересчитать, если результаты отсутствуют
+  useEffect(() => {
+    // Проверяем, есть ли сохраненные конструкции, но нет результатов расчетов
+    if (ConstrToCalcToSent.length > 0 && 
+        (!calculatedMaterials || !calculatedMaterials.data || calculatedMaterials.data.length === 0)) {
+      calcConstructionHandler(ConstrToCalcToSent);
+    }
+  }, []); // Выполняем только при монтировании
+
   // Обработчики экспорта
   const handleExportToExcel = async () => {
     await exportTablesToExcel();
@@ -494,9 +606,10 @@ const Calculator = () => {
     };
   }, [template, modal.isOpen, addConstrToCalc]); // Зависимости: template, modal.isOpen и addConstrToCalc
 
-
   // Initialize from route params
   useEffect(() => {
+    // Если id есть в URL, устанавливаем соответствующий элемент
+    // Это имеет приоритет над сохраненным состоянием
     if (id != null && itemsWithImages.length > 0) {
       const item = itemsWithImages.find((item) => item.ag_id === id);
       if (item) {
