@@ -352,7 +352,7 @@ const ItemInfo = () => {
                   aria-label="Наша история"
                 >
                   <img 
-                    src="/our-history.svg" 
+                    src={`${import.meta.env.BASE_URL || '/'}our-history.svg`} 
                     alt="Наша история" 
                     className="our-history-svg"
                   />
