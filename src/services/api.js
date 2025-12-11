@@ -341,3 +341,133 @@ export const getConstructionByCode = async (code) => {
   }
 };
 
+/**
+ * Получает свойства (материалы) конструкции по коду
+ * @param {string} code - Код конструкции (например, "AG.W101")
+ * @returns {Promise<Object|null>} Объект с данными свойств конструкции или null, если не найдена
+ */
+export const getConstructionProps = async (code) => {
+  if (!code) return null;
+  
+  // Определяем базовый URL для v2 API
+  const getApiV2BaseUrl = () => {
+    if (import.meta.env.DEV) {
+      return '/api/v2';
+    }
+    
+    const proxyUrl = import.meta.env.VITE_API_PROXY_URL || import.meta.env.VITE_API_URL;
+    if (proxyUrl) {
+      let normalizedUrl = proxyUrl.trim().replace(/\/+$/, '');
+      
+      if (normalizedUrl.includes('/apiv1')) {
+        normalizedUrl = normalizedUrl.replace(/\/apiv1\/?$/, '/api/v2');
+      } else if (normalizedUrl.includes('/api/v1')) {
+        normalizedUrl = normalizedUrl.replace(/\/api\/v1\/?$/, '/api/v2');
+      } else if (!normalizedUrl.endsWith('/api/v2')) {
+        normalizedUrl = normalizedUrl.replace(/\/api\/v2\/?$/, '') + '/api/v2';
+      }
+      
+      console.log('[API] Using proxy for v2:', normalizedUrl);
+      return normalizedUrl;
+    }
+    
+    console.warn('[API] No proxy configured for v2, using direct URL (CORS may fail)');
+    return 'https://db.acoustic.ru:3005/api/v2';
+  };
+  
+  const API_V2_BASE_URL = getApiV2BaseUrl();
+  // Используем путь вместо query параметра: /props/AG.W101
+  const url = `${API_V2_BASE_URL}/isolationConstructions/props/${encodeURIComponent(code)}`;
+  
+  console.log('[API] Fetching construction props:', url);
+  console.log('[API] Code value:', code);
+  
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'accept': 'application/json',
+      },
+      signal: controller.signal,
+    });
+    
+    clearTimeout(timeoutId);
+    
+    console.log('[API] Response status:', response.status);
+    console.log('[API] Response ok:', response.ok);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`[API] HTTP error! status: ${response.status}, url: ${url}`);
+      console.error(`[API] Error response:`, errorText);
+      return null;
+    }
+    
+    const result = await response.json();
+    console.log('[API] Raw props response:', result);
+    console.log('[API] Response type:', typeof result);
+    console.log('[API] Is array:', Array.isArray(result));
+    
+    // Если result - это массив (прямой ответ с материалами)
+    if (Array.isArray(result)) {
+      console.log('[API] Response is array, length:', result.length);
+      return { constr_materials: result };
+    }
+    
+    // Возвращаем данные из поля data, если есть
+    if (result.code === 200 && result.data) {
+      console.log('[API] Successfully fetched construction props, data:', result.data);
+      // Проверяем, есть ли constr_materials в data
+      if (result.data.constr_materials) {
+        console.log('[API] Found constr_materials in data:', result.data.constr_materials);
+        return result.data;
+      }
+      // Если data - это массив
+      if (Array.isArray(result.data)) {
+        console.log('[API] Response data is array:', result.data);
+        return { constr_materials: result.data };
+      }
+      // Если constr_materials в корне data, возвращаем data
+      return result.data;
+    }
+    
+    // Если структура другая, проверяем корневой уровень
+    if (result.constr_materials) {
+      console.log('[API] Found constr_materials in root:', result.constr_materials);
+      return result;
+    }
+    
+    // Если data содержит constr_materials напрямую
+    if (result.data && result.data.constr_materials) {
+      console.log('[API] Found constr_materials in result.data:', result.data.constr_materials);
+      return result.data;
+    }
+    
+    // Если result.data - это массив
+    if (result.data && Array.isArray(result.data)) {
+      console.log('[API] Response data is array:', result.data);
+      return { constr_materials: result.data };
+    }
+    
+    // Если весь result - это объект с материалами (может быть прямая структура)
+    if (result && typeof result === 'object' && !result.code && !result.data) {
+      console.log('[API] Response is object without code/data, checking for materials:', Object.keys(result));
+      // Возвращаем как есть, возможно это уже правильная структура
+      return result;
+    }
+    
+    console.warn('[API] Unexpected response format for props:', result);
+    return null;
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      console.error('[API] Request timeout:', url);
+    } else {
+      console.error('[API] Error fetching construction props:', error, 'URL:', url);
+    }
+    return null;
+  }
+};
+

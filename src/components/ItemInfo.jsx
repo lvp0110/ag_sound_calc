@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Items, { getItemsWithApiImages } from "../data/items";
-import { getImageUrl, getImageUrlWithFallback, getConstructionByCode } from "../services/api";
+import { getImageUrl, getImageUrlWithFallback, getConstructionByCode, getConstructionProps } from "../services/api";
 import { getResponsiveImageProps } from "../utils/responsiveImages";
 import "./Calculator.css";
 
@@ -19,7 +19,9 @@ const ItemInfo = () => {
   const navigate = useNavigate();
   const [item, setItem] = useState(null);
   const [constructionData, setConstructionData] = useState(null);
+  const [materials, setMaterials] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [materialsExpanded, setMaterialsExpanded] = useState(false);
 
   // Загружаем данные элемента и конструкции из API
   useEffect(() => {
@@ -40,6 +42,44 @@ const ItemInfo = () => {
           // Загружаем полные данные конструкции из API
           const construction = await getConstructionByCode(id);
           setConstructionData(construction);
+          
+          console.log('[ItemInfo] Construction data:', construction);
+          console.log('[ItemInfo] Construction Code:', construction?.Code);
+          console.log('[ItemInfo] Item ag_id:', id);
+          
+          // Загружаем материалы конструкции, используя Code из construction или ag_id из item
+          const codeToUse = construction?.Code || id;
+          if (codeToUse) {
+            console.log('[ItemInfo] Fetching materials for code:', codeToUse);
+            const props = await getConstructionProps(codeToUse);
+            console.log('[ItemInfo] Props response:', props);
+            
+            if (props?.constr_materials) {
+              console.log('[ItemInfo] Materials found:', props.constr_materials);
+              console.log('[ItemInfo] Materials structure:', JSON.stringify(props.constr_materials, null, 2));
+              
+              // Ищем объект с type: "Materials" и извлекаем из него constr_materials
+              const materialsItem = props.constr_materials.find(item => item.type === "Materials");
+              console.log('[ItemInfo] Looking for Materials item, found:', materialsItem);
+              
+              if (materialsItem && materialsItem.constr_materials) {
+                console.log('[ItemInfo] Found Materials item with constr_materials:', materialsItem.constr_materials);
+                console.log('[ItemInfo] Materials array length:', materialsItem.constr_materials.length);
+                console.log('[ItemInfo] First material:', materialsItem.constr_materials[0]);
+                setMaterials(materialsItem.constr_materials);
+              } else {
+                console.log('[ItemInfo] No Materials item found in constr_materials');
+                console.log('[ItemInfo] materialsItem:', materialsItem);
+                setMaterials(null);
+              }
+            } else {
+              console.log('[ItemInfo] No constr_materials in props');
+              console.log('[ItemInfo] Props keys:', props ? Object.keys(props) : 'props is null');
+              setMaterials(null);
+            }
+          } else {
+            console.log('[ItemInfo] No code available to fetch materials');
+          }
         }
       } catch (error) {
         console.error("Failed to load item data:", error);
@@ -81,6 +121,11 @@ const ItemInfo = () => {
   // Получаем данные из API или используем данные из item как fallback
   const data = constructionData || {};
   
+  // Отладочная информация
+  console.log('[ItemInfo] Render - materials state:', materials);
+  console.log('[ItemInfo] Render - materials is array:', Array.isArray(materials));
+  console.log('[ItemInfo] Render - materials length:', materials?.length);
+  
   // Для потолков ЗИПС принудительно используем изображение из item (которое уже обработано через zipsCeilingApiImages)
   // Это важно, чтобы не подставлялись старые картинки из ответа API
   // В калькуляторе используется: const imageSrc = elem.Img || elem.img;
@@ -111,7 +156,7 @@ const ItemInfo = () => {
           className="counter__button_plus"
           style={{ marginBottom: "20px" }}
         >
-          ← Назад к калькулятору
+           Назад к калькулятору
         </button>
 
         <div className="item-info-header">
@@ -192,6 +237,63 @@ const ItemInfo = () => {
                 />
               </div>
             )}
+
+            {/* Список материалов */}
+            {(() => {
+              console.log('[ItemInfo] Rendering materials check:', {
+                materials,
+                isArray: Array.isArray(materials),
+                length: materials?.length,
+                materialsType: typeof materials
+              });
+              
+              // materials уже содержит массив материалов из constr_materials объекта с type: "Materials"
+              const materialsToDisplay = materials && Array.isArray(materials) && materials.length > 0 ? materials : null;
+              
+              if (materialsToDisplay && Array.isArray(materialsToDisplay) && materialsToDisplay.length > 0) {
+                return (
+                  <div className="item-info-materials">
+                    <h3 
+                      onClick={() => setMaterialsExpanded(!materialsExpanded)}
+                      style={{ cursor: 'pointer', userSelect: 'none' }}
+                      className="item-info-materials-toggle"
+                    >
+                      Состав конструкции
+                      <span className="item-info-materials-arrow">
+                        {materialsExpanded ? ' ▼' : ' ▶'}
+                      </span>
+                    </h3>
+                    {materialsExpanded && (
+                      <ul className="item-info-materials-list">
+                      {materialsToDisplay
+                        .filter((material) => {
+                          // Фильтруем только объекты с code и name (настоящие материалы)
+                          return (
+                            typeof material === 'object' &&
+                            material !== null &&
+                            (material.code || material.Code || material.name || material.Name)
+                          );
+                        })
+                        .map((material, index) => {
+                          // Материалы из constr_materials имеют структуру: {code: "...", name: "..."}
+                          const name = material.name || material.Name || '';
+                          
+                          // Выводим только название материала
+                          const displayText = name || 'Неизвестный материал';
+                          
+                          return (
+                            <li key={index} className="item-info-material-item">
+                              {displayText}
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    )}
+                  </div>
+                );
+              }
+              return null;
+            })()}
           </div>
 
           <div className="item-info-details">
@@ -214,7 +316,7 @@ const ItemInfo = () => {
           {/* Thickness */}
           {data.Thickness && (
             <div className="item-info-section">
-              <h3>Толщина</h3>
+              <h3>Толщина, мм</h3>
               <p>{data.Thickness}</p>
             </div>
           )}
@@ -239,7 +341,23 @@ const ItemInfo = () => {
           {data.Specification && (
             <div className="item-info-section">
               <h3>Описание</h3>
-              <p>{data.Specification}</p>
+              <p>
+                {data.Specification}
+                <button 
+                  className="our-history-button"
+                  onClick={() => {
+                    // Добавьте здесь обработчик клика
+                    console.log('Наша история');
+                  }}
+                  aria-label="Наша история"
+                >
+                  <img 
+                    src="/our-history.svg" 
+                    alt="Наша история" 
+                    className="our-history-svg"
+                  />
+                </button>
+              </p>
             </div>
           )}
           </div>
