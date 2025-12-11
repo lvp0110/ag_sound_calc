@@ -1408,7 +1408,7 @@ const Calculator = () => {
                                         >
                                           <table
                                             className="data"
-                                            style={{ width: "100%" }}
+                                            // style={{ width: "100%" }}
                                           >
                                             <thead>
                                               <tr>

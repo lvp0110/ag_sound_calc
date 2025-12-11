@@ -332,7 +332,7 @@ h4 {
 }
 
 .tbl-in {
-  margin-top: 20px;
+  /* margin-top: 20px; */
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
@@ -419,10 +419,6 @@ button::-moz-focus-inner {
 
 .section-container:hover {
   background-color: #f0f0f0;
-}
-
-.section-header {
-  margin-bottom: 15px;
 }
 
 .section-title {
