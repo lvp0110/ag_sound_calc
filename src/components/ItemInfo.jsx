@@ -156,7 +156,7 @@ const ItemInfo = () => {
           className="counter__button_plus"
           style={{ marginBottom: "20px" }}
         >
-           Назад к калькулятору
+           ◁ Назад к калькулятору
         </button>
 
         <div className="item-info-header">
