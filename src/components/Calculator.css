@@ -666,7 +666,7 @@ button::-moz-focus-inner {
   align-items: center;
   justify-content: center;
   height: 80px;
-  margin-left: 15px;
+  margin-top:40px;
   padding: 0;
   background: none;
   border: none;
