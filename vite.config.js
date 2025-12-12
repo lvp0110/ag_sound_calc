@@ -24,7 +24,6 @@ export default defineConfig({
           // Просто копируем index.html в 404.html
           // Это стандартный подход для SPA на GitHub Pages
           copyFileSync(distIndexPath, dist404Path)
-          console.log('✓ Copied index.html to 404.html for GitHub Pages SPA routing')
         } catch (error) {
           console.warn('Could not copy index.html to 404.html:', error.message)
         }
@@ -42,13 +41,10 @@ export default defineConfig({
         rewrite: (path) => path.replace(/^\/api/, '/api'), // Сохраняем путь /api
         configure: (proxy, _options) => {
           proxy.on('error', (err, _req, _res) => {
-            console.log('proxy error', err);
           });
           proxy.on('proxyReq', (proxyReq, req, _res) => {
-            console.log('Sending Request to the Target:', req.method, req.url);
           });
           proxy.on('proxyRes', (proxyRes, req, _res) => {
-            console.log('Received Response from the Target:', proxyRes.statusCode, req.url);
           });
         },
       },

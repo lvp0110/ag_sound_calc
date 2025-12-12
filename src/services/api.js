@@ -25,8 +25,7 @@ const getApiBaseUrl = () => {
       normalizedUrl = normalizedUrl.replace(/\/api\/v1\/?$/, '') + '/api/v1';
     }
     
-    console.log('[API] Using proxy:', normalizedUrl);
-    return normalizedUrl;
+      return normalizedUrl;
   }
   
   // Если прокси не настроен, используем прямой URL (может быть CORS ошибка)
@@ -50,7 +49,6 @@ const API_BASE_URL = getApiBaseUrl();
  */
 export const getAllIsolationConstr = async () => {
   const url = `${API_BASE_URL}/AllIsolationConstr`;
-  console.log('[API] Fetching:', url);
   
   try {
     const startTime = performance.now();
@@ -69,7 +67,6 @@ export const getAllIsolationConstr = async () => {
 
     clearTimeout(timeoutId);
     const fetchTime = performance.now() - startTime;
-    console.log(`[API] Response received in ${fetchTime.toFixed(2)}ms, status:`, response.status);
 
     if (!response.ok) {
       console.error(`[API] HTTP error! status: ${response.status}, url: ${url}`);
@@ -80,7 +77,6 @@ export const getAllIsolationConstr = async () => {
     
     // Возвращаем массив данных из поля data
     if (result.code === 200 && result.data) {
-      console.log(`[API] Successfully fetched ${result.data.length} constructions`);
       return result.data;
     }
     
@@ -251,7 +247,6 @@ export const preloadImage = (imageUrl, originalImageName = null) => {
       if (originalImageName && imageUrl.includes('.workers.dev')) {
         failedWorkerRequests.add(originalImageName);
         const fallbackUrl = getImageUrl(originalImageName, true);
-        console.log('[API] Trying fallback URL:', fallbackUrl);
         
         // Пробуем загрузить через прямой URL
         const fallbackImg = new Image();
@@ -367,7 +362,6 @@ export const getConstructionProps = async (code) => {
         normalizedUrl = normalizedUrl.replace(/\/api\/v2\/?$/, '') + '/api/v2';
       }
       
-      console.log('[API] Using proxy for v2:', normalizedUrl);
       return normalizedUrl;
     }
     
@@ -378,9 +372,6 @@ export const getConstructionProps = async (code) => {
   const API_V2_BASE_URL = getApiV2BaseUrl();
   // Используем путь вместо query параметра: /props/AG.W101
   const url = `${API_V2_BASE_URL}/isolationConstructions/props/${encodeURIComponent(code)}`;
-  
-  console.log('[API] Fetching construction props:', url);
-  console.log('[API] Code value:', code);
   
   try {
     const controller = new AbortController();
@@ -396,9 +387,6 @@ export const getConstructionProps = async (code) => {
     
     clearTimeout(timeoutId);
     
-    console.log('[API] Response status:', response.status);
-    console.log('[API] Response ok:', response.ok);
-    
     if (!response.ok) {
       const errorText = await response.text();
       console.error(`[API] HTTP error! status: ${response.status}, url: ${url}`);
@@ -407,27 +395,20 @@ export const getConstructionProps = async (code) => {
     }
     
     const result = await response.json();
-    console.log('[API] Raw props response:', result);
-    console.log('[API] Response type:', typeof result);
-    console.log('[API] Is array:', Array.isArray(result));
     
     // Если result - это массив (прямой ответ с материалами)
     if (Array.isArray(result)) {
-      console.log('[API] Response is array, length:', result.length);
       return { constr_materials: result };
     }
     
     // Возвращаем данные из поля data, если есть
     if (result.code === 200 && result.data) {
-      console.log('[API] Successfully fetched construction props, data:', result.data);
       // Проверяем, есть ли constr_materials в data
       if (result.data.constr_materials) {
-        console.log('[API] Found constr_materials in data:', result.data.constr_materials);
         return result.data;
       }
       // Если data - это массив
       if (Array.isArray(result.data)) {
-        console.log('[API] Response data is array:', result.data);
         return { constr_materials: result.data };
       }
       // Если constr_materials в корне data, возвращаем data
@@ -436,25 +417,21 @@ export const getConstructionProps = async (code) => {
     
     // Если структура другая, проверяем корневой уровень
     if (result.constr_materials) {
-      console.log('[API] Found constr_materials in root:', result.constr_materials);
       return result;
     }
     
     // Если data содержит constr_materials напрямую
     if (result.data && result.data.constr_materials) {
-      console.log('[API] Found constr_materials in result.data:', result.data.constr_materials);
       return result.data;
     }
     
     // Если result.data - это массив
     if (result.data && Array.isArray(result.data)) {
-      console.log('[API] Response data is array:', result.data);
       return { constr_materials: result.data };
     }
     
     // Если весь result - это объект с материалами (может быть прямая структура)
     if (result && typeof result === 'object' && !result.code && !result.data) {
-      console.log('[API] Response is object without code/data, checking for materials:', Object.keys(result));
       // Возвращаем как есть, возможно это уже правильная структура
       return result;
     }

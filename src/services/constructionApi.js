@@ -41,7 +41,6 @@ export const calculateConstruction = async (constrList) => {
   };
 
   const apiUrl = getApiUrl();
-  console.log('[API] Calculating construction, URL:', apiUrl);
 
   const startTime = performance.now();
   const response = await fetch(apiUrl, {
@@ -55,7 +54,6 @@ export const calculateConstruction = async (constrList) => {
   });
 
   const fetchTime = performance.now() - startTime;
-  console.log(`[API] Calculation response received in ${fetchTime.toFixed(2)}ms, status:`, response.status);
 
   if (!response.ok) {
     let errorText = "";

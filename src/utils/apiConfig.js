@@ -11,14 +11,6 @@ const API_BASE = 'https://db.acoustic.ru:3005/api/v1';
 // Поддерживаем оба варианта названий для обратной совместимости
 const PROXY_URL = import.meta.env.VITE_API_PROXY_URL || import.meta.env.VITE_API_URL || null;
 
-// Отладочная информация
-if (import.meta.env.PROD) {
-  console.log('API Configuration:', {
-    hasProxy: !!PROXY_URL,
-    proxyUrl: PROXY_URL || 'not configured',
-    directApi: API_BASE,
-  });
-}
 
 /**
  * Получает URL для API запроса с учетом прокси
@@ -34,7 +26,6 @@ export const getApiUrl = (endpoint) => {
   // В production используем прокси если указан
   if (PROXY_URL) {
     const fullUrl = `${PROXY_URL}${endpoint}`;
-    console.log(`[API] Using proxy: ${fullUrl}`);
     return fullUrl;
   }
 

@@ -50,42 +50,23 @@ const ItemInfo = () => {
           const construction = await getConstructionByCode(id);
           setConstructionData(construction);
           
-          console.log('[ItemInfo] Construction data:', construction);
-          console.log('[ItemInfo] Construction Code:', construction?.Code);
-          console.log('[ItemInfo] Item ag_id:', id);
-          
           // Загружаем материалы конструкции, используя Code из construction или ag_id из item
           const codeToUse = construction?.Code || id;
           if (codeToUse) {
-            console.log('[ItemInfo] Fetching materials for code:', codeToUse);
             const props = await getConstructionProps(codeToUse);
-            console.log('[ItemInfo] Props response:', props);
             
             if (props?.constr_materials) {
-              console.log('[ItemInfo] Materials found:', props.constr_materials);
-              console.log('[ItemInfo] Materials structure:', JSON.stringify(props.constr_materials, null, 2));
-              
               // Ищем объект с type: "Materials" и извлекаем из него constr_materials
               const materialsItem = props.constr_materials.find(item => item.type === "Materials");
-              console.log('[ItemInfo] Looking for Materials item, found:', materialsItem);
               
               if (materialsItem && materialsItem.constr_materials) {
-                console.log('[ItemInfo] Found Materials item with constr_materials:', materialsItem.constr_materials);
-                console.log('[ItemInfo] Materials array length:', materialsItem.constr_materials.length);
-                console.log('[ItemInfo] First material:', materialsItem.constr_materials[0]);
                 setMaterials(materialsItem.constr_materials);
               } else {
-                console.log('[ItemInfo] No Materials item found in constr_materials');
-                console.log('[ItemInfo] materialsItem:', materialsItem);
                 setMaterials(null);
               }
             } else {
-              console.log('[ItemInfo] No constr_materials in props');
-              console.log('[ItemInfo] Props keys:', props ? Object.keys(props) : 'props is null');
               setMaterials(null);
             }
-          } else {
-            console.log('[ItemInfo] No code available to fetch materials');
           }
         }
       } catch (error) {
@@ -127,11 +108,6 @@ const ItemInfo = () => {
 
   // Получаем данные из API или используем данные из item как fallback
   const data = constructionData || {};
-  
-  // Отладочная информация
-  console.log('[ItemInfo] Render - materials state:', materials);
-  console.log('[ItemInfo] Render - materials is array:', Array.isArray(materials));
-  console.log('[ItemInfo] Render - materials length:', materials?.length);
   
   // Для потолков ЗИПС принудительно используем изображение из item (которое уже обработано через zipsCeilingApiImages)
   // Это важно, чтобы не подставлялись старые картинки из ответа API
@@ -247,13 +223,6 @@ const ItemInfo = () => {
 
             {/* Список материалов */}
             {(() => {
-              console.log('[ItemInfo] Rendering materials check:', {
-                materials,
-                isArray: Array.isArray(materials),
-                length: materials?.length,
-                materialsType: typeof materials
-              });
-              
               // materials уже содержит массив материалов из constr_materials объекта с type: "Materials"
               const materialsToDisplay = materials && Array.isArray(materials) && materials.length > 0 ? materials : null;
               
@@ -370,7 +339,7 @@ const ItemInfo = () => {
                   aria-label="Наша история"
                 >
                   <img 
-                    src={`${import.meta.env.BASE_URL || '/'}our-history.svg`} 
+                    src={`${import.meta.env.BASE_URL || '/'}our-history.png`} 
                     alt="Наша история" 
                     className="our-history-svg"
                   />
@@ -394,7 +363,7 @@ const ItemInfo = () => {
         onClose={() => setHistoryModal({ isOpen: false, title: "", html: "" })}
         title={historyModal.title}
         html={historyModal.html}
-        imageUrl={`${import.meta.env.BASE_URL || '/'}our-history.svg`}
+        imageUrl={`${import.meta.env.BASE_URL || '/'}our-history.png`}
         imageWidth="120px"
         imageHeight="120px"
         confirmButtonText="Закрыть"

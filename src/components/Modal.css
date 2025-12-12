@@ -267,7 +267,9 @@
   font-size: 1.2em;
   color: #595959;
 }
-
+.modal-html-container p {
+  margin: 0;
+}
 .modal-actions {
   display: flex;
   z-index: 1;
