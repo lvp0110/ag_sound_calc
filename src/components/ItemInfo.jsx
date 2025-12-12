@@ -3,6 +3,8 @@ import { useParams, useNavigate } from "react-router-dom";
 import Items, { getItemsWithApiImages } from "../data/items";
 import { getImageUrl, getImageUrlWithFallback, getConstructionByCode, getConstructionProps } from "../services/api";
 import { getResponsiveImageProps } from "../utils/responsiveImages";
+import articles from "../data/articles";
+import Modal from "./Modal";
 import "./Calculator.css";
 
 // Импортируем мапу изображений для потолков ЗИПС
@@ -22,6 +24,11 @@ const ItemInfo = () => {
   const [materials, setMaterials] = useState(null);
   const [loading, setLoading] = useState(true);
   const [materialsExpanded, setMaterialsExpanded] = useState(false);
+  const [historyModal, setHistoryModal] = useState({
+    isOpen: false,
+    title: "",
+    html: "",
+  });
 
   // Загружаем данные элемента и конструкции из API
   useEffect(() => {
@@ -346,8 +353,19 @@ const ItemInfo = () => {
                 <button 
                   className="our-history-button"
                   onClick={() => {
-                    // Добавьте здесь обработчик клика
-                    console.log('Наша история');
+                    if (!articles || articles.length === 0) return;
+                    const randomArticle = articles[Math.floor(Math.random() * articles.length)];
+                    // Преобразуем переносы строк в <br> для корректного отображения
+                    const htmlContent = (randomArticle?.content || "")
+                      .split("\n")
+                      .map(line => line.trim())
+                      .filter(Boolean)
+                      .join("<br>");
+                    setHistoryModal({
+                      isOpen: true,
+                      title: randomArticle?.name || "Наша история",
+                      html: htmlContent,
+                    });
                   }}
                   aria-label="Наша история"
                 >
@@ -371,6 +389,17 @@ const ItemInfo = () => {
           Перейти к расчету
         </button>
       </div>
+      <Modal
+        isOpen={historyModal.isOpen}
+        onClose={() => setHistoryModal({ isOpen: false, title: "", html: "" })}
+        title={historyModal.title}
+        html={historyModal.html}
+        imageUrl={`${import.meta.env.BASE_URL || '/'}our-history.svg`}
+        imageWidth="120px"
+        imageHeight="120px"
+        confirmButtonText="Закрыть"
+        confirmButtonColor="#6cabc8"
+      />
     </div>
   );
 };

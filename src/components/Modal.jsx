@@ -100,7 +100,7 @@ const Modal = ({ isOpen, onClose, title, html, icon, imageUrl, imageWidth, image
               {...imageProps}
               alt="" 
               className="modal-image" 
-              style={{ width: imageWidth, height: imageHeight }}
+              style={{ width: "100%", height: "auto" }}
               loading="eager"
               decoding="async"
               onError={(e) => {
@@ -111,7 +111,7 @@ const Modal = ({ isOpen, onClose, title, html, icon, imageUrl, imageWidth, image
           );
         })()}
         {!imageUrl && getIconElement()}
-        {title && <h2 className="modal-title">{title}</h2>}
+        {title && <h3 className="modal-title">{title}</h3>}
         {html && (
           <div 
             className="modal-html-container" 
