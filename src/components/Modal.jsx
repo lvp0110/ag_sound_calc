@@ -113,8 +113,9 @@ const Modal = ({ isOpen, onClose, title, html, icon, imageUrl, imageWidth, image
         {!imageUrl && getIconElement()}
         {title && <h3 className="modal-title">{title}</h3>}
         {html && (
-          <div 
-            className="modal-html-container" 
+          <div
+            className="modal-html-container"
+            lang="ru"
             dangerouslySetInnerHTML={{ __html: html }}
           />
         )}

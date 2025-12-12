@@ -26,6 +26,18 @@
   align-items: center;
 }
 
+.section-items {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: max-height 0.35s ease, opacity 0.25s ease;
+}
+
+.section-items.open {
+  max-height: 1200px;
+  opacity: 1;
+}
+
 .items.content-item > div {
   box-sizing: border-box;
   overflow: hidden;

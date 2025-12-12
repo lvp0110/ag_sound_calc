@@ -17,6 +17,7 @@ const SectionContainer = ({
   children,
 }) => {
   const [imageError, setImageError] = useState(false);
+  const isOpen = Boolean(openedSubCategory);
 
   const handleImageError = (e) => {
     if (!imageError) {
@@ -54,18 +55,21 @@ const SectionContainer = ({
         </h2>
       </div>
 
-      {openedSubCategory && (
-        <div
-          className="items content-item"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <ItemsList
-            items={items}
-            onItemSelect={onItemSelect}
-            selectedItemId={selectedItemId}
-          />
-        </div>
-      )}
+      <div
+        className={`section-items ${isOpen ? "open" : ""}`}
+        onClick={(e) => e.stopPropagation()}
+        aria-hidden={!isOpen}
+      >
+        {isOpen && (
+          <div className="items content-item">
+            <ItemsList
+              items={items}
+              onItemSelect={onItemSelect}
+              selectedItemId={selectedItemId}
+            />
+          </div>
+        )}
+      </div>
 
       {children && (
         <div onClick={(e) => e.stopPropagation()}>{children}</div>
