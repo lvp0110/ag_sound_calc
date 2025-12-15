@@ -37,7 +37,7 @@ export const calculateConstruction = async (constrList) => {
     }
     
     // Если прокси не настроен, используем прямой URL (может быть CORS ошибка)
-    return "https://db.acoustic.ru:3005/api/v1/calcIsolation/byProduct";
+    return "https://constrtodo.ru:3005/api/v1/calcIsolation/byProduct";
   };
 
   const apiUrl = getApiUrl();

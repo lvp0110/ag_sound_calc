@@ -1,5 +1,5 @@
 /**
- * CORS Proxy для API запросов к db.acoustic.ru:3005
+ * CORS Proxy для API запросов к constrtodo.ru:3005
  * 
  * ИНСТРУКЦИЯ ПО ИСПОЛЬЗОВАНИЮ:
  * 1. Зарегистрируйтесь на https://workers.cloudflare.com/
@@ -10,7 +10,7 @@
  * 6. Используйте этот URL в секрете GitHub: https://your-worker.workers.dev/api/v1
  */
 
-const API_BASE_URL = 'https://db.acoustic.ru:3005';
+const API_BASE_URL = 'https://constrtodo.ru:3005';
 
 export default {
   async fetch(request, env, ctx) {

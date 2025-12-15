@@ -1,5 +1,5 @@
 /**
- * УЛУЧШЕННАЯ ВЕРСИЯ CORS Proxy для API запросов к db.acoustic.ru:3005
+ * УЛУЧШЕННАЯ ВЕРСИЯ CORS Proxy для API запросов к constrtodo.ru:3005
  * 
  * ОСОБЕННОСТИ:
  * - Кэширование изображений на 7 дней
@@ -17,7 +17,7 @@
 export default {
   async fetch(request, env, ctx) {
     // Можно использовать переменную окружения или значение по умолчанию
-    const API_BASE_URL = env.API_BASE_URL || 'https://db.acoustic.ru:3005';
+    const API_BASE_URL = env.API_BASE_URL || 'https://constrtodo.ru:3005';
     
     // CORS заголовки
     const corsHeaders = {

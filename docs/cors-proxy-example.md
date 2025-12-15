@@ -13,7 +13,7 @@
  * CORS Proxy для API запросов
  * Замените API_BASE_URL на ваш реальный API URL
  */
-const API_BASE_URL = 'https://db.acoustic.ru:3005';
+const API_BASE_URL = 'https://constrtodo.ru:3005';
 
 addEventListener('fetch', event => {
   event.respondWith(handleRequest(event.request));
@@ -106,7 +106,7 @@ async function handleRequest(request) {
 
 ## Вариант 2: Настройка CORS на API сервере
 
-Если у вас есть доступ к API серверу (`https://db.acoustic.ru:3005`), можно настроить CORS там:
+Если у вас есть доступ к API серверу (`https://constrtodo.ru:3005`), можно настроить CORS там:
 
 ```javascript
 // Пример для Express.js

@@ -3,7 +3,7 @@
  */
 
 // Базовый URL API
-const API_BASE = 'https://db.acoustic.ru:3005/api/v1';
+const API_BASE = 'https://constrtodo.ru:3005/api/v1';
 
 // Прокси для обхода CORS (можно настроить свой прокси через Cloudflare Workers или другой сервис)
 // Пример: 'https://your-proxy.workers.dev/api/v1'
@@ -79,6 +79,6 @@ export const getImagesBaseUrl = () => {
     return `${PROXY_URL}/constr`;
   }
   
-  return 'https://db.acoustic.ru:3005/api/v1/constr';
+  return 'https://constrtodo.ru:3005/api/v1/constr';
 };
 

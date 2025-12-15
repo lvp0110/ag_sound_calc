@@ -58,7 +58,7 @@ https://your-domain.com/api/v1
 API Configuration: {
   hasProxy: true,
   proxyUrl: "https://your-proxy.workers.dev/api/v1",
-  directApi: "https://db.acoustic.ru:3005/api/v1"
+  directApi: "https://constrtodo.ru:3005/api/v1"
 }
 ```
 

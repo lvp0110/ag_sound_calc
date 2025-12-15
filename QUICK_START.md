@@ -58,7 +58,7 @@
 **Проверьте:**
 1. Worker сохранен и задеплоен в Cloudflare
 2. URL Worker правильный
-3. В коде Worker указан правильный `API_BASE_URL`: `https://db.acoustic.ru:3005`
+3. В коде Worker указан правильный `API_BASE_URL`: `https://constrtodo.ru:3005`
 
 ### Ошибка: Не знаю, что вставить в поле Secret
 
@@ -74,7 +74,7 @@ https://acoustic-api-proxy.username.workers.dev/api/v1
 
 **Неправильно:**
 - ❌ `VITE_API_PROXY_URL` (это название переменной, а не значение)
-- ❌ `https://db.acoustic.ru:3005/api/v1` (это URL API, а не прокси)
+- ❌ `https://constrtodo.ru:3005/api/v1` (это URL API, а не прокси)
 
 ## 💡 Советы
 

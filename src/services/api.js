@@ -30,7 +30,7 @@ const getApiBaseUrl = () => {
   
   // Если прокси не настроен, используем прямой URL (может быть CORS ошибка)
   console.warn('[API] No proxy configured, using direct URL (CORS may fail)');
-  return 'https://db.acoustic.ru:3005/api/v1';
+  return 'https://constrtodo.ru:3005/api/v1';
 };
 
 // В публичных билд-окружениях (GitHub Pages) принудительно избегаем Cloudflare Worker,
@@ -165,7 +165,7 @@ export const getImageUrl = (imageName, useFallback = false) => {
   }
   
   // Fallback на прямой URL (может быть заблокирован или CORS ошибка)
-  return `https://db.acoustic.ru:3005/api/v1/constr/${processedImageName}`;
+  return `https://constrtodo.ru:3005/api/v1/constr/${processedImageName}`;
 };
 
 /**
@@ -366,7 +366,7 @@ export const getConstructionProps = async (code) => {
     }
     
     console.warn('[API] No proxy configured for v2, using direct URL (CORS may fail)');
-    return 'https://db.acoustic.ru:3005/api/v2';
+    return 'https://constrtodo.ru:3005/api/v2';
   };
   
   const API_V2_BASE_URL = getApiV2BaseUrl();

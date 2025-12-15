@@ -22,9 +22,9 @@
 
 ```javascript
 /**
- * CORS Proxy для API запросов к db.acoustic.ru:3005
+ * CORS Proxy для API запросов к constrtodo.ru:3005
  */
-const API_BASE_URL = 'https://db.acoustic.ru:3005';
+const API_BASE_URL = 'https://constrtodo.ru:3005';
 
 addEventListener('fetch', event => {
   event.respondWith(handleRequest(event.request));
@@ -158,8 +158,8 @@ async function handleRequest(request) {
    ```
    API Configuration: {
      hasProxy: true,
-     proxyUrl: "https://your-worker-name.your-subdomain.workers.dev/api/v1",
-     directApi: "https://db.acoustic.ru:3005/api/v1"
+    proxyUrl: "https://your-worker-name.your-subdomain.workers.dev/api/v1",
+    directApi: "https://constrtodo.ru:3005/api/v1"
    }
    ```
 5. Попробуйте выполнить расчет конструкции - CORS ошибка должна исчезнуть!
@@ -178,7 +178,7 @@ async function handleRequest(request) {
 - Проверьте консоль браузера - там должно быть `hasProxy: true`
 
 ### Проблема: Ошибка 500 от прокси
-- Проверьте, что API_BASE_URL в коде Worker правильный: `https://db.acoustic.ru:3005`
+ - Проверьте, что API_BASE_URL в коде Worker правильный: `https://constrtodo.ru:3005`
 - Проверьте логи Worker в Cloudflare Dashboard
 
 ## Альтернатива: Тестирование прокси локально

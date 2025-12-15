@@ -39,7 +39,7 @@
 1. В настройках Worker найдите **Variables and Secrets**
 2. Добавьте переменную:
    - **Variable name:** `API_BASE_URL`
-   - **Value:** `https://db.acoustic.ru:3005`
+   - **Value:** `https://constrtodo.ru:3005`
 
 ### Шаг 4: Настройка домена
 

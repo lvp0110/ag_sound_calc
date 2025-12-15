@@ -35,7 +35,7 @@ export default defineConfig({
     // В Vite все запросы автоматически перенаправляются на index.html для SPA
     proxy: {
       '/api': {
-        target: 'https://db.acoustic.ru:3005',
+        target: 'https://constrtodo.ru:3005',
         changeOrigin: true,
         secure: false, // Отключаем проверку SSL для dev режима
         rewrite: (path) => path.replace(/^\/api/, '/api'), // Сохраняем путь /api

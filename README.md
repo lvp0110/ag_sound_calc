@@ -58,8 +58,8 @@ calc-react/
 ## API
 
 Приложение использует API для получения данных о конструкциях:
-- Dev режим: прокси через `/api` на `https://db.acoustic.ru:3005`
-- Production: прямой запрос к `https://db.acoustic.ru:3005/api/v1`
+- Dev режим: прокси через `/api` на `https://constrtodo.ru:3005`
+- Production: прямой запрос к `https://constrtodo.ru:3005/api/v1`
 
 ## Публикация на GitHub Pages
 
