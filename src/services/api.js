@@ -2,43 +2,15 @@
  * API сервис для получения данных о конструкциях
  */
 
-// Определяем базовый URL API с поддержкой прокси
+// Определяем базовый URL API
 const getApiBaseUrl = () => {
   // В dev режиме используем прокси через Vite
   if (import.meta.env.DEV) {
     return '/api/v1';
   }
   
-  // В production проверяем наличие прокси из переменных окружения
-  const proxyUrl = import.meta.env.VITE_API_PROXY_URL || import.meta.env.VITE_API_URL;
-  if (proxyUrl) {
-    // Нормализуем URL прокси
-    let normalizedUrl = proxyUrl.trim().replace(/\/+$/, '');
-    
-    // Исправляем /apiv1 на /api/v1, если есть
-    if (normalizedUrl.includes('/apiv1')) {
-      normalizedUrl = normalizedUrl.replace(/\/apiv1\/?$/, '/api/v1');
-    }
-    
-    // Убеждаемся, что URL заканчивается на /api/v1
-    if (!normalizedUrl.endsWith('/api/v1')) {
-      normalizedUrl = normalizedUrl.replace(/\/api\/v1\/?$/, '') + '/api/v1';
-    }
-    
-      return normalizedUrl;
-  }
-  
-  // Если прокси не настроен, используем прямой URL (может быть CORS ошибка)
-  console.warn('[API] No proxy configured, using direct URL (CORS may fail)');
+  // В production используем прямой URL
   return 'https://constrtodo.ru:3005/api/v1';
-};
-
-// В публичных билд-окружениях (GitHub Pages) принудительно избегаем Cloudflare Worker,
-// т.к. он часто блокируется без VPN. Можно выключить вручную через VITE_DISABLE_WORKER=true.
-const isPublicStaticHost = () => {
-  if (typeof window === 'undefined') return false;
-  const host = window.location.hostname;
-  return host.endsWith('.github.io') || host.includes('localhost');
 };
 
 const API_BASE_URL = getApiBaseUrl();
@@ -93,17 +65,11 @@ export const getAllIsolationConstr = async () => {
 };
 
 /**
- * Кэш для отслеживания неудачных попыток загрузки через Worker
- */
-const failedWorkerRequests = new Set();
-
-/**
  * Формирует полный URL для изображения из API
  * @param {string} imageName - Имя файла изображения из API или путь вида /Img_constr/...
- * @param {boolean} useFallback - Использовать прямой URL (fallback) вместо прокси
  * @returns {string} Полный URL изображения
  */
-export const getImageUrl = (imageName, useFallback = false) => {
+export const getImageUrl = (imageName) => {
   if (!imageName) return '';
   
   // Если это уже полный URL, возвращаем как есть
@@ -142,49 +108,16 @@ export const getImageUrl = (imageName, useFallback = false) => {
     return `http://localhost:3005/api/v1/constr/${processedImageName}`;
   }
   
-  // В production используем прокси через Cloudflare Worker, если настроен и не используется fallback.
-  // Пропускаем worker, если он отключён или хост github.io (часто блокируется без VPN).
-  const disableWorker =
-    import.meta.env.VITE_DISABLE_WORKER === 'true' || isPublicStaticHost();
-
-  if (!useFallback && !disableWorker) {
-    const proxyUrl = import.meta.env.VITE_API_PROXY_URL || import.meta.env.VITE_API_URL;
-    if (proxyUrl) {
-      let normalizedUrl = proxyUrl.trim().replace(/\/+$/, '');
-      
-      if (normalizedUrl.includes('/apiv1')) {
-        normalizedUrl = normalizedUrl.replace(/\/apiv1\/?$/, '/api/v1');
-      }
-      
-      if (!normalizedUrl.endsWith('/api/v1')) {
-        normalizedUrl = normalizedUrl.replace(/\/api\/v1\/?$/, '') + '/api/v1';
-      }
-      
-      return `${normalizedUrl}/constr/${processedImageName}`;
-    }
-  }
-  
-  // Fallback на прямой URL (может быть заблокирован или CORS ошибка)
   return `https://constrtodo.ru:3005/api/v1/constr/${processedImageName}`;
 };
 
 /**
- * Проверяет доступность изображения через Worker и возвращает URL с fallback
+ * Получает URL изображения (обёртка для обратной совместимости)
  * @param {string} imageName - Имя файла изображения
- * @returns {string} URL изображения с автоматическим fallback
+ * @returns {string} URL изображения
  */
 export const getImageUrlWithFallback = (imageName) => {
-  if (!imageName) return '';
-  
-  // Проверяем, была ли предыдущая попытка загрузки через Worker неудачной
-  const imageKey = imageName;
-  if (failedWorkerRequests.has(imageKey)) {
-    // Используем прямой URL как fallback
-    return getImageUrl(imageName, true);
-  }
-  
-  // Пытаемся использовать Worker
-  return getImageUrl(imageName, false);
+  return getImageUrl(imageName);
 };
 
 /**
@@ -197,7 +130,7 @@ export const getImagesMap = async () => {
   
   constructions.forEach((item) => {
     if (item.Code && item.Img) {
-      imagesMap.set(item.Code, getImageUrlWithFallback(item.Img));
+      imagesMap.set(item.Code, getImageUrl(item.Img));
     }
   });
   
@@ -205,12 +138,11 @@ export const getImagesMap = async () => {
 };
 
 /**
- * Предзагружает изображение с автоматическим fallback
- * @param {string} imageUrl - URL изображения для предзагрузки (через Worker)
- * @param {string} originalImageName - Оригинальное имя изображения для fallback
+ * Предзагружает изображение
+ * @param {string} imageUrl - URL изображения для предзагрузки
  * @returns {Promise<void>}
  */
-export const preloadImage = (imageUrl, originalImageName = null) => {
+export const preloadImage = (imageUrl) => {
   return new Promise((resolve) => {
     if (!imageUrl) {
       resolve();
@@ -243,25 +175,6 @@ export const preloadImage = (imageUrl, originalImageName = null) => {
       const loadTime = Date.now() - startTime;
       console.warn(`[API] Failed to preload image (${loadTime}ms):`, imageUrl);
       
-      // Если это был Worker URL и есть оригинальное имя, пробуем fallback
-      if (originalImageName && imageUrl.includes('.workers.dev')) {
-        failedWorkerRequests.add(originalImageName);
-        const fallbackUrl = getImageUrl(originalImageName, true);
-        
-        // Пробуем загрузить через прямой URL
-        const fallbackImg = new Image();
-        fallbackImg.onload = () => {
-          cleanup();
-          resolve();
-        };
-        fallbackImg.onerror = () => {
-          cleanup();
-          resolve(); // Все равно резолвим, чтобы не блокировать
-        };
-        fallbackImg.src = fallbackUrl;
-        return;
-      }
-      
       cleanup();
       resolve(); // Не отклоняем промис, чтобы не блокировать загрузку
     };
@@ -269,7 +182,7 @@ export const preloadImage = (imageUrl, originalImageName = null) => {
     img.onload = handleSuccess;
     img.onerror = handleError;
     
-    // Таймаут для определения, что Worker не отвечает
+    // Таймаут для определения, что изображение не загружается
     timeoutId = setTimeout(() => {
       if (!isResolved) {
         console.warn('[API] Image load timeout:', imageUrl);
@@ -303,7 +216,7 @@ export const preloadImages = async (imageData, batchSize = 3) => {
   // Загружаем изображения батчами для избежания перегрузки
   for (let i = 0; i < images.length; i += batchSize) {
     const batch = images.slice(i, i + batchSize);
-    await Promise.all(batch.map(({ url, name }) => preloadImage(url, name)));
+    await Promise.all(batch.map(({ url }) => preloadImage(url)));
   }
 };
 
@@ -322,10 +235,10 @@ export const getConstructionByCode = async (code) => {
     if (construction) {
       // Обрабатываем изображения
       if (construction.Img) {
-        construction.Img = getImageUrlWithFallback(construction.Img);
+        construction.Img = getImageUrl(construction.Img);
       }
       if (construction.CadImg) {
-        construction.CadImg = getImageUrlWithFallback(construction.CadImg);
+        construction.CadImg = getImageUrl(construction.CadImg);
       }
     }
     
@@ -350,22 +263,6 @@ export const getConstructionProps = async (code) => {
       return '/api/v2';
     }
     
-    const proxyUrl = import.meta.env.VITE_API_PROXY_URL || import.meta.env.VITE_API_URL;
-    if (proxyUrl) {
-      let normalizedUrl = proxyUrl.trim().replace(/\/+$/, '');
-      
-      if (normalizedUrl.includes('/apiv1')) {
-        normalizedUrl = normalizedUrl.replace(/\/apiv1\/?$/, '/api/v2');
-      } else if (normalizedUrl.includes('/api/v1')) {
-        normalizedUrl = normalizedUrl.replace(/\/api\/v1\/?$/, '/api/v2');
-      } else if (!normalizedUrl.endsWith('/api/v2')) {
-        normalizedUrl = normalizedUrl.replace(/\/api\/v2\/?$/, '') + '/api/v2';
-      }
-      
-      return normalizedUrl;
-    }
-    
-    console.warn('[API] No proxy configured for v2, using direct URL (CORS may fail)');
     return 'https://constrtodo.ru:3005/api/v2';
   };
   
@@ -447,4 +344,3 @@ export const getConstructionProps = async (code) => {
     return null;
   }
 };
-

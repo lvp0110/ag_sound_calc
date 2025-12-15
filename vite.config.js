@@ -3,6 +3,8 @@ import react from '@vitejs/plugin-react'
 import { copyFileSync } from 'fs'
 import { join } from 'path'
 
+const API_TARGET = 'https://constrtodo.ru:3005'
+
 // https://vite.dev/config/
 export default defineConfig({
   // Base path для GitHub Pages
@@ -35,7 +37,7 @@ export default defineConfig({
     // В Vite все запросы автоматически перенаправляются на index.html для SPA
     proxy: {
       '/api': {
-        target: 'https://constrtodo.ru:3005',
+        target: API_TARGET,
         changeOrigin: true,
         secure: false, // Отключаем проверку SSL для dev режима
         rewrite: (path) => path.replace(/^\/api/, '/api'), // Сохраняем путь /api
@@ -43,6 +45,9 @@ export default defineConfig({
           proxy.on('error', (err, _req, _res) => {
           });
           proxy.on('proxyReq', (proxyReq, req, _res) => {
+            // Приводим Origin/Referer к целевому хосту, чтобы API не резал localhost
+            proxyReq.setHeader('origin', API_TARGET);
+            proxyReq.setHeader('referer', `${API_TARGET}/`);
           });
           proxy.on('proxyRes', (proxyRes, req, _res) => {
           });

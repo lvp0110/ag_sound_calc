@@ -58,7 +58,7 @@ calc-react/
 ## API
 
 Приложение использует API для получения данных о конструкциях:
-- Dev режим: прокси через `/api` на `https://constrtodo.ru:3005`
+- Dev режим: прокси через `/api` на `https://constrtodo.ru:3005` (настроен в `vite.config.js`)
 - Production: прямой запрос к `https://constrtodo.ru:3005/api/v1`
 
 ## Публикация на GitHub Pages
@@ -98,11 +98,7 @@ npx gh-pages -d dist
 
 **Важно:** Проект настроен для репозитория `ag_sound_calc`. Сайт будет доступен по адресу: https://lvp0110.github.io/ag_sound_calc/
 
-### Настройка переменных окружения (опционально)
-
-Если нужно использовать прокси для API в production:
-- Перейдите в `Settings` → `Secrets and variables` → `Actions`
-- Добавьте секрет `VITE_API_PROXY_URL` или `VITE_API_URL` с URL вашего прокси
+**Примечание:** Для работы в production на сервере `constrtodo.ru:3005` должен быть настроен CORS для домена `https://lvp0110.github.io`.
 
 ## Лицензия
 

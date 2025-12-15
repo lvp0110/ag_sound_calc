@@ -13,43 +13,20 @@ export const calculateConstruction = async (constrList) => {
       return "/api/v1/calcIsolation/byProduct";
     }
     
-    // В production проверяем наличие прокси
-    const proxyUrl = import.meta.env.VITE_API_PROXY_URL || import.meta.env.VITE_API_URL;
-    if (proxyUrl) {
-      // Нормализуем URL прокси: убираем лишние слеши и убеждаемся, что заканчивается на /api/v1
-      let normalizedUrl = proxyUrl.trim();
-      // Убираем слеш в конце, если есть
-      normalizedUrl = normalizedUrl.replace(/\/+$/, '');
-      
-      // Если URL уже содержит /api/v1, используем как есть
-      if (normalizedUrl.endsWith('/api/v1')) {
-        return `${normalizedUrl}/calcIsolation/byProduct`;
-      }
-      
-      // Если URL содержит /apiv1 (без слешей), исправляем
-      if (normalizedUrl.includes('/apiv1')) {
-        normalizedUrl = normalizedUrl.replace(/\/apiv1\/?$/, '/api/v1');
-        return `${normalizedUrl}/calcIsolation/byProduct`;
-      }
-      
-      // Если URL не содержит /api/v1, добавляем
-      return `${normalizedUrl}/api/v1/calcIsolation/byProduct`;
-    }
-    
-    // Если прокси не настроен, используем прямой URL (может быть CORS ошибка)
     return "https://constrtodo.ru:3005/api/v1/calcIsolation/byProduct";
   };
 
   const apiUrl = getApiUrl();
 
   const startTime = performance.now();
+  const payload = JSON.stringify(constrList);
   const response = await fetch(apiUrl, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Accept: "application/json",
     },
-    body: JSON.stringify(constrList),
+    body: payload,
     mode: "cors",
   });
 
@@ -72,7 +49,18 @@ export const calculateConstruction = async (constrList) => {
         errorText = `HTTP ${response.status}: ${response.statusText}`;
       }
     }
-    console.error("API error response:", errorText);
+    console.error(
+      "[API] calcIsolation 4xx/5xx",
+      {
+        url: apiUrl,
+        status: response.status,
+        statusText: response.statusText,
+        elapsedMs: Math.round(fetchTime),
+        requestBodyPreview: payload?.slice(0, 200),
+      },
+      "response:",
+      errorText
+    );
 
     let errorMessage = errorText;
     try {
@@ -98,4 +86,3 @@ export const calculateConstruction = async (constrList) => {
     return { data: [] };
   }
 };
-

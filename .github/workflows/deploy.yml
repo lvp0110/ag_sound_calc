@@ -39,12 +39,6 @@ jobs:
           # Репозиторий: ag_sound_calc
           # URL: https://lvp0110.github.io/ag_sound_calc/
           BASE_PATH: /ag_sound_calc/
-          # Опционально: используйте прокси для обхода CORS
-          # Создайте секрет VITE_API_PROXY_URL или VITE_API_URL в настройках репозитория
-          # Settings → Secrets and variables → Actions
-          # Поддерживаются оба варианта названий
-          VITE_API_PROXY_URL: ${{ secrets.VITE_API_PROXY_URL }}
-          VITE_API_URL: ${{ secrets.VITE_API_URL }}
         run: |
           echo "Building with BASE_PATH: /ag_sound_calc/"
           npm run build
