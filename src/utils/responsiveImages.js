@@ -5,22 +5,6 @@
 import { getImageUrl } from '../services/api';
 
 /**
- * Получает URL для локальной иконки из public папки
- * @param {string} iconName - Имя файла иконки (например, "icon_floor_white.svg")
- * @returns {string} URL для локальной иконки
- */
-export const getLocalIconUrl = (iconName) => {
-  if (!iconName) return '';
-  
-  // В Vite файлы из public папки доступны через корневой путь
-  // Используем import.meta.env.BASE_URL для поддержки base path
-  const baseUrl = import.meta.env.BASE_URL || '/';
-  // Убираем двойные слеши
-  const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-  return `${cleanBaseUrl}/${iconName}`;
-};
-
-/**
  * Генерирует srcset для изображения
  * @param {string} imageName - Имя файла изображения
  * @param {Array<number>} widths - Массив ширин для srcset (например, [300, 600, 900, 1200])
@@ -113,22 +97,5 @@ export const getResponsiveImageProps = (imageName, type = 'item') => {
     srcSet: srcSet || undefined, // Убираем пустую строку
     sizes: sizes || undefined,
   };
-};
-
-/**
- * Создает простой объект с src для обратной совместимости
- * @param {string} imageName - Имя файла изображения
- * @returns {Object} Объект с атрибутом src
- */
-export const getImageProps = (imageName) => {
-  if (!imageName) {
-    return { src: '' };
-  }
-  
-  const src = imageName.startsWith('http://') || imageName.startsWith('https://')
-    ? imageName
-    : getImageUrl(imageName);
-  
-  return { src };
 };
 

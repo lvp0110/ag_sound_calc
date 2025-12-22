@@ -23,11 +23,8 @@ export const getAllIsolationConstr = async () => {
   const url = `${API_BASE_URL}/AllIsolationConstr`;
   
   try {
-    const startTime = performance.now();
-    
-    // Создаем AbortController для таймаута
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 секунд таймаут
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
     
     const response = await fetch(url, {
       method: 'GET',
@@ -38,28 +35,19 @@ export const getAllIsolationConstr = async () => {
     });
 
     clearTimeout(timeoutId);
-    const fetchTime = performance.now() - startTime;
 
     if (!response.ok) {
-      console.error(`[API] HTTP error! status: ${response.status}, url: ${url}`);
       throw new Error(`HTTP error! status: ${response.status}`);
     }
 
     const result = await response.json();
     
-    // Возвращаем массив данных из поля data
     if (result.code === 200 && result.data) {
       return result.data;
     }
     
-    console.warn('[API] Unexpected response format:', result);
     return [];
   } catch (error) {
-    if (error.name === 'AbortError') {
-      console.error('[API] Request timeout:', url);
-    } else {
-      console.error('[API] Error fetching isolation constructions:', error, 'URL:', url);
-    }
     return [];
   }
 };
@@ -72,8 +60,15 @@ export const getAllIsolationConstr = async () => {
 export const getImageUrl = (imageName) => {
   if (!imageName) return '';
   
-  // Если это уже полный URL, возвращаем как есть
-  if (imageName.startsWith('http://') || imageName.startsWith('https://')) {
+  // Нормализуем полный URL от API до имени файла, чтобы можно было подменять на zipsCeilingApiImages.
+  const devBase = 'http://localhost:3005/api/v1/constr/';
+  const prodBase = 'https://constrtodo.ru:3005/api/v1/constr/';
+  if (imageName.startsWith(devBase)) {
+    imageName = imageName.slice(devBase.length);
+  } else if (imageName.startsWith(prodBase)) {
+    imageName = imageName.slice(prodBase.length);
+  } else if (imageName.startsWith('http://') || imageName.startsWith('https://')) {
+    // Для сторонних абсолютных ссылок возвращаем как есть
     return imageName;
   }
   
@@ -142,46 +137,26 @@ export const preloadImage = (imageUrl) => {
     }
     
     const img = new Image();
-    const startTime = Date.now();
-    const TIMEOUT = 8000; // 8 секунд таймаут для изображений
-    
-    let timeoutId;
     let isResolved = false;
-    
-    const cleanup = () => {
-      if (timeoutId) clearTimeout(timeoutId);
-      img.onload = null;
-      img.onerror = null;
-    };
     
     const handleSuccess = () => {
       if (isResolved) return;
       isResolved = true;
-      cleanup();
+      img.onload = null;
+      img.onerror = null;
       resolve();
     };
     
     const handleError = () => {
       if (isResolved) return;
-      
-      const loadTime = Date.now() - startTime;
-      console.warn(`[API] Failed to preload image (${loadTime}ms):`, imageUrl);
-      
-      cleanup();
-      resolve(); // Не отклоняем промис, чтобы не блокировать загрузку
+      isResolved = true;
+      img.onload = null;
+      img.onerror = null;
+      resolve();
     };
     
     img.onload = handleSuccess;
     img.onerror = handleError;
-    
-    // Таймаут для определения, что изображение не загружается
-    timeoutId = setTimeout(() => {
-      if (!isResolved) {
-        console.warn('[API] Image load timeout:', imageUrl);
-        handleError();
-      }
-    }, TIMEOUT);
-    
     img.src = imageUrl;
   });
 };
@@ -236,7 +211,6 @@ export const getConstructionByCode = async (code) => {
     
     return construction || null;
   } catch (error) {
-    console.error('[API] Error fetching construction by code:', error);
     return null;
   }
 };
@@ -285,30 +259,6 @@ export const getConstructionProps = async (code) => {
         return null;
       }
       
-      // Для других ошибок логируем, но не падаем
-      let errorText = '';
-      try {
-        errorText = await response.text();
-        // Пытаемся распарсить как JSON, если это возможно
-        try {
-          const errorJson = JSON.parse(errorText);
-          // Если это ошибка 500 с сообщением о типах данных - это проблема бэкенда
-          // Логируем только в dev режиме
-          if (import.meta.env.DEV && response.status === 500) {
-            console.warn(`[API] Server error for code "${code}":`, errorJson.error || errorText);
-          }
-        } catch {
-          // Не JSON, просто текст
-          if (import.meta.env.DEV && response.status !== 404) {
-            console.warn(`[API] HTTP error! status: ${response.status}, url: ${url}`);
-          }
-        }
-      } catch {
-        // Не удалось прочитать ответ
-        if (import.meta.env.DEV && response.status !== 404) {
-          console.warn(`[API] HTTP error! status: ${response.status}, url: ${url}`);
-        }
-      }
       return null;
     }
     
@@ -350,25 +300,11 @@ export const getConstructionProps = async (code) => {
     
     // Если весь result - это объект с материалами (может быть прямая структура)
     if (result && typeof result === 'object' && !result.code && !result.data) {
-      // Возвращаем как есть, возможно это уже правильная структура
       return result;
     }
     
-    if (import.meta.env.DEV) {
-      console.warn('[API] Unexpected response format for props:', result);
-    }
     return null;
   } catch (error) {
-    if (error.name === 'AbortError') {
-      if (import.meta.env.DEV) {
-        console.warn('[API] Request timeout:', url);
-      }
-    } else {
-      // Логируем только в dev режиме
-      if (import.meta.env.DEV) {
-        console.warn('[API] Error fetching construction props:', error.message, 'URL:', url);
-      }
-    }
     return null;
   }
 };

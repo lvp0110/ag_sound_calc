@@ -2,11 +2,11 @@ import { getImagesMap, getImageUrl } from '../services/api';
 
 // Новые файлы для потолков ЗИПС (загружаются через API, а не локально)
 const zipsCeilingApiImages = {
-  201: "zips_ceiling/ceiling_zips_vector.jpg",
-  202: "zips_ceiling/ceiling_zips_module.jpg",
-  203: "zips_ceiling/ceiling_zips_IIIultra.jpg",
-  204: "zips_ceiling/ceiling_zips_Z4.jpg",
-  205: "zips_ceiling/ceiling_zips_cinema.jpg",
+  201: "ceiling_zips_vector.jpg",
+  202: "ceiling_zips_module.jpg",
+  203: "ceiling_zips_IIIultra.jpg",
+  204: "ceiling_zips_Z4.jpg",
+  205: "ceiling_zips_cinema.jpg",
 };
 
 const ItemsBase = [
@@ -468,7 +468,6 @@ export const getItemsWithApiImages = async () => {
     const imagesMap = await getImagesMap();
     return enrichItemsWithImages(ItemsBase, imagesMap);
   } catch (error) {
-    console.error('Error enriching items with API images:', error);
     // В случае ошибки возвращаем items с преобразованными путями для элемента "P"
     return ItemsBase.map(item => {
       let img = null;

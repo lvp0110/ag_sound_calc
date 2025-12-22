@@ -3,7 +3,6 @@
  */
 export const calculateConstruction = async (constrList) => {
   if (!constrList || constrList.length === 0) {
-    console.warn("Empty construction list");
     return { data: [] };
   }
 
@@ -18,7 +17,6 @@ export const calculateConstruction = async (constrList) => {
 
   const apiUrl = getApiUrl();
 
-  const startTime = performance.now();
   const payload = JSON.stringify(constrList);
   const response = await fetch(apiUrl, {
     method: "POST",
@@ -30,18 +28,14 @@ export const calculateConstruction = async (constrList) => {
     mode: "cors",
   });
 
-  const fetchTime = performance.now() - startTime;
-
   if (!response.ok) {
     let errorText = "";
     try {
-      // Клонируем response перед чтением, чтобы можно было прочитать несколько раз
       const clonedResponse = response.clone();
       const errorData = await clonedResponse.json();
       errorText =
         errorData.error || errorData.message || JSON.stringify(errorData);
     } catch (e) {
-      // Если не удалось распарсить JSON, читаем как текст
       try {
         const clonedResponse = response.clone();
         errorText = await clonedResponse.text();
@@ -49,18 +43,6 @@ export const calculateConstruction = async (constrList) => {
         errorText = `HTTP ${response.status}: ${response.statusText}`;
       }
     }
-    console.error(
-      "[API] calcIsolation 4xx/5xx",
-      {
-        url: apiUrl,
-        status: response.status,
-        statusText: response.statusText,
-        elapsedMs: Math.round(fetchTime),
-        requestBodyPreview: payload?.slice(0, 200),
-      },
-      "response:",
-      errorText
-    );
 
     let errorMessage = errorText;
     try {
@@ -82,7 +64,6 @@ export const calculateConstruction = async (constrList) => {
   } else if (Array.isArray(data)) {
     return { data: data };
   } else {
-    console.warn("Unexpected response format:", data);
     return { data: [] };
   }
 };

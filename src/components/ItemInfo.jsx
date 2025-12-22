@@ -9,11 +9,11 @@ import "./Calculator.css";
 
 // Импортируем мапу изображений для потолков ЗИПС
 const zipsCeilingApiImages = {
-  201: "zips_ceiling/ceiling_zips_vector.jpg",
-  202: "zips_ceiling/ceiling_zips_module.jpg",
-  203: "zips_ceiling/ceiling_zips_IIIultra.jpg",
-  204: "zips_ceiling/ceiling_zips_Z4.jpg",
-  205: "zips_ceiling/ceiling_zips_cinema.jpg",
+  201: "ceiling_zips_vector.jpg",
+  202: "ceiling_zips_module.jpg",
+  203: "ceiling_zips_IIIultra.jpg",
+  204: "ceiling_zips_Z4.jpg",
+  205: "ceiling_zips_cinema.jpg",
 };
 
 const ItemInfo = () => {
@@ -41,13 +41,27 @@ const ItemInfo = () => {
       try {
         // Загружаем items для получения базовой информации
         const itemsWithImages = await getItemsWithApiImages();
-        const foundItem = itemsWithImages.find((item) => item.ag_id === id);
+
+        // В базе дублируются ЗИПСы для стен и потолков с одинаковым ag_id.
+        // Для потолков ЗИПС нужно взять вариант с c_id === "C", если он есть.
+        const sameAgItems = itemsWithImages.filter((item) => item.ag_id === id);
+        const foundItem =
+          sameAgItems.find((item) => item.c_id === "C") ||
+          sameAgItems[0] ||
+          null;
         
         if (foundItem) {
           setItem(foundItem);
           
           // Загружаем полные данные конструкции из API
           const construction = await getConstructionByCode(id);
+          
+          // Для потолков ЗИПС заменяем изображение из API на правильное
+          if (foundItem.c_id === "C" && zipsCeilingApiImages[foundItem.id] && construction) {
+            const zipsImageName = zipsCeilingApiImages[foundItem.id];
+            construction.Img = getImageUrl(zipsImageName);
+          }
+          
           setConstructionData(construction);
           
           // Загружаем материалы конструкции, используя Code из construction или ag_id из item
@@ -70,7 +84,7 @@ const ItemInfo = () => {
           }
         }
       } catch (error) {
-        console.error("Failed to load item data:", error);
+        // Игнорируем ошибки загрузки
       } finally {
         setLoading(false);
       }
@@ -109,19 +123,17 @@ const ItemInfo = () => {
   // Получаем данные из API или используем данные из item как fallback
   const data = constructionData || {};
   
-  // Для потолков ЗИПС принудительно используем изображение из item (которое уже обработано через zipsCeilingApiImages)
-  // Это важно, чтобы не подставлялись старые картинки из ответа API
-  // В калькуляторе используется: const imageSrc = elem.Img || elem.img;
+  // Для потолков ЗИПС принудительно используем правильный URL из zipsCeilingApiImages
+  // независимо от того, что приходит из API
   const isZIPSCeiling = item.c_id === "C" && zipsCeilingApiImages[item.id];
   
-  // Для потолков ЗИПС используем ТОЛЬКО item.Img (которое уже обработано правильно через enrichItemsWithImages)
-  // enrichItemsWithImages устанавливает Img через getImageUrl(zipsCeilingApiImages[item.id])
-  // Для остальных элементов используем ту же логику, что и в калькуляторе: item.Img || item.img
-  // НИКОГДА не используем data.Img для потолков ЗИПС, так как API может вернуть старые изображения
+  // Для потолков ЗИПС принудительно формируем правильный URL из zipsCeilingApiImages
+  // Для остальных элементов используем ту же логику, что и в калькуляторе: item.Img || item.img || data.Img
   let imgSrc;
   if (isZIPSCeiling) {
-    // Для потолков ЗИПС используем только item.Img, который уже содержит правильный URL
-    imgSrc = item.Img || item.img;
+    // Для потолков ЗИПС принудительно используем правильный URL
+    const zipsImageName = zipsCeilingApiImages[item.id];
+    imgSrc = getImageUrl(zipsImageName);
   } else {
     // Для остальных элементов используем ту же логику, что и в калькуляторе
     imgSrc = item.Img || item.img || data.Img;

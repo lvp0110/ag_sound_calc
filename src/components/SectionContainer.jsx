@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { getImageUrl } from "../services/api";
 import { getResponsiveImageProps } from "../utils/responsiveImages";
 import ItemsList from "./ItemsList";

@@ -10,14 +10,13 @@ import {
   constSentZero,
   openingZero,
 } from "../constants/defaultValues";
-import { getImageUrl, preloadImages, preloadImage } from "../services/api";
+import { getImageUrl } from "../services/api";
 import { getResponsiveImageProps } from "../utils/responsiveImages";
 import { validateInput, validateFloorInput, validateFloorMaxInput, getMaxLenZInMeters } from "../utils/validation";
 import { calculateAreaAndPerimeter, getConstructionCode } from "../utils/calculations";
 import { getOpeningType } from "../utils/formatters";
 import { exportTablesToExcel, copyMaterialsToClipboard } from "../utils/excelExport";
 import { calculateConstruction } from "../services/constructionApi";
-import SectionContainer from "./SectionContainer";
 import ItemsList from "./ItemsList";
 import SelectedItemForms from "./SelectedItemForms";
 import ConstructionList from "./tables/ConstructionList";
@@ -38,7 +37,7 @@ const Calculator = () => {
         return JSON.parse(savedState);
       }
     } catch (error) {
-      console.error('Failed to load state from storage:', error);
+      // Игнорируем ошибки парсинга
     }
     return null;
   };
@@ -48,7 +47,7 @@ const Calculator = () => {
     try {
       sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     } catch (error) {
-      console.error('Failed to save state to storage:', error);
+      // Игнорируем ошибки сохранения
     }
   };
 
@@ -97,8 +96,46 @@ const Calculator = () => {
       try {
         const enrichedItems = await getItemsWithApiImages();
         setItemsWithImages(enrichedItems);
+        
+        // Если есть сохраненное состояние с открытой секцией, предзагружаем первое изображение
+        const savedState = loadStateFromStorage();
+        if (savedState?.openedSubCategories) {
+          const firstOpenedSection = mainSections.find(section => {
+            const openedSubCategory = savedState.openedSubCategories[section.id];
+            if (!openedSubCategory) return false;
+            const sectionItems = enrichedItems.filter((el) => el.c_id == openedSubCategory);
+            return sectionItems.length > 0;
+          });
+          
+          if (firstOpenedSection) {
+            const openedSubCategory = savedState.openedSubCategories[firstOpenedSection.id];
+            const sectionItems = enrichedItems.filter((el) => el.c_id == openedSubCategory);
+            
+            if (sectionItems.length > 0) {
+              const firstItem = sectionItems[0];
+              const firstImageSrc = firstItem.Img || firstItem.img;
+              
+              if (firstImageSrc) {
+                const firstImageUrl = getImageUrl(firstImageSrc);
+                
+                // Добавляем preload link для максимального приоритета
+                const link = document.createElement('link');
+                link.rel = 'preload';
+                link.as = 'image';
+                link.href = firstImageUrl;
+                link.setAttribute('fetchpriority', 'high');
+                link.setAttribute('data-lcp-candidate', 'true');
+                document.head.appendChild(link);
+                
+                // Также предзагружаем через Image API
+                const img = new Image();
+                img.fetchPriority = 'high';
+                img.src = firstImageUrl;
+              }
+            }
+          }
+        }
       } catch (error) {
-        console.error("Failed to load items with API images:", error);
         // В случае ошибки используем базовые items
         setItemsWithImages(Items);
       }
@@ -143,44 +180,6 @@ const Calculator = () => {
     calculatedMaterials,
   ]);
 
-  // Сохраняем состояние при размонтировании компонента
-  useEffect(() => {
-    return () => {
-      const stateToSave = {
-        currentGkla,
-        currentWool,
-        unvisible,
-        tableConstrToCalc,
-        currentSubCategory,
-        currentItems,
-        openedSubCategories,
-        template,
-        profileStep,
-        dFrame,
-        currentConstr,
-        ConstrToCalcToSent,
-        ConstrToCalc,
-        calculatedMaterials,
-      };
-      saveStateToStorage(stateToSave);
-    };
-  }, [
-    currentGkla,
-    currentWool,
-    unvisible,
-    tableConstrToCalc,
-    currentSubCategory,
-    currentItems,
-    openedSubCategories,
-    template,
-    profileStep,
-    dFrame,
-    currentConstr,
-    ConstrToCalcToSent,
-    ConstrToCalc,
-    calculatedMaterials,
-  ]);
-
   // Получить items для конкретной секции и подкатегории
   const getItemsForSection = useCallback(
     (sectionId, subCategoryId) => {
@@ -192,34 +191,35 @@ const Calculator = () => {
 
   // Предзагружаем иконки секций для улучшения производительности
   useEffect(() => {
-    // Предзагружаем иконки секций через API с высоким приоритетом
-    const sectionIcons = mainSections.map(section => ({
-      url: getImageUrl(section.icon),
-      name: section.icon
-    }));
-    // Загружаем все 4 иконки параллельно с высоким приоритетом
-    preloadImages(sectionIcons, 4);
+    const sectionIcons = mainSections.map(section => getImageUrl(section.icon));
     
-    // Также добавляем preload link для первой иконки в head для максимальной оптимизации LCP
-    const firstIconUrl = getImageUrl(mainSections[0].icon);
-    const link = document.createElement('link');
-    link.rel = 'preload';
-    link.as = 'image';
-    link.href = firstIconUrl;
-    link.setAttribute('fetchpriority', 'high');
-    link.setAttribute('data-section-icon', 'true');
-    document.head.appendChild(link);
+    // Загружаем первую иконку с высоким приоритетом
+    if (sectionIcons.length > 0) {
+      const img = new Image();
+      img.fetchPriority = 'high';
+      if (!import.meta.env.DEV) {
+        img.crossOrigin = 'anonymous';
+      }
+      img.src = sectionIcons[0];
+    }
+    
+    // Загружаем остальные иконки
+    sectionIcons.slice(1).forEach((url) => {
+      const img = new Image();
+      if (!import.meta.env.DEV) {
+        img.crossOrigin = 'anonymous';
+      }
+      img.src = url;
+    });
   }, []);
 
   // Предзагружаем первое изображение из открытой секции для улучшения LCP
   useEffect(() => {
     if (itemsWithImages.length === 0) return;
     
-    // Находим первую открытую секцию с элементами
     const firstOpenedSection = mainSections.find(section => {
       const openedSubCategory = openedSubCategories[section.id];
       if (!openedSubCategory) return false;
-      
       const sectionItems = getItemsForSection(section.id, openedSubCategory);
       return sectionItems.length > 0;
     });
@@ -236,12 +236,12 @@ const Calculator = () => {
           const firstImageUrl = getImageUrl(firstImageSrc);
           
           // Удаляем предыдущий preload link если есть
-          const existingLink = document.querySelector(`link[rel="preload"][as="image"][data-lcp-candidate="true"]`);
+          const existingLink = document.querySelector('link[rel="preload"][as="image"][data-lcp-candidate="true"]');
           if (existingLink) {
             existingLink.remove();
           }
           
-          // Предзагружаем первое изображение с высоким приоритетом
+          // Добавляем preload link для максимального приоритета загрузки
           const link = document.createElement('link');
           link.rel = 'preload';
           link.as = 'image';
@@ -250,8 +250,10 @@ const Calculator = () => {
           link.setAttribute('data-lcp-candidate', 'true');
           document.head.appendChild(link);
           
-          // Также предзагружаем через Image API для лучшей совместимости
-          preloadImage(firstImageUrl);
+          // Также предзагружаем через Image API
+          const img = new Image();
+          img.fetchPriority = 'high';
+          img.src = firstImageUrl;
         }
       }
     }
@@ -373,8 +375,7 @@ const Calculator = () => {
   // Прокрутка к selected-item-container при выборе элемента
   useEffect(() => {
     if (currentItems != 0) {
-      // Небольшая задержка для того, чтобы DOM успел обновиться
-      setTimeout(() => {
+      requestAnimationFrame(() => {
         const container = document.querySelector(".selected-item-container");
         if (container) {
           container.scrollIntoView({
@@ -382,7 +383,7 @@ const Calculator = () => {
             block: "start",
           });
         }
-      }, 100);
+      });
     }
   }, [currentItems]);
 
@@ -424,7 +425,6 @@ const Calculator = () => {
       const data = await calculateConstruction(constrList);
       setCalculatedMaterials(data);
     } catch (error) {
-      console.error("Error calculating construction:", error);
       let errorMessage = error.message;
       if (error.message.includes("invalid construction size")) {
         errorMessage =
@@ -604,7 +604,7 @@ const Calculator = () => {
     setCurrentWool("default");
     
     // Прокрутка к таблице конструкций
-    setTimeout(() => {
+    requestAnimationFrame(() => {
       const constructionTable = document.getElementById("table1");
       if (constructionTable) {
         constructionTable.scrollIntoView({
@@ -612,7 +612,7 @@ const Calculator = () => {
           block: "start",
         });
       }
-    }, 100);
+    });
   }, [
     constR,
     currentSubCategory,
@@ -732,9 +732,10 @@ const Calculator = () => {
                       className="section-icon"
                       loading="eager"
                       decoding="async"
-                      fetchPriority="high"
+                      fetchPriority={section.id === "F" ? "high" : "auto"}
                       width="80"
                       height="80"
+                      crossOrigin={import.meta.env.DEV ? undefined : "anonymous"}
                       onError={(e) => {
                         // Если изображение не загрузилось, пробуем альтернативный путь
                         if (!e.target.dataset.fallbackTried) {
@@ -787,6 +788,8 @@ const Calculator = () => {
                         const isLCPCandidate = index === 0;
                         const loadingStrategy = isAboveTheFold ? "eager" : "lazy";
                         const fetchPriority = isLCPCandidate ? "high" : isAboveTheFold ? "auto" : undefined;
+                        // Для LCP элемента используем синхронный декодинг для быстрого отображения
+                        const decodingStrategy = isLCPCandidate ? "sync" : "async";
 
                         return (
                           <div
@@ -806,7 +809,7 @@ const Calculator = () => {
                                   alt="" 
                                   className="img-icon"
                                   loading={loadingStrategy}
-                                  decoding="async"
+                                  decoding={decodingStrategy}
                                   fetchPriority={fetchPriority}
                                   width="200"
                                   height="200"
