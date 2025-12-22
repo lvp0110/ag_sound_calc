@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useState, useEffect, useRef } from "react";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import Items, { getItemsWithApiImages } from "../data/items";
 import { getImageUrl, getConstructionByCode, getConstructionProps } from "../services/api";
 import { getResponsiveImageProps } from "../utils/responsiveImages";
@@ -7,13 +7,13 @@ import articles from "../data/articles";
 import Modal from "./Modal";
 import "./Calculator.css";
 
-// Импортируем мапу изображений для потолков ЗИПС
-const zipsCeilingApiImages = {
-  201: "ceiling_zips_vector.jpg",
-  202: "ceiling_zips_module.jpg",
-  203: "ceiling_zips_IIIultra.jpg",
-  204: "ceiling_zips_Z4.jpg",
-  205: "ceiling_zips_cinema.jpg",
+// Мапа CAD изображений (чертежей) для потолков ЗИПС
+const zipsCeilingCadImages = {
+  201: "cad_ceiling_zips_vector.png",
+  202: "cad_ceiling_zips_module.png",
+  203: "cad_ceiling_zips_IIIultra.png",
+  204: "cad_ceiling_zips_Z4.png",
+  205: "cad_ceiling_zips_cinema.png",
 };
 
 const ItemInfo = () => {
@@ -29,6 +29,10 @@ const ItemInfo = () => {
     title: "",
     html: "",
   });
+  const [zipsItems, setZipsItems] = useState(null); // Оба варианта ЗИПС (потолок и облицовка)
+  const [currentImageIndex, setCurrentImageIndex] = useState(0); // Индекс текущего изображения в слайдере
+  const [currentCadIndex, setCurrentCadIndex] = useState(0); // Индекс текущего чертежа в слайдере
+  const initialIndexSet = useRef(false); // Флаг для отслеживания, были ли установлены начальные индексы
 
   // Загружаем данные элемента и конструкции из API
   useEffect(() => {
@@ -43,26 +47,78 @@ const ItemInfo = () => {
         const itemsWithImages = await getItemsWithApiImages();
 
         // В базе дублируются ЗИПСы для стен и потолков с одинаковым ag_id.
-        // Для потолков ЗИПС нужно взять вариант с c_id === "C", если он есть.
         const sameAgItems = itemsWithImages.filter((item) => item.ag_id === id);
-        const foundItem =
-          sameAgItems.find((item) => item.c_id === "C") ||
-          sameAgItems[0] ||
-          null;
+        // Сбрасываем флаг при загрузке нового элемента
+        initialIndexSet.current = false;
+        
+        // Определяем секцию из state навигации, sessionStorage или выбираем элемент
+        const navigationCId = location.state?.c_id || sessionStorage.getItem('itemInfo_c_id');
+        console.log('[ItemInfo] Получение state навигации:', {
+          id,
+          locationState: location.state,
+          sessionStorageCId: sessionStorage.getItem('itemInfo_c_id'),
+          navigationCId,
+          sameAgItems: sameAgItems.map(i => ({ id: i.id, c_id: i.c_id, title: i.title })),
+        });
+        
+        // Если есть navigationCId, используем его для выбора элемента
+        // Иначе выбираем по умолчанию (сначала облицовку, потом потолок)
+        let foundItem;
+        if (navigationCId) {
+          foundItem = sameAgItems.find((item) => item.c_id === navigationCId) || sameAgItems[0] || null;
+          // Сохраняем navigationCId для использования в установке индексов
+          sessionStorage.setItem('itemInfo_selected_c_id', navigationCId);
+        } else {
+          foundItem = sameAgItems.find((item) => item.c_id === "L") ||
+            sameAgItems.find((item) => item.c_id === "C") ||
+            sameAgItems[0] ||
+            null;
+        }
+        
+        console.log('[ItemInfo] Выбранный элемент:', {
+          foundItem: foundItem ? { id: foundItem.id, c_id: foundItem.c_id, title: foundItem.title } : null,
+        });
+        
+        // Очищаем sessionStorage после использования
+        if (navigationCId) {
+          sessionStorage.removeItem('itemInfo_c_id');
+        }
         
         if (foundItem) {
           setItem(foundItem);
           
-          // Загружаем полные данные конструкции из API
-          const construction = await getConstructionByCode(id);
-          
-          // Для потолков ЗИПС заменяем изображение из API на правильное
-          if (foundItem.c_id === "C" && zipsCeilingApiImages[foundItem.id] && construction) {
-            const zipsImageName = zipsCeilingApiImages[foundItem.id];
-            construction.Img = getImageUrl(zipsImageName);
+          // Для ЗИПС (id 201-205) получаем оба варианта (потолок и облицовка)
+          const isZIPS = [201, 202, 203, 204, 205].includes(foundItem.id);
+          if (isZIPS) {
+            const ceilingItem = sameAgItems.find((item) => item.c_id === "C");
+            const liningItem = sameAgItems.find((item) => item.c_id === "L");
+            
+            // Загружаем данные конструкций для обоих вариантов
+            const [ceilingConstruction, liningConstruction] = await Promise.all([
+              ceilingItem ? getConstructionByCode(ceilingItem.ag_id) : null,
+              liningItem ? getConstructionByCode(liningItem.ag_id) : null,
+            ]);
+            
+            // Сохраняем оба варианта для слайдера
+            setZipsItems({
+              ceiling: ceilingItem,
+              lining: liningItem,
+              ceilingConstruction,
+              liningConstruction,
+            });
+            
+            // Сохраняем данные для текущего элемента
+            const currentConstruction = foundItem.c_id === "C" ? ceilingConstruction : liningConstruction;
+            setConstructionData(currentConstruction);
+            
+            // Сохраняем c_id для установки индексов после формирования массивов
+            // Индексы будут установлены в useEffect после формирования imageSources и cadImageSources
+          } else {
+            setZipsItems(null);
+            // Загружаем полные данные конструкции из API
+            const construction = await getConstructionByCode(id);
+            setConstructionData(construction);
           }
-          
-          setConstructionData(construction);
           
           // Загружаем материалы конструкции, используя Code из construction или ag_id из item
           const codeToUse = construction?.Code || id;
@@ -92,6 +148,55 @@ const ItemInfo = () => {
 
     loadData();
   }, [id]);
+
+  // Сбрасываем флаг при изменении id
+  useEffect(() => {
+    initialIndexSet.current = false;
+  }, [id]);
+
+  // Устанавливаем начальные индексы слайдера после загрузки данных
+  useEffect(() => {
+    if (zipsItems && item && !initialIndexSet.current && [201, 202, 203, 204, 205].includes(item.id)) {
+      // Проверяем, что данные загружены
+      const hasCeilingImage = zipsItems.ceiling && (zipsItems.ceiling.Img || zipsItems.ceiling.img || zipsItems.ceilingConstruction?.Img);
+      const hasLiningImage = zipsItems.lining && (zipsItems.lining.Img || zipsItems.lining.img || zipsItems.liningConstruction?.Img);
+      const hasCeilingCad = zipsItems.ceiling && zipsItems.ceiling.id && zipsCeilingCadImages[zipsItems.ceiling.id];
+      const hasLiningCad = zipsItems.lining && (zipsItems.liningConstruction?.CadImg);
+      
+      // Получаем c_id из sessionStorage, если он был сохранен
+      const selectedCId = sessionStorage.getItem('itemInfo_selected_c_id') || item.c_id;
+      
+      console.log('[ItemInfo] Установка индексов:', {
+        itemCId: item.c_id,
+        selectedCId,
+        hasCeilingImage,
+        hasLiningImage,
+        hasCeilingCad,
+        hasLiningCad,
+      });
+      
+      if ((hasCeilingImage || hasLiningImage) && (hasCeilingCad || hasLiningCad)) {
+        // Если перешли из секции потолок (c_id === "C"), показываем потолок первым (индекс 0)
+        // Если перешли из секции облицовка (c_id === "L"), показываем облицовку первой
+        if (selectedCId === "C") {
+          // Потолок идет первым в массиве, индекс 0
+          console.log('[ItemInfo] Устанавливаем индексы для потолка: 0, 0');
+          setCurrentImageIndex(0);
+          setCurrentCadIndex(0);
+        } else if (selectedCId === "L") {
+          // Облицовка идет второй в массиве (индекс 1), если потолок есть
+          const imageIndex = hasCeilingImage ? 1 : 0;
+          const cadIndex = hasCeilingCad ? 1 : 0;
+          console.log('[ItemInfo] Устанавливаем индексы для облицовки:', { imageIndex, cadIndex });
+          setCurrentImageIndex(imageIndex);
+          setCurrentCadIndex(cadIndex);
+        }
+        initialIndexSet.current = true;
+        // Очищаем sessionStorage после использования
+        sessionStorage.removeItem('itemInfo_selected_c_id');
+      }
+    }
+  }, [item, zipsItems]);
 
   if (loading) {
     return (
@@ -123,26 +228,51 @@ const ItemInfo = () => {
   // Получаем данные из API или используем данные из item как fallback
   const data = constructionData || {};
   
-  // Для потолков ЗИПС принудительно используем правильный URL из zipsCeilingApiImages
-  // независимо от того, что приходит из API
-  const isZIPSCeiling = item.c_id === "C" && zipsCeilingApiImages[item.id];
+  // Для ЗИПС получаем оба изображения (потолок и облицовка)
+  const isZIPS = zipsItems && (zipsItems.ceiling || zipsItems.lining);
   
-  // Для потолков ЗИПС принудительно формируем правильный URL из zipsCeilingApiImages
-  // Для остальных элементов используем ту же логику, что и в калькуляторе: item.Img || item.img || data.Img
-  let imgSrc;
-  if (isZIPSCeiling) {
-    // Для потолков ЗИПС принудительно используем правильный URL
-    const zipsImageName = zipsCeilingApiImages[item.id];
-    imgSrc = getImageUrl(zipsImageName);
+  let imageSources = [];
+  let cadImageSources = [];
+  
+  if (isZIPS) {
+    // Для ЗИПС получаем оба варианта изображений
+    if (zipsItems.ceiling) {
+      const ceilingImg = zipsItems.ceiling.Img || zipsItems.ceiling.img || zipsItems.ceilingConstruction?.Img;
+      if (ceilingImg) imageSources.push({ src: ceilingImg, label: "Потолок" });
+    }
+    if (zipsItems.lining) {
+      const liningImg = zipsItems.lining.Img || zipsItems.lining.img || zipsItems.liningConstruction?.Img;
+      if (liningImg) imageSources.push({ src: liningImg, label: "Облицовка" });
+    }
+    
+    // Для чертежей также получаем оба варианта
+    // Для потолка используем чертеж из мапы zipsCeilingCadImages
+    if (zipsItems.ceiling && zipsItems.ceiling.id && zipsCeilingCadImages[zipsItems.ceiling.id]) {
+      const ceilingCadImageName = zipsCeilingCadImages[zipsItems.ceiling.id];
+      const ceilingCadImg = getImageUrl(ceilingCadImageName);
+      cadImageSources.push({ src: ceilingCadImg, label: "Потолок" });
+    }
+    // Для облицовки используем CadImg из API
+    if (zipsItems.lining) {
+      const liningCadImg = zipsItems.liningConstruction?.CadImg || data.CadImg;
+      if (liningCadImg) {
+        cadImageSources.push({ src: liningCadImg, label: "Облицовка" });
+      }
+    }
   } else {
-    // Для остальных элементов используем ту же логику, что и в калькуляторе
-    imgSrc = item.Img || item.img || data.Img;
+    // Для остальных элементов используем стандартную логику
+    const imgSrc = item.Img || item.img || data.Img;
+    if (imgSrc) imageSources.push({ src: imgSrc, label: "" });
+    
+    if (data.CadImg) cadImageSources.push({ src: data.CadImg, label: "" });
   }
-  const cadImgSrc = data.CadImg;
   
-  const imgProps = imgSrc ? getResponsiveImageProps(imgSrc, "item") : null;
+  // Получаем текущие изображения для отображения
+  const currentImage = imageSources[currentImageIndex] || imageSources[0];
+  const currentCadImage = cadImageSources[currentCadIndex] || cadImageSources[0];
   
-  const cadImgProps = cadImgSrc ? getResponsiveImageProps(cadImgSrc, "item") : null;
+  const imgProps = currentImage ? getResponsiveImageProps(currentImage.src, "item") : null;
+  const cadImgProps = currentCadImage ? getResponsiveImageProps(currentCadImage.src, "item") : null;
 
   return (
     <div className="item-info-container">
@@ -161,35 +291,49 @@ const ItemInfo = () => {
 
         <div className="item-info-layout">
           <div className="item-info-images-column">
-            {/* Img */}
-            {imgProps && imgProps.src && (
+            {/* Слайдер для изображений конструкций */}
+            {imgProps && imgProps.src && imageSources.length > 0 && (
               <div className="item-info-image">
-                <img
-                  {...imgProps}
-                  alt={item.title}
-                  className="item-info-img"
-                  loading="lazy"
-                  decoding="async"
-                  onError={(e) => {
-                    // Специальный fallback для zips_ceiling: пробуем без папки
-                    if (
-                      imgSrc &&
-                      imgSrc.includes("zips_ceiling/") &&
-                      !e.target.dataset.retried
-                    ) {
-                      const fileName = imgSrc.split("zips_ceiling/").pop();
-                      if (fileName) {
-                        e.target.dataset.retried = "true";
-                        const fallbackProps = getResponsiveImageProps(fileName, 'item');
-                        e.target.src = fallbackProps.src;
-                        if (fallbackProps.srcSet) e.target.srcSet = fallbackProps.srcSet;
-                        if (fallbackProps.sizes) e.target.sizes = fallbackProps.sizes;
-                        return;
-                      }
-                    }
-                    // Пробуем загрузить через прямой URL
-                    if (imgSrc) {
-                      const fallbackUrl = getImageUrl(imgSrc);
+                <div className="item-info-swiper">
+                  {imageSources.length > 1 && (
+                    <div className="item-info-swiper-controls">
+                      <button
+                        className="item-info-swiper-button item-info-swiper-button-prev"
+                        onClick={() => setCurrentImageIndex((prev) => (prev === 0 ? imageSources.length - 1 : prev - 1))}
+                        aria-label="Предыдущее изображение"
+                      >
+                        ‹
+                      </button>
+                      <div className="item-info-swiper-pagination">
+                        {imageSources.map((_, index) => (
+                          <span
+                            key={index}
+                            className={`item-info-swiper-pagination-bullet ${index === currentImageIndex ? 'active' : ''}`}
+                            onClick={() => setCurrentImageIndex(index)}
+                            aria-label={`Изображение ${index + 1}`}
+                          />
+                        ))}
+                      </div>
+                      <button
+                        className="item-info-swiper-button item-info-swiper-button-next"
+                        onClick={() => setCurrentImageIndex((prev) => (prev === imageSources.length - 1 ? 0 : prev + 1))}
+                        aria-label="Следующее изображение"
+                      >
+                        ›
+                      </button>
+                    </div>
+                  )}
+                  {currentImage.label && (
+                    <div className="item-info-swiper-label">{currentImage.label}</div>
+                  )}
+                  <img
+                    {...getResponsiveImageProps(currentImage.src, "item")}
+                    alt={`${item.title}${currentImage.label ? ` - ${currentImage.label}` : ''}`}
+                    className="item-info-img"
+                    loading="lazy"
+                    decoding="async"
+                    onError={(e) => {
+                      const fallbackUrl = getImageUrl(currentImage.src);
                       const img = new Image();
                       img.onload = () => {
                         e.target.src = fallbackUrl;
@@ -198,26 +342,55 @@ const ItemInfo = () => {
                         e.target.style.display = "none";
                       };
                       img.src = fallbackUrl;
-                    } else {
-                      e.target.style.display = "none";
-                    }
-                  }}
-                />
+                    }}
+                  />
+                </div>
               </div>
             )}
 
-            {/* CadImg */}
-            {cadImgProps && cadImgProps.src && (
+            {/* Слайдер для чертежей (CAD) */}
+            {cadImgProps && cadImgProps.src && cadImageSources.length > 0 && (
               <div className="item-info-image">
-                <img
-                  {...cadImgProps}
-                  alt={`${item.title} - CAD`}
-                  className="item-info-img"
-                  loading="lazy"
-                  decoding="async"
-                  onError={(e) => {
-                    if (cadImgSrc) {
-                      const fallbackUrl = getImageUrl(cadImgSrc);
+                <div className="item-info-swiper">
+                  {cadImageSources.length > 1 && (
+                    <div className="item-info-swiper-controls">
+                      <button
+                        className="item-info-swiper-button item-info-swiper-button-prev"
+                        onClick={() => setCurrentCadIndex((prev) => (prev === 0 ? cadImageSources.length - 1 : prev - 1))}
+                        aria-label="Предыдущий чертеж"
+                      >
+                        ‹
+                      </button>
+                      <div className="item-info-swiper-pagination">
+                        {cadImageSources.map((_, index) => (
+                          <span
+                            key={index}
+                            className={`item-info-swiper-pagination-bullet ${index === currentCadIndex ? 'active' : ''}`}
+                            onClick={() => setCurrentCadIndex(index)}
+                            aria-label={`Чертеж ${index + 1}`}
+                          />
+                        ))}
+                      </div>
+                      <button
+                        className="item-info-swiper-button item-info-swiper-button-next"
+                        onClick={() => setCurrentCadIndex((prev) => (prev === cadImageSources.length - 1 ? 0 : prev + 1))}
+                        aria-label="Следующий чертеж"
+                      >
+                        ›
+                      </button>
+                    </div>
+                  )}
+                  {currentCadImage.label && (
+                    <div className="item-info-swiper-label">{currentCadImage.label}</div>
+                  )}
+                  <img
+                    {...getResponsiveImageProps(currentCadImage.src, "item")}
+                    alt={`${item.title} - CAD${currentCadImage.label ? ` - ${currentCadImage.label}` : ''}`}
+                    className="item-info-img"
+                    loading="lazy"
+                    decoding="async"
+                    onError={(e) => {
+                      const fallbackUrl = getImageUrl(currentCadImage.src);
                       const img = new Image();
                       img.onload = () => {
                         e.target.src = fallbackUrl;
@@ -226,11 +399,9 @@ const ItemInfo = () => {
                         e.target.style.display = "none";
                       };
                       img.src = fallbackUrl;
-                    } else {
-                      e.target.style.display = "none";
-                    }
-                  }}
-                />
+                    }}
+                  />
+                </div>
               </div>
             )}
 
