@@ -111,14 +111,6 @@ export const getImageUrl = (imageName) => {
   return `https://constrtodo.ru:3005/api/v1/constr/${processedImageName}`;
 };
 
-/**
- * Получает URL изображения (обёртка для обратной совместимости)
- * @param {string} imageName - Имя файла изображения
- * @returns {string} URL изображения
- */
-export const getImageUrlWithFallback = (imageName) => {
-  return getImageUrl(imageName);
-};
 
 /**
  * Создает мапу изображений по коду конструкции
@@ -268,7 +260,9 @@ export const getConstructionProps = async (code) => {
   
   const API_V2_BASE_URL = getApiV2BaseUrl();
   // Используем путь вместо query параметра: /props/AG.W101
-  const url = `${API_V2_BASE_URL}/isolationConstructions/props/${encodeURIComponent(code)}`;
+  // Убеждаемся, что код правильно закодирован
+  const encodedCode = encodeURIComponent(code);
+  const url = `${API_V2_BASE_URL}/isolationConstructions/props/${encodedCode}`;
   
   try {
     const controller = new AbortController();
@@ -285,9 +279,36 @@ export const getConstructionProps = async (code) => {
     clearTimeout(timeoutId);
     
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`[API] HTTP error! status: ${response.status}, url: ${url}`);
-      console.error(`[API] Error response:`, errorText);
+      // Для 404 ошибок - это нормально, данные могут отсутствовать
+      if (response.status === 404) {
+        // Тихо возвращаем null, не логируем ошибку
+        return null;
+      }
+      
+      // Для других ошибок логируем, но не падаем
+      let errorText = '';
+      try {
+        errorText = await response.text();
+        // Пытаемся распарсить как JSON, если это возможно
+        try {
+          const errorJson = JSON.parse(errorText);
+          // Если это ошибка 500 с сообщением о типах данных - это проблема бэкенда
+          // Логируем только в dev режиме
+          if (import.meta.env.DEV && response.status === 500) {
+            console.warn(`[API] Server error for code "${code}":`, errorJson.error || errorText);
+          }
+        } catch {
+          // Не JSON, просто текст
+          if (import.meta.env.DEV && response.status !== 404) {
+            console.warn(`[API] HTTP error! status: ${response.status}, url: ${url}`);
+          }
+        }
+      } catch {
+        // Не удалось прочитать ответ
+        if (import.meta.env.DEV && response.status !== 404) {
+          console.warn(`[API] HTTP error! status: ${response.status}, url: ${url}`);
+        }
+      }
       return null;
     }
     
@@ -333,13 +354,20 @@ export const getConstructionProps = async (code) => {
       return result;
     }
     
-    console.warn('[API] Unexpected response format for props:', result);
+    if (import.meta.env.DEV) {
+      console.warn('[API] Unexpected response format for props:', result);
+    }
     return null;
   } catch (error) {
     if (error.name === 'AbortError') {
-      console.error('[API] Request timeout:', url);
+      if (import.meta.env.DEV) {
+        console.warn('[API] Request timeout:', url);
+      }
     } else {
-      console.error('[API] Error fetching construction props:', error, 'URL:', url);
+      // Логируем только в dev режиме
+      if (import.meta.env.DEV) {
+        console.warn('[API] Error fetching construction props:', error.message, 'URL:', url);
+      }
     }
     return null;
   }

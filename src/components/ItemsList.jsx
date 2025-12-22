@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { getImageUrl, getImageUrlWithFallback } from "../services/api";
+import { getImageUrl } from "../services/api";
 import { getResponsiveImageProps } from "../utils/responsiveImages";
 
 /**
@@ -28,7 +28,7 @@ const ItemsList = ({ items, onItemSelect, selectedItemId }) => {
     if (!imageErrors.has(errorKey)) {
       setImageErrors(prev => new Set([...prev, errorKey]));
       // Пробуем загрузить через прямой URL
-      const fallbackUrl = getImageUrl(imageSrc, true);
+      const fallbackUrl = getImageUrl(imageSrc);
       const img = new Image();
       img.onload = () => {
         // Если прямой URL работает, обновляем изображение
@@ -43,7 +43,7 @@ const ItemsList = ({ items, onItemSelect, selectedItemId }) => {
 
   return (
     <div className="items content-item">
-      {items.map((elem) => {
+      {items.map((elem, index) => {
         const imageSrc = elem.Img || elem.img;
         const imageProps = imageSrc
           ? getResponsiveImageProps(imageSrc, 'item')
@@ -72,6 +72,13 @@ const ItemsList = ({ items, onItemSelect, selectedItemId }) => {
             }
           : {};
 
+        // Первые 4 изображения загружаем eagerly для улучшения LCP
+        // Первое изображение получает высокий приоритет
+        const isAboveTheFold = index < 4;
+        const isLCPCandidate = index === 0;
+        const loadingStrategy = isAboveTheFold ? "eager" : "lazy";
+        const fetchPriority = isLCPCandidate ? "high" : isAboveTheFold ? "auto" : undefined;
+
         return (
           <div key={`${elem.id}-${elem.c_id}`} className="const-item-container">
             <button
@@ -87,8 +94,11 @@ const ItemsList = ({ items, onItemSelect, selectedItemId }) => {
                   {...imageProps}
                   alt="" 
                   className="img-icon" 
-                  loading="lazy"
+                  loading={loadingStrategy}
                   decoding="async"
+                  fetchPriority={fetchPriority}
+                  width="200"
+                  height="200"
                   data-image-key={`${elem.id}-${imageSrc}`}
                   onError={(e) => {
                     // Для zips_ceiling пробуем без папки, если первый запрос дал 404

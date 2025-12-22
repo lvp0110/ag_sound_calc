@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Items, { getItemsWithApiImages } from "../data/items";
-import { getImageUrl, getImageUrlWithFallback, getConstructionByCode, getConstructionProps } from "../services/api";
+import { getImageUrl, getConstructionByCode, getConstructionProps } from "../services/api";
 import { getResponsiveImageProps } from "../utils/responsiveImages";
 import articles from "../data/articles";
 import Modal from "./Modal";
@@ -115,7 +115,7 @@ const ItemInfo = () => {
   const isZIPSCeiling = item.c_id === "C" && zipsCeilingApiImages[item.id];
   
   // Для потолков ЗИПС используем ТОЛЬКО item.Img (которое уже обработано правильно через enrichItemsWithImages)
-  // enrichItemsWithImages устанавливает Img через getImageUrlWithFallback(zipsCeilingApiImages[item.id])
+  // enrichItemsWithImages устанавливает Img через getImageUrl(zipsCeilingApiImages[item.id])
   // Для остальных элементов используем ту же логику, что и в калькуляторе: item.Img || item.img
   // НИКОГДА не используем data.Img для потолков ЗИПС, так как API может вернуть старые изображения
   let imgSrc;
@@ -129,6 +129,7 @@ const ItemInfo = () => {
   const cadImgSrc = data.CadImg;
   
   const imgProps = imgSrc ? getResponsiveImageProps(imgSrc, "item") : null;
+  
   const cadImgProps = cadImgSrc ? getResponsiveImageProps(cadImgSrc, "item") : null;
 
   return (
@@ -176,7 +177,7 @@ const ItemInfo = () => {
                     }
                     // Пробуем загрузить через прямой URL
                     if (imgSrc) {
-                      const fallbackUrl = getImageUrl(imgSrc, true);
+                      const fallbackUrl = getImageUrl(imgSrc);
                       const img = new Image();
                       img.onload = () => {
                         e.target.src = fallbackUrl;
@@ -204,7 +205,7 @@ const ItemInfo = () => {
                   decoding="async"
                   onError={(e) => {
                     if (cadImgSrc) {
-                      const fallbackUrl = getImageUrl(cadImgSrc, true);
+                      const fallbackUrl = getImageUrl(cadImgSrc);
                       const img = new Image();
                       img.onload = () => {
                         e.target.src = fallbackUrl;

@@ -44,13 +44,19 @@
   position: relative;
   width: clamp(150px, 15vw, 200px);
   height: clamp(150px, 15vw, 200px);
+  min-width: clamp(150px, 15vw, 200px);
+  min-height: clamp(150px, 15vw, 200px);
   flex-shrink: 0;
   border-radius: 10px;
+  /* Prevent layout shift */
+  aspect-ratio: 1;
 }
 
 .const-item-container {
   width: clamp(150px, 15vw, 200px);
   height: clamp(150px, 15vw, 200px);
+  min-width: clamp(150px, 15vw, 200px);
+  min-height: clamp(150px, 15vw, 200px);
   box-sizing: border-box;
   flex-shrink: 0;
   margin: 0;
@@ -58,6 +64,8 @@
   display: block;
   overflow: hidden;
   position: relative;
+  /* Prevent layout shift */
+  aspect-ratio: 1;
 }
 
 .main-content {
@@ -118,7 +126,10 @@ button {
   width: clamp(150px, 15vw, 200px) !important;
   max-width: clamp(150px, 15vw, 200px) !important;
   max-height: clamp(150px, 15vw, 200px) !important;
-  min-width: clamp(120px, 12vw, 150px) !important;
+  min-width: clamp(150px, 15vw, 200px) !important;
+  min-height: clamp(150px, 15vw, 200px) !important;
+  /* Prevent layout shift */
+  aspect-ratio: 1 !important;
   min-height: clamp(120px, 12vw, 150px) !important;
   display: flex;
   flex-direction: column;
@@ -271,9 +282,11 @@ h4 {
   border-radius: 10px;
   box-sizing: border-box;
   z-index: 1;
-  /* Responsive images support */
+  /* Prevent layout shift - use fixed dimensions */
   max-width: 100%;
-  height: auto;
+  aspect-ratio: 1;
+  /* Ensure image doesn't cause layout shift */
+  display: block;
 }
 
 /* Поворот кнопок ЗИПС для потолка на 90 градусов влево */
@@ -447,12 +460,14 @@ button::-moz-focus-inner {
 .section-icon {
   width: 80px;
   height: 80px;
+  min-width: 80px;
+  min-height: 80px;
   background: cadetblue;
   border-radius: 10px;
-  /* Responsive images support */
-  max-width: 100%;
-  height: auto;
+  display: block;
   object-fit: contain;
+  /* Prevent layout shift */
+  aspect-ratio: 1;
 }
 
 /* Responsive images для секционных иконок на мобильных устройствах */
@@ -460,6 +475,8 @@ button::-moz-focus-inner {
   .section-icon {
     width: 60px;
     height: 60px;
+    min-width: 60px;
+    min-height: 60px;
   }
 }
 

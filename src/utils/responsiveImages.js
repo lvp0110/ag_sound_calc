@@ -2,17 +2,32 @@
  * Утилиты для работы с responsive images
  */
 
-import { getImageUrl, getImageUrlWithFallback } from '../services/api';
+import { getImageUrl } from '../services/api';
+
+/**
+ * Получает URL для локальной иконки из public папки
+ * @param {string} iconName - Имя файла иконки (например, "icon_floor_white.svg")
+ * @returns {string} URL для локальной иконки
+ */
+export const getLocalIconUrl = (iconName) => {
+  if (!iconName) return '';
+  
+  // В Vite файлы из public папки доступны через корневой путь
+  // Используем import.meta.env.BASE_URL для поддержки base path
+  const baseUrl = import.meta.env.BASE_URL || '/';
+  // Убираем двойные слеши
+  const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+  return `${cleanBaseUrl}/${iconName}`;
+};
 
 /**
  * Генерирует srcset для изображения
  * @param {string} imageName - Имя файла изображения
  * @param {Array<number>} widths - Массив ширин для srcset (например, [300, 600, 900, 1200])
- * @param {boolean} useFallback - Использовать fallback URL
  * @param {boolean} apiSupportsSizeParams - Поддерживает ли API параметры размера (например, ?w=300)
  * @returns {string} Строка srcset или пустая строка
  */
-export const generateSrcSet = (imageName, widths = [300, 600, 900, 1200], useFallback = false, apiSupportsSizeParams = false) => {
+export const generateSrcSet = (imageName, widths = [300, 600, 900, 1200], apiSupportsSizeParams = false) => {
   if (!imageName) return '';
   
   // Если API не поддерживает параметры размера, не генерируем srcset
@@ -24,7 +39,7 @@ export const generateSrcSet = (imageName, widths = [300, 600, 900, 1200], useFal
   // Если это уже полный URL, используем его как базовый
   const baseUrl = imageName.startsWith('http://') || imageName.startsWith('https://')
     ? imageName
-    : getImageUrl(imageName, useFallback);
+    : getImageUrl(imageName);
   
   if (!baseUrl) return '';
   
@@ -69,22 +84,26 @@ export const generateSizes = (type = 'item') => {
  * Создает объект с атрибутами для responsive image
  * @param {string} imageName - Имя файла изображения
  * @param {string} type - Тип изображения: 'icon', 'item', 'modal', 'section'
- * @param {boolean} useFallback - Использовать fallback URL
  * @returns {Object} Объект с атрибутами src, srcSet, sizes
  */
-export const getResponsiveImageProps = (imageName, type = 'item', useFallback = false) => {
+export const getResponsiveImageProps = (imageName, type = 'item') => {
   if (!imageName) {
     return { src: '', srcSet: '', sizes: '' };
   }
   
-  // Если это уже полный URL, используем его
-  const src = imageName.startsWith('http://') || imageName.startsWith('https://')
-    ? imageName
-    : getImageUrlWithFallback(imageName);
+  let src;
+  if (imageName.startsWith('http://') || imageName.startsWith('https://')) {
+    // Если это уже полный URL, используем его
+    src = imageName;
+  } else {
+    // Для всех изображений (включая иконки секций) используем API
+    // Иконки секций также загружаются через API, так как локальных файлов нет
+    src = getImageUrl(imageName);
+  }
   
   // Генерируем srcset (пока API не поддерживает параметры размера, возвращается пустая строка)
   // В будущем, если API начнет поддерживать параметры размера, можно передать true в apiSupportsSizeParams
-  const srcSet = generateSrcSet(imageName, [300, 600, 900, 1200], useFallback, false);
+  const srcSet = generateSrcSet(imageName, [300, 600, 900, 1200], false);
   
   // Генерируем sizes
   const sizes = generateSizes(type);
@@ -99,19 +118,16 @@ export const getResponsiveImageProps = (imageName, type = 'item', useFallback = 
 /**
  * Создает простой объект с src для обратной совместимости
  * @param {string} imageName - Имя файла изображения
- * @param {boolean} useFallback - Использовать fallback URL
  * @returns {Object} Объект с атрибутом src
  */
-export const getImageProps = (imageName, useFallback = false) => {
+export const getImageProps = (imageName) => {
   if (!imageName) {
     return { src: '' };
   }
   
   const src = imageName.startsWith('http://') || imageName.startsWith('https://')
     ? imageName
-    : useFallback
-    ? getImageUrl(imageName, true)
-    : getImageUrlWithFallback(imageName);
+    : getImageUrl(imageName);
   
   return { src };
 };

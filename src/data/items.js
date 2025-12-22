@@ -1,4 +1,4 @@
-import { getImagesMap, getImageUrl, getImageUrlWithFallback } from '../services/api';
+import { getImagesMap, getImageUrl } from '../services/api';
 
 // Новые файлы для потолков ЗИПС (загружаются через API, а не локально)
 const zipsCeilingApiImages = {
@@ -436,7 +436,7 @@ const enrichItemsWithImages = (items, imagesMap) => {
       const newImgPath = zipsCeilingApiImages[item.id];
       return {
         ...item,
-        Img: getImageUrlWithFallback(newImgPath),
+        Img: getImageUrl(newImgPath),
       };
     }
 
@@ -446,9 +446,9 @@ const enrichItemsWithImages = (items, imagesMap) => {
     // Если изображение не найдено в API для элемента "P", используем преобразованный путь
     // из старого формата /Img_constr/floor/c2k2_1.png в формат API
     if (!apiImage && item.id === "P") {
-      // Преобразуем путь /Img_constr/floor/c2k2_1.png в формат API через getImageUrlWithFallback
+      // Преобразуем путь /Img_constr/floor/c2k2_1.png в формат API через getImageUrl
       const oldPath = "/Img_constr/floor/c2k2_1.png";
-      apiImage = getImageUrlWithFallback(oldPath);
+      apiImage = getImageUrl(oldPath);
     }
     
     return {
@@ -475,7 +475,7 @@ export const getItemsWithApiImages = async () => {
       if (item.id === "P") {
         // Преобразуем путь /Img_constr/floor/c2k2_1.png в формат API
         const oldPath = "/Img_constr/floor/c2k2_1.png";
-        img = getImageUrlWithFallback(oldPath);
+        img = getImageUrl(oldPath);
       }
       return {
         ...item,

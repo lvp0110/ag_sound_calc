@@ -10,7 +10,7 @@ import {
   constSentZero,
   openingZero,
 } from "../constants/defaultValues";
-import { getImageUrl, getImageUrlWithFallback, preloadImages } from "../services/api";
+import { getImageUrl, preloadImages, preloadImage } from "../services/api";
 import { getResponsiveImageProps } from "../utils/responsiveImages";
 import { validateInput, validateFloorInput, validateFloorMaxInput, getMaxLenZInMeters } from "../utils/validation";
 import { calculateAreaAndPerimeter, getConstructionCode } from "../utils/calculations";
@@ -181,14 +181,81 @@ const Calculator = () => {
     calculatedMaterials,
   ]);
 
+  // Получить items для конкретной секции и подкатегории
+  const getItemsForSection = useCallback(
+    (sectionId, subCategoryId) => {
+      if (!subCategoryId) return [];
+      return itemsWithImages.filter((el) => el.c_id == subCategoryId);
+    },
+    [itemsWithImages]
+  );
+
   // Предзагружаем иконки секций для улучшения производительности
   useEffect(() => {
+    // Предзагружаем иконки секций через API с высоким приоритетом
     const sectionIcons = mainSections.map(section => ({
-      url: getImageUrlWithFallback(section.icon),
+      url: getImageUrl(section.icon),
       name: section.icon
     }));
-    preloadImages(sectionIcons, 2); // Загружаем по 2 иконки параллельно (меньше для избежания перегрузки)
+    // Загружаем все 4 иконки параллельно с высоким приоритетом
+    preloadImages(sectionIcons, 4);
+    
+    // Также добавляем preload link для первой иконки в head для максимальной оптимизации LCP
+    const firstIconUrl = getImageUrl(mainSections[0].icon);
+    const link = document.createElement('link');
+    link.rel = 'preload';
+    link.as = 'image';
+    link.href = firstIconUrl;
+    link.setAttribute('fetchpriority', 'high');
+    link.setAttribute('data-section-icon', 'true');
+    document.head.appendChild(link);
   }, []);
+
+  // Предзагружаем первое изображение из открытой секции для улучшения LCP
+  useEffect(() => {
+    if (itemsWithImages.length === 0) return;
+    
+    // Находим первую открытую секцию с элементами
+    const firstOpenedSection = mainSections.find(section => {
+      const openedSubCategory = openedSubCategories[section.id];
+      if (!openedSubCategory) return false;
+      
+      const sectionItems = getItemsForSection(section.id, openedSubCategory);
+      return sectionItems.length > 0;
+    });
+
+    if (firstOpenedSection) {
+      const openedSubCategory = openedSubCategories[firstOpenedSection.id];
+      const sectionItems = getItemsForSection(firstOpenedSection.id, openedSubCategory);
+      
+      if (sectionItems.length > 0) {
+        const firstItem = sectionItems[0];
+        const firstImageSrc = firstItem.Img || firstItem.img;
+        
+        if (firstImageSrc) {
+          const firstImageUrl = getImageUrl(firstImageSrc);
+          
+          // Удаляем предыдущий preload link если есть
+          const existingLink = document.querySelector(`link[rel="preload"][as="image"][data-lcp-candidate="true"]`);
+          if (existingLink) {
+            existingLink.remove();
+          }
+          
+          // Предзагружаем первое изображение с высоким приоритетом
+          const link = document.createElement('link');
+          link.rel = 'preload';
+          link.as = 'image';
+          link.href = firstImageUrl;
+          link.setAttribute('fetchpriority', 'high');
+          link.setAttribute('data-lcp-candidate', 'true');
+          document.head.appendChild(link);
+          
+          // Также предзагружаем через Image API для лучшей совместимости
+          preloadImage(firstImageUrl);
+        }
+      }
+    }
+  }, [openedSubCategories, itemsWithImages, getItemsForSection]);
 
   const [constR, setConstR] = useState({
     title: "",
@@ -235,15 +302,6 @@ const Calculator = () => {
     }
     return [];
   }, []);
-
-  // Получить items для конкретной секции и подкатегории
-  const getItemsForSection = useCallback(
-    (sectionId, subCategoryId) => {
-      if (!subCategoryId) return [];
-      return itemsWithImages.filter((el) => el.c_id == subCategoryId);
-    },
-    [itemsWithImages]
-  );
 
   // Обработчик клика на секцию (section-container)
   const handleSectionClick = useCallback((sectionId, subCategories) => {
@@ -476,7 +534,7 @@ const Calculator = () => {
 
     const newConstR = {
       ...constR,
-      imgBlack: IconType?.imgBlack ? getImageUrlWithFallback(IconType.imgBlack) : undefined,
+      imgBlack: IconType?.imgBlack ? getImageUrl(IconType.imgBlack) : undefined,
       description: Constr?.description,
       key_id: Date.now(),
       title: Constr?.title,
@@ -672,19 +730,30 @@ const Calculator = () => {
                       {...getResponsiveImageProps(section.icon, 'section')}
                       alt=""
                       className="section-icon"
-                      loading="lazy"
+                      loading="eager"
                       decoding="async"
+                      fetchPriority="high"
+                      width="80"
+                      height="80"
                       onError={(e) => {
-                        // Пробуем загрузить через прямой URL
-                        const fallbackUrl = getImageUrl(section.icon, true);
-                        const img = new Image();
-                        img.onload = () => {
-                          e.target.src = fallbackUrl;
-                        };
-                        img.onerror = () => {
+                        // Если изображение не загрузилось, пробуем альтернативный путь
+                        if (!e.target.dataset.fallbackTried) {
+                          e.target.dataset.fallbackTried = 'true';
+                          // Пробуем загрузить через прямой URL API
+                          const fallbackUrl = getImageUrl(section.icon);
+                          const img = new Image();
+                          img.onload = () => {
+                            e.target.src = fallbackUrl;
+                          };
+                          img.onerror = () => {
+                            // Если и альтернативный путь не работает, скрываем иконку
+                            e.target.style.display = 'none';
+                          };
+                          img.src = fallbackUrl;
+                        } else {
+                          // Если уже пробовали альтернативный путь, скрываем иконку
                           e.target.style.display = 'none';
-                        };
-                        img.src = fallbackUrl;
+                        }
                       }}
                     />
                     {section.title}
@@ -698,7 +767,7 @@ const Calculator = () => {
                     onClick={(e) => e.stopPropagation()}
                   >
                     {items.length > 0 ? (
-                      items.map((elem) => {
+                      items.map((elem, index) => {
                         const imageSrc = elem.Img || elem.img;
                         const imageProps = imageSrc
                           ? getResponsiveImageProps(imageSrc, 'item')
@@ -711,6 +780,13 @@ const Calculator = () => {
                         ]
                           .filter(Boolean)
                           .join(" ");
+
+                        // Первые 4 изображения загружаем eagerly для улучшения LCP
+                        // Первое изображение получает высокий приоритет
+                        const isAboveTheFold = index < 4;
+                        const isLCPCandidate = index === 0;
+                        const loadingStrategy = isAboveTheFold ? "eager" : "lazy";
+                        const fetchPriority = isLCPCandidate ? "high" : isAboveTheFold ? "auto" : undefined;
 
                         return (
                           <div
@@ -729,8 +805,11 @@ const Calculator = () => {
                                   {...imageProps}
                                   alt="" 
                                   className="img-icon"
-                                  loading="lazy"
+                                  loading={loadingStrategy}
                                   decoding="async"
+                                  fetchPriority={fetchPriority}
+                                  width="200"
+                                  height="200"
                                   onError={(e) => {
                                     // Специальный fallback для zips_ceiling: пробуем без папки
                                     if (
@@ -750,7 +829,7 @@ const Calculator = () => {
                                     }
                                     // Пробуем загрузить через прямой URL
                                     if (imageSrc) {
-                                      const fallbackUrl = getImageUrl(imageSrc, true);
+                                      const fallbackUrl = getImageUrl(imageSrc);
                                       const img = new Image();
                                       img.onload = () => {
                                         e.target.src = fallbackUrl;

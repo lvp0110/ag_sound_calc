@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { getImageUrl, getImageUrlWithFallback } from "../services/api";
+import { getImageUrl } from "../services/api";
 import { getResponsiveImageProps } from "../utils/responsiveImages";
 import ItemsList from "./ItemsList";
 
@@ -23,7 +23,7 @@ const SectionContainer = ({
     if (!imageError) {
       setImageError(true);
       // Пробуем загрузить через прямой URL
-      const fallbackUrl = getImageUrl(section.icon, true);
+      const fallbackUrl = getImageUrl(section.icon);
       const img = new Image();
       img.onload = () => {
         e.target.src = fallbackUrl;
@@ -79,10 +79,5 @@ const SectionContainer = ({
 };
 
 export default SectionContainer;
-
-
-
-
-
 
 
