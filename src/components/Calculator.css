@@ -75,6 +75,7 @@
   align-self: flex-start;
   width: 100%;
   max-width: 100%;
+  margin-top: 10px;
 }
 
 button {
@@ -440,10 +441,16 @@ button::-moz-focus-inner {
   width: 100%;
   box-sizing: border-box;
   transition: background-color 0.2s ease;
+  overflow: visible;
 }
 
 .section-container:hover {
   background-color: #f0f0f0;
+}
+
+.section-header {
+  position: relative;
+  overflow: visible;
 }
 
 .section-title {
@@ -455,6 +462,9 @@ button::-moz-focus-inner {
   color: #6d7277;
   margin: 0;
   padding: 10px 0;
+  position: relative;
+  isolation: isolate;
+  overflow: visible;
 }
 
 .section-icon {
@@ -462,22 +472,17 @@ button::-moz-focus-inner {
   height: 80px;
   min-width: 80px;
   min-height: 80px;
+  max-width: 80px;
+  max-height: 80px;
+  flex: 0 0 80px;
   background: cadetblue;
   border-radius: 10px;
   display: block;
   object-fit: contain;
   /* Prevent layout shift */
   aspect-ratio: 1;
-}
-
-/* Responsive images для секционных иконок на мобильных устройствах */
-@media screen and (max-width: 550px) {
-  .section-icon {
-    width: 60px;
-    height: 60px;
-    min-width: 60px;
-    min-height: 60px;
-  }
+  position: relative;
+  z-index: 0;
 }
 
 /* Блок для выбранного элемента */
@@ -852,6 +857,20 @@ button::-moz-focus-inner {
 
 /* Адаптивность для мобильных устройств */
 @media screen and (max-width: 550px) {
+  .main-content {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .section-container {
+    flex: 1 1 auto;
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+  }
+
   .selected-item-container {
     flex-direction: column;
   }

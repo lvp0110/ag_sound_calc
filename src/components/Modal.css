@@ -75,10 +75,10 @@
 .modal-image {
   display: block;
   margin: 1.25em auto 0;
-  max-width: 100%;
+  max-width: 25%;
   height: auto;
   /* Responsive images support */
-  width: 100%;
+  width: 25%;
   object-fit: contain;
 }
 
