@@ -1,8 +1,15 @@
+/** Площадь: «м2» или «м²» (в т.ч. из API). */
+export const isM2Units = (units) => {
+  if (units == null) return false;
+  const u = String(units).trim();
+  return u === "м2" || u === "м²";
+};
+
 /**
  * Конвертирует единицы измерения материала
  */
 export const convertUnits = (material) => {
-  if (material.Units == "м2") {
+  if (isM2Units(material.Units)) {
     const quantityInM2 = material.Quantity / 1e6;
     return quantityInM2.toFixed(2);
   }

@@ -67,3 +67,46 @@ export const calculateConstruction = async (constrList) => {
     return { data: [] };
   }
 };
+
+/**
+ * Минимальный объект расчёта для получения перечня материалов (как в калькуляторе, без ввода размеров пользователем).
+ * Количества ориентировочные; названия и артикулы совпадают с расчётом.
+ */
+export const buildMinimalCalcPayloadForMaterialsList = (code) => {
+  if (!code) return null;
+  const payload = {
+    Code: code,
+    LenX: 3000,
+    LenY: 3000,
+    LenZ: 2700,
+    AddCeilShift: 0,
+    step: 600,
+    dframe: false,
+    Area: 9,
+    Perimeter: 12,
+    Openings: [],
+  };
+  if (code === "AG.L401" || code === "AG.W101" || code === "AG.W105") {
+    payload.dframe = true;
+  }
+  if (code === "AG.F615" || code === "AG.F615_vibroflex_LD") {
+    payload.step = 400;
+  }
+  return payload;
+};
+
+/**
+ * Список материалов через POST /api/v1/calcIsolation/byProduct (когда v2/props недоступен или пустой).
+ */
+export const getMaterialsListViaCalc = async (code) => {
+  const payload = buildMinimalCalcPayloadForMaterialsList(code);
+  if (!payload) return null;
+  try {
+    const result = await calculateConstruction([payload]);
+    const rows = result?.data;
+    if (Array.isArray(rows) && rows.length > 0) return rows;
+  } catch {
+    // часть шифров или размеров может быть отклонена API
+  }
+  return null;
+};

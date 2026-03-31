@@ -1,5 +1,38 @@
 import { useEffect, useState } from "react";
-import { convertUnits, filterVariable } from "../../utils/formatters";
+import {
+  convertUnits,
+  filterVariable,
+  isM2Units,
+} from "../../utils/formatters";
+import {
+  getPricePerM2,
+  getPricePerUnit,
+} from "../../data/moscowPricePerM2ByArticle";
+
+const formatRub = (value) => {
+  if (value == null || Number.isNaN(value)) return "—";
+  return Number(value).toLocaleString("ru-RU", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+};
+
+const lineSumRub = (material, pricePerM2, pricePerUnit) => {
+  const units = material.Units;
+  if (isM2Units(units)) {
+    const qtyM2 = Number(material.Quantity) / 1e6;
+    if (Number.isNaN(qtyM2)) return null;
+    if (pricePerM2 != null) return qtyM2 * pricePerM2;
+    if (pricePerUnit != null) return qtyM2 * pricePerUnit;
+    return null;
+  }
+  if (pricePerUnit != null) {
+    const q = Number(material.Quantity);
+    if (Number.isNaN(q)) return null;
+    return q * pricePerUnit;
+  }
+  return null;
+};
 
 /**
  * Таблица со списком материалов
@@ -20,10 +53,26 @@ const MaterialsList = ({ calculatedMaterials }) => {
     };
   }, []);
 
-  const hasData =
-    calculatedMaterials &&
-    calculatedMaterials.data &&
-    calculatedMaterials.data.length > 0;
+  const data = calculatedMaterials?.data;
+  const hasData = Array.isArray(data) && data.length > 0;
+
+  /** Одна модель строки: те же sumRub, что в колонке «сумма» — итог = их сумма. */
+  const rowModels = hasData
+    ? data.map((Material) => {
+        const codeRaw =
+          Material.Code != null ? String(Material.Code).trim() : "";
+        const pricePerM2 = getPricePerM2(codeRaw);
+        const pricePerUnit = getPricePerUnit(codeRaw);
+        const sumRub = lineSumRub(Material, pricePerM2, pricePerUnit);
+        return { Material, pricePerM2, pricePerUnit, sumRub };
+      })
+    : [];
+
+  const totalSumRub = rowModels.reduce((acc, { sumRub }) => {
+    return typeof sumRub === "number" && !Number.isNaN(sumRub)
+      ? acc + sumRub
+      : acc;
+  }, 0);
 
   return (
     <div className="tbl-in">
@@ -31,7 +80,7 @@ const MaterialsList = ({ calculatedMaterials }) => {
         <thead>
           <tr>
             <th
-              colSpan={isNarrowScreen ? 4 : 5}
+              colSpan={isNarrowScreen ? 4 : 8}
               style={{
                 fontSize: "14px",
                 fontWeight: "bold",
@@ -47,11 +96,14 @@ const MaterialsList = ({ calculatedMaterials }) => {
             <th style={{ display: "none" }}></th>
             <th>кол-во</th>
             <th>ед.изм</th>
+            {!isNarrowScreen && <th>цена, ₽/м²</th>}
+            {!isNarrowScreen && <th>цена, ₽/ед.</th>}
+            {!isNarrowScreen && <th>сумма, ₽</th>}
           </tr>
         </thead>
         <tbody>
           {hasData ? (
-            calculatedMaterials.data.map((Material, index) => (
+            rowModels.map(({ Material, pricePerM2, pricePerUnit, sumRub }, index) => (
               <tr key={index}>
                 {!isNarrowScreen && (
                   <td>{filterVariable(Material.Code)}</td>
@@ -60,12 +112,21 @@ const MaterialsList = ({ calculatedMaterials }) => {
                 <td style={{ display: "none" }}></td>
                 <td>{convertUnits(Material)}</td>
                 <td>{Material.Units}</td>
+                {!isNarrowScreen && (
+                  <td>{formatRub(pricePerM2)}</td>
+                )}
+                {!isNarrowScreen && (
+                  <td>{formatRub(pricePerUnit)}</td>
+                )}
+                {!isNarrowScreen && (
+                  <td>{formatRub(sumRub)}</td>
+                )}
               </tr>
             ))
           ) : (
             <tr>
               <td
-                colSpan={isNarrowScreen ? 4 : 5}
+                colSpan={isNarrowScreen ? 4 : 8}
                 style={{
                   textAlign: "center",
                   padding: "20px",
@@ -78,6 +139,36 @@ const MaterialsList = ({ calculatedMaterials }) => {
             </tr>
           )}
         </tbody>
+        {hasData && (
+          <tfoot>
+            <tr>
+              <td
+                colSpan={isNarrowScreen ? 4 : 8}
+                style={{
+                  fontWeight: "bold",
+                  borderTop: "2px solid var(--table-border, #ccc)",
+                  paddingLeft: "10px",
+                  paddingRight: "10px",
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    gap: "12px",
+                    flexWrap: "nowrap",
+                  }}
+                >
+                  <span>Итого</span>
+                  <span style={{ whiteSpace: "nowrap", textAlign: "right" }}>
+                    {formatRub(totalSumRub)}
+                  </span>
+                </div>
+              </td>
+            </tr>
+          </tfoot>
+        )}
       </table>
     </div>
   );

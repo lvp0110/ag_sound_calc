@@ -216,6 +216,43 @@ export const getConstructionByCode = async (code) => {
 };
 
 /**
+ * Достаёт плоский список материалов из ответа getConstructionProps (разные форматы бэкенда).
+ * @param {Object|null} props
+ * @returns {Array|null}
+ */
+export const extractMaterialsFromProps = (props) => {
+  if (!props?.constr_materials) return null;
+  const cm = props.constr_materials;
+  if (!Array.isArray(cm) || cm.length === 0) return null;
+
+  const materialsBlock = cm.find(
+    (item) =>
+      item &&
+      typeof item === "object" &&
+      (item.type === "Materials" || item.Type === "Materials")
+  );
+  if (materialsBlock) {
+    const nested =
+      materialsBlock.constr_materials ||
+      materialsBlock.ConstrMaterials ||
+      materialsBlock.materials;
+    if (Array.isArray(nested) && nested.length > 0) return nested;
+  }
+
+  const first = cm[0];
+  if (
+    first &&
+    (first.name != null ||
+      first.Name != null ||
+      first.code != null ||
+      first.Code != null)
+  ) {
+    return cm;
+  }
+  return null;
+};
+
+/**
  * Получает свойства (материалы) конструкции по коду
  * @param {string} code - Код конструкции (например, "AG.W101")
  * @returns {Promise<Object|null>} Объект с данными свойств конструкции или null, если не найдена

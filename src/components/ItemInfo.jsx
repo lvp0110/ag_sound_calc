@@ -1,10 +1,16 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import Items, { getItemsWithApiImages } from "../data/items";
-import { getImageUrl, getConstructionByCode, getConstructionProps } from "../services/api";
+import {
+  getImageUrl,
+  getConstructionByCode,
+  getConstructionProps,
+  extractMaterialsFromProps,
+} from "../services/api";
+import { getMaterialsListViaCalc } from "../services/constructionApi";
 import { getResponsiveImageProps } from "../utils/responsiveImages";
-import articles from "../data/articles";
-import Modal from "./Modal";
+// import articles from "../data/articles";
+// import Modal from "./Modal";
 import "./Calculator.css";
 
 // Мапа CAD изображений (чертежей) для потолков ЗИПС
@@ -19,16 +25,17 @@ const zipsCeilingCadImages = {
 const ItemInfo = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const [item, setItem] = useState(null);
   const [constructionData, setConstructionData] = useState(null);
   const [materials, setMaterials] = useState(null);
   const [loading, setLoading] = useState(true);
   const [materialsExpanded, setMaterialsExpanded] = useState(false);
-  const [historyModal, setHistoryModal] = useState({
-    isOpen: false,
-    title: "",
-    html: "",
-  });
+  // const [historyModal, setHistoryModal] = useState({
+  //   isOpen: false,
+  //   title: "",
+  //   html: "",
+  // });
   const [zipsItems, setZipsItems] = useState(null); // Оба варианта ЗИПС (потолок и облицовка)
   const [currentImageIndex, setCurrentImageIndex] = useState(0); // Индекс текущего изображения в слайдере
   const [currentCadIndex, setCurrentCadIndex] = useState(0); // Индекс текущего чертежа в слайдере
@@ -89,6 +96,8 @@ const ItemInfo = () => {
           
           // Для ЗИПС (id 201-205) получаем оба варианта (потолок и облицовка)
           const isZIPS = [201, 202, 203, 204, 205].includes(foundItem.id);
+          let constructionRecord = null;
+
           if (isZIPS) {
             const ceilingItem = sameAgItems.find((item) => item.c_id === "C");
             const liningItem = sameAgItems.find((item) => item.c_id === "L");
@@ -107,36 +116,27 @@ const ItemInfo = () => {
               liningConstruction,
             });
             
-            // Сохраняем данные для текущего элемента
-            const currentConstruction = foundItem.c_id === "C" ? ceilingConstruction : liningConstruction;
-            setConstructionData(currentConstruction);
+            constructionRecord =
+              foundItem.c_id === "C" ? ceilingConstruction : liningConstruction;
+            setConstructionData(constructionRecord);
             
             // Сохраняем c_id для установки индексов после формирования массивов
             // Индексы будут установлены в useEffect после формирования imageSources и cadImageSources
           } else {
             setZipsItems(null);
-            // Загружаем полные данные конструкции из API
-            const construction = await getConstructionByCode(id);
-            setConstructionData(construction);
+            constructionRecord = await getConstructionByCode(id);
+            setConstructionData(constructionRecord);
           }
           
-          // Загружаем материалы конструкции, используя Code из construction или ag_id из item
-          const codeToUse = construction?.Code || id;
+          // Загружаем материалы конструкции: шифр из загруженной конструкции или ag_id элемента
+          const codeToUse = constructionRecord?.Code || foundItem.ag_id || id;
           if (codeToUse) {
             const props = await getConstructionProps(codeToUse);
-            
-            if (props?.constr_materials) {
-              // Ищем объект с type: "Materials" и извлекаем из него constr_materials
-              const materialsItem = props.constr_materials.find(item => item.type === "Materials");
-              
-              if (materialsItem && materialsItem.constr_materials) {
-                setMaterials(materialsItem.constr_materials);
-              } else {
-                setMaterials(null);
-              }
-            } else {
-              setMaterials(null);
+            let list = extractMaterialsFromProps(props);
+            if (!list?.length) {
+              list = await getMaterialsListViaCalc(codeToUse);
             }
+            setMaterials(list?.length ? list : null);
           }
         }
       } catch (error) {
@@ -503,7 +503,7 @@ const ItemInfo = () => {
               <h3>Описание</h3>
               <p>
                 {data.Specification}
-                <button 
+                {/* <button 
                   className="our-history-button"
                   onClick={() => {
                     if (!articles || articles.length === 0) return;
@@ -527,7 +527,7 @@ const ItemInfo = () => {
                     alt="Наша история" 
                     className="our-history-svg"
                   />
-                </button>
+                </button> */}
               </p>
             </div>
           )}
@@ -542,7 +542,7 @@ const ItemInfo = () => {
           Перейти к расчету
         </button>
       </div>
-      <Modal
+      {/* <Modal
         isOpen={historyModal.isOpen}
         onClose={() => setHistoryModal({ isOpen: false, title: "", html: "" })}
         title={historyModal.title}
@@ -552,7 +552,7 @@ const ItemInfo = () => {
         imageHeight="120px"
         confirmButtonText="Закрыть"
         confirmButtonColor="#6cabc8"
-      />
+      /> */}
     </div>
   );
 };

@@ -79,8 +79,11 @@ export const copyMaterialsToClipboard = () => {
       continue;
     }
     const rowText = [];
-    for (let j = 0; j < cells.length - 1; j++) {
-      rowText.push(cells[j].innerText);
+    // Копируем для ERP: артикул, наименование, количество (колонки цены и ед.изм не включаем)
+    const isDesktopWide = cells.length >= 7;
+    const indices = isDesktopWide ? [0, 1, 3] : [0, 2];
+    for (const j of indices) {
+      if (cells[j]) rowText.push(cells[j].innerText);
     }
     textToCopy += rowText.join("\t") + "\n";
   }
