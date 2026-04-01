@@ -1,8 +1,10 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import ConstructionList from "./tables/ConstructionList";
-import MaterialsList from "./tables/MaterialsList";
-import { CALCULATOR_STATE_STORAGE_KEY } from "../constants/calculatorSession";
+import {
+  CALCULATOR_STATE_STORAGE_KEY,
+  migrateMaterialsFromSavedState,
+} from "../constants/calculatorSession";
 import "./KpPage.css";
 import "./Calculator.css";
 
@@ -13,23 +15,20 @@ function loadCalculatorTablesState() {
       return {
         tableConstrToCalc: null,
         ConstrToCalc: [],
-        calculatedMaterials: { data: [] },
+        materialsByConstruction: [],
       };
     }
     const s = JSON.parse(raw);
     return {
       tableConstrToCalc: s.tableConstrToCalc ?? null,
       ConstrToCalc: Array.isArray(s.ConstrToCalc) ? s.ConstrToCalc : [],
-      calculatedMaterials:
-        s.calculatedMaterials && typeof s.calculatedMaterials === "object"
-          ? s.calculatedMaterials
-          : { data: [] },
+      materialsByConstruction: migrateMaterialsFromSavedState(s),
     };
   } catch {
     return {
       tableConstrToCalc: null,
       ConstrToCalc: [],
-      calculatedMaterials: { data: [] },
+      materialsByConstruction: [],
     };
   }
 }
@@ -161,9 +160,7 @@ const KpPage = () => {
               <ConstructionList
                 constructions={calcTables.ConstrToCalc}
                 readOnly
-              />
-              <MaterialsList
-                calculatedMaterials={calcTables.calculatedMaterials}
+                materialsByConstruction={calcTables.materialsByConstruction}
               />
             </>
           ) : (

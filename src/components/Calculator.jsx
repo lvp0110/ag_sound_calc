@@ -16,12 +16,14 @@ import { validateInput, validateFloorInput, validateFloorMaxInput, getMaxLenZInM
 import { calculateAreaAndPerimeter, getConstructionCode } from "../utils/calculations";
 import { getOpeningType } from "../utils/formatters";
 import { exportTablesToExcel, copyMaterialsToClipboard } from "../utils/excelExport";
-import { CALCULATOR_STATE_STORAGE_KEY } from "../constants/calculatorSession";
+import {
+  CALCULATOR_STATE_STORAGE_KEY,
+  migrateMaterialsFromSavedState,
+} from "../constants/calculatorSession";
 import { calculateConstruction } from "../services/constructionApi";
 import ItemsList from "./ItemsList";
 import SelectedItemForms from "./SelectedItemForms";
 import ConstructionList from "./tables/ConstructionList";
-import MaterialsList from "./tables/MaterialsList";
 
 const Calculator = () => {
   const navigate = useNavigate();
@@ -75,7 +77,9 @@ const Calculator = () => {
   const [currentConstr, setCurrentConstr] = useState(savedState?.currentConstr || "");
   const [ConstrToCalcToSent, setConstrToCalcToSent] = useState(savedState?.ConstrToCalcToSent || []);
   const [ConstrToCalc, setConstrToCalc] = useState(savedState?.ConstrToCalc || []);
-  const [calculatedMaterials, setCalculatedMaterials] = useState(savedState?.calculatedMaterials || { data: [] });
+  const [materialsByConstruction, setMaterialsByConstruction] = useState(() =>
+    migrateMaterialsFromSavedState(savedState)
+  );
   const [itemsWithImages, setItemsWithImages] = useState(Items); // Начальное значение - базовые items
 
   // Состояние для модального окна
@@ -161,7 +165,7 @@ const Calculator = () => {
       currentConstr,
       ConstrToCalcToSent,
       ConstrToCalc,
-      calculatedMaterials,
+      materialsByConstruction,
     };
     saveStateToStorage(stateToSave);
   }, [
@@ -178,7 +182,7 @@ const Calculator = () => {
     currentConstr,
     ConstrToCalcToSent,
     ConstrToCalc,
-    calculatedMaterials,
+    materialsByConstruction,
   ]);
 
   // Получить items для конкретной секции и подкатегории
@@ -408,57 +412,76 @@ const Calculator = () => {
 
   const delConstrFromList = (idConstr) => {
     const indexToDel = ConstrToCalc.findIndex((el) => el.key_id == idConstr);
+    if (indexToDel < 0) return;
     const newConstrToCalc = [...ConstrToCalc];
     const newConstrToCalcToSent = [...ConstrToCalcToSent];
     newConstrToCalc.splice(indexToDel, 1);
     newConstrToCalcToSent.splice(indexToDel, 1);
     setConstrToCalc(newConstrToCalc);
     setConstrToCalcToSent(newConstrToCalcToSent);
-    if (newConstrToCalc.length != 0) {
-      calcConstructionHandler(newConstrToCalcToSent);
-      return;
-    }
-    setCalculatedMaterials({ data: [] });
+    setMaterialsByConstruction((prev) =>
+      prev.filter((_, i) => i !== indexToDel)
+    );
   };
 
-  const calcConstructionHandler = async (constrList) => {
-    try {
-      const data = await calculateConstruction(constrList);
-      setCalculatedMaterials(data);
-    } catch (error) {
-      let errorMessage = error.message;
-      if (error.message.includes("invalid construction size")) {
-        errorMessage =
-          "Неверный размер конструкции. Пожалуйста, проверьте введенные размеры. Для ЗИПС потолка минимальный размер составляет 200 мм.";
-      } else if (error.message.includes("404")) {
-        errorMessage =
-          "Сервер API недоступен. Проверьте подключение к интернету или обратитесь к администратору.";
-      }
-
-      setModal({
-        isOpen: true,
-        title: "Ошибка",
-        html: `Не удалось рассчитать материалы.<br><br>${errorMessage}<br><br>Проверьте консоль для деталей.`,
-        icon: "error",
-        imageUrl: null,
-        imageWidth: null,
-        imageHeight: null,
-        confirmButtonText: "OK",
-        confirmButtonColor: "#6cabc8",
-      });
-      setCalculatedMaterials({ data: [] });
-    }
-  };
-
-  // Восстанавливаем расчеты при монтировании, если они были сохранены
-  // Проверяем, нужно ли пересчитать, если результаты отсутствуют
+  // Восстанавливаем расчёт по каждой конструкции отдельно (без суммирования материалов)
   useEffect(() => {
-    // Проверяем, есть ли сохраненные конструкции, но нет результатов расчетов
-    if (ConstrToCalcToSent.length > 0 && 
-        (!calculatedMaterials || !calculatedMaterials.data || calculatedMaterials.data.length === 0)) {
-      calcConstructionHandler(ConstrToCalcToSent);
-    }
-  }, []); // Выполняем только при монтировании
+    if (ConstrToCalcToSent.length === 0 || ConstrToCalc.length === 0) return;
+
+    const aligned =
+      materialsByConstruction.length === ConstrToCalc.length &&
+      ConstrToCalcToSent.length === ConstrToCalc.length &&
+      ConstrToCalc.every(
+        (c, i) => materialsByConstruction[i]?.key_id === c.key_id
+      );
+    const hasAnyMaterials = materialsByConstruction.some(
+      (m) => Array.isArray(m.data) && m.data.length > 0
+    );
+    if (aligned && hasAnyMaterials) return;
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const results = [];
+        for (let i = 0; i < ConstrToCalcToSent.length; i++) {
+          const r = await calculateConstruction([ConstrToCalcToSent[i]]);
+          if (cancelled) return;
+          results.push({
+            key_id: ConstrToCalc[i].key_id,
+            data: r?.data ?? [],
+          });
+        }
+        if (!cancelled) setMaterialsByConstruction(results);
+      } catch (error) {
+        let errorMessage = error.message;
+        if (error.message.includes("invalid construction size")) {
+          errorMessage =
+            "Неверный размер конструкции. Пожалуйста, проверьте введенные размеры. Для ЗИПС потолка минимальный размер составляет 200 мм.";
+        } else if (error.message.includes("404")) {
+          errorMessage =
+            "Сервер API недоступен. Проверьте подключение к интернету или обратитесь к администратору.";
+        }
+
+        setModal({
+          isOpen: true,
+          title: "Ошибка",
+          html: `Не удалось рассчитать материалы.<br><br>${errorMessage}<br><br>Проверьте консоль для деталей.`,
+          icon: "error",
+          imageUrl: null,
+          imageWidth: null,
+          imageHeight: null,
+          confirmButtonText: "OK",
+          confirmButtonColor: "#6cabc8",
+        });
+        if (!cancelled) setMaterialsByConstruction([]);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- восстановление из sessionStorage один раз при монтировании
 
   // Обработчики экспорта
   const handleExportToExcel = async () => {
@@ -473,7 +496,7 @@ const Calculator = () => {
     navigate("/kp");
   };
 
-  const addConstrToCalc = useCallback(() => {
+  const addConstrToCalc = useCallback(async () => {
     // Валидация входных данных
     const inputError = validateInput(
       constR,
@@ -594,30 +617,57 @@ const Calculator = () => {
     }
 
     const deep = JSON.parse(JSON.stringify(newConstrSent));
-    const updatedList = [...ConstrToCalcToSent, deep];
 
-    setConstrToCalcToSent(updatedList);
-    setConstrSent({ ...constSentZero });
-    setOpening({ ...openingZero });
-    setConstrToCalc([...ConstrToCalc, newConstR]);
-    calcConstructionHandler(updatedList);
-    setConstR({ ...constRZero });
-    setDFrame(false);
-    setUnvisible(false);
-    setProfileStep(600);
-    setCurrentGkla("default");
-    setCurrentWool("default");
-    
-    // Прокрутка к таблице конструкций
-    requestAnimationFrame(() => {
-      const constructionTable = document.getElementById("table1");
-      if (constructionTable) {
-        constructionTable.scrollIntoView({
-          behavior: "smooth",
-          block: "start",
-        });
+    try {
+      const result = await calculateConstruction([deep]);
+      const data = result?.data ?? [];
+
+      setConstrToCalcToSent((prev) => [...prev, deep]);
+      setConstrToCalc((prev) => [...prev, newConstR]);
+      setMaterialsByConstruction((prev) => [
+        ...prev,
+        { key_id: newConstR.key_id, data },
+      ]);
+      setConstrSent({ ...constSentZero });
+      setOpening({ ...openingZero });
+      setConstR({ ...constRZero });
+      setDFrame(false);
+      setUnvisible(false);
+      setProfileStep(600);
+      setCurrentGkla("default");
+      setCurrentWool("default");
+
+      requestAnimationFrame(() => {
+        const constructionTable = document.getElementById("table1");
+        if (constructionTable) {
+          constructionTable.scrollIntoView({
+            behavior: "smooth",
+            block: "start",
+          });
+        }
+      });
+    } catch (error) {
+      let errorMessage = error.message;
+      if (error.message.includes("invalid construction size")) {
+        errorMessage =
+          "Неверный размер конструкции. Пожалуйста, проверьте введенные размеры. Для ЗИПС потолка минимальный размер составляет 200 мм.";
+      } else if (error.message.includes("404")) {
+        errorMessage =
+          "Сервер API недоступен. Проверьте подключение к интернету или обратитесь к администратору.";
       }
-    });
+
+      setModal({
+        isOpen: true,
+        title: "Ошибка",
+        html: `Не удалось рассчитать материалы.<br><br>${errorMessage}<br><br>Проверьте консоль для деталей.`,
+        icon: "error",
+        imageUrl: null,
+        imageWidth: null,
+        imageHeight: null,
+        confirmButtonText: "OK",
+        confirmButtonColor: "#6cabc8",
+      });
+    }
   }, [
     constR,
     currentSubCategory,
@@ -626,8 +676,6 @@ const Calculator = () => {
     profileStep,
     dFrame,
     constrSent,
-    ConstrToCalc,
-    ConstrToCalcToSent,
     currentGkla,
     currentWool,
     template,
@@ -1688,15 +1736,11 @@ const Calculator = () => {
                         <div className="tables-and-buttons-container">
                           {tableConstrToCalc != null &&
                             ConstrToCalc.length > 0 && (
-                              <>
-                                <ConstructionList
-                                  constructions={ConstrToCalc}
-                                  onDelete={delConstrFromList}
-                                />
-                                <MaterialsList
-                                  calculatedMaterials={calculatedMaterials}
-                                />
-                              </>
+                              <ConstructionList
+                                constructions={ConstrToCalc}
+                                onDelete={delConstrFromList}
+                                materialsByConstruction={materialsByConstruction}
+                              />
                             )}
                         </div>
                       </div>

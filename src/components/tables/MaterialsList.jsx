@@ -9,7 +9,7 @@ import {
   getPricePerUnit,
 } from "../../data/moscowPricePerM2ByArticle";
 
-const formatRub = (value) => {
+export const formatRub = (value) => {
   if (value == null || Number.isNaN(value)) return "—";
   return Number(value).toLocaleString("ru-RU", {
     minimumFractionDigits: 2,
@@ -34,10 +34,31 @@ const lineSumRub = (material, pricePerM2, pricePerUnit) => {
   return null;
 };
 
+/** Сумма в ₽ по списку материалов (те же правила, что колонка «сумма»). */
+export function computeTotalRubForMaterialsData(data) {
+  if (!Array.isArray(data) || data.length === 0) return 0;
+  return data.reduce((acc, Material) => {
+    const codeRaw = Material.Code != null ? String(Material.Code).trim() : "";
+    const pricePerM2 = getPricePerM2(codeRaw);
+    const pricePerUnit = getPricePerUnit(codeRaw);
+    const sumRub = lineSumRub(Material, pricePerM2, pricePerUnit);
+    return typeof sumRub === "number" && !Number.isNaN(sumRub)
+      ? acc + sumRub
+      : acc;
+  }, 0);
+}
+
 /**
  * Таблица со списком материалов
+ * @param {object} [calculatedMaterials] — { data: Material[] } (одна группа, например из КП)
+ * @param {Material[]} [data] — строки материалов; если задано, имеет приоритет над calculatedMaterials
+ * @param {string} [tableId] — id таблицы (для экспорта; по умолчанию table2 для первой группы)
  */
-const MaterialsList = ({ calculatedMaterials }) => {
+const MaterialsList = ({
+  calculatedMaterials,
+  data: dataProp,
+  tableId = "table2",
+}) => {
   const [isNarrowScreen, setIsNarrowScreen] = useState(false);
 
   useEffect(() => {
@@ -53,7 +74,7 @@ const MaterialsList = ({ calculatedMaterials }) => {
     };
   }, []);
 
-  const data = calculatedMaterials?.data;
+  const data = dataProp ?? calculatedMaterials?.data;
   const hasData = Array.isArray(data) && data.length > 0;
 
   /** Одна модель строки: те же sumRub, что в колонке «сумма» — итог = их сумма. */
@@ -68,15 +89,11 @@ const MaterialsList = ({ calculatedMaterials }) => {
       })
     : [];
 
-  const totalSumRub = rowModels.reduce((acc, { sumRub }) => {
-    return typeof sumRub === "number" && !Number.isNaN(sumRub)
-      ? acc + sumRub
-      : acc;
-  }, 0);
+  const totalSumRub = computeTotalRubForMaterialsData(data);
 
   return (
-    <div className="tbl-in">
-      <table className="data" id="table2">
+    <div className="tbl-in materials-data-table">
+      <table className="data" id={tableId} data-materials-table="true">
         <thead>
           <tr>
             <th
@@ -87,7 +104,7 @@ const MaterialsList = ({ calculatedMaterials }) => {
                 textAlign: "center",
               }}
             >
-              cписок материалов
+               материалы
             </th>
           </tr>
           <tr>
@@ -132,7 +149,7 @@ const MaterialsList = ({ calculatedMaterials }) => {
                   padding: "20px",
                 }}
               >
-                {calculatedMaterials
+                {calculatedMaterials != null || dataProp !== undefined
                   ? "Нет данных для отображения"
                   : "Загрузка..."}
               </td>

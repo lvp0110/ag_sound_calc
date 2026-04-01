@@ -376,6 +376,13 @@ h4 {
   padding-right: 20px;
 }
 
+.construction-materials-blocks {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  width: 100%;
+}
+
 .buttons-container {
   display: flex;
   flex-direction: row;
