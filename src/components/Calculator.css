@@ -404,6 +404,15 @@ h4 {
   flex: 1 1 0;
   min-width: 0;
 }
+
+.selected-item-forms .kp-button-row {
+  width: 100%;
+  align-self: stretch;
+}
+
+.selected-item-forms .kp-button-row .add_design_button {
+  width: 100%;
+}
 .buttons-container button {
   outline: none !important;
   box-shadow: none !important;

@@ -16,6 +16,7 @@ import { validateInput, validateFloorInput, validateFloorMaxInput, getMaxLenZInM
 import { calculateAreaAndPerimeter, getConstructionCode } from "../utils/calculations";
 import { getOpeningType } from "../utils/formatters";
 import { exportTablesToExcel, copyMaterialsToClipboard } from "../utils/excelExport";
+import { CALCULATOR_STATE_STORAGE_KEY } from "../constants/calculatorSession";
 import { calculateConstruction } from "../services/constructionApi";
 import ItemsList from "./ItemsList";
 import SelectedItemForms from "./SelectedItemForms";
@@ -26,13 +27,10 @@ const Calculator = () => {
   const navigate = useNavigate();
   const { id } = useParams();
 
-  // Ключ для sessionStorage
-  const STORAGE_KEY = 'calculator_state';
-
   // Функция для загрузки состояния из sessionStorage
   const loadStateFromStorage = () => {
     try {
-      const savedState = sessionStorage.getItem(STORAGE_KEY);
+      const savedState = sessionStorage.getItem(CALCULATOR_STATE_STORAGE_KEY);
       if (savedState) {
         return JSON.parse(savedState);
       }
@@ -45,7 +43,10 @@ const Calculator = () => {
   // Функция для сохранения состояния в sessionStorage
   const saveStateToStorage = (state) => {
     try {
-      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      sessionStorage.setItem(
+        CALCULATOR_STATE_STORAGE_KEY,
+        JSON.stringify(state)
+      );
     } catch (error) {
       // Игнорируем ошибки сохранения
     }
@@ -466,6 +467,10 @@ const Calculator = () => {
 
   const handleCopyToClipboard = () => {
     copyMaterialsToClipboard();
+  };
+
+  const handleMakeKP = () => {
+    navigate("/kp");
   };
 
   const addConstrToCalc = useCallback(() => {
@@ -1651,20 +1656,31 @@ const Calculator = () => {
 
                           {/* Кнопки экспорта */}
                           {template != null && (
-                            <div className="buttons-container">
-                              <button
-                                onClick={handleCopyToClipboard}
-                                className="add_design_button"
-                              >
-                                экспорт в ERP
-                              </button>
-                              <button
-                                onClick={handleExportToExcel}
-                                className="add_design_button"
-                              >
-                                сохранить в Excel
-                              </button>
-                            </div>
+                            <>
+                              <div className="buttons-container">
+                                <button
+                                  onClick={handleCopyToClipboard}
+                                  className="add_design_button"
+                                >
+                                  экспорт в ERP
+                                </button>
+                                <button
+                                  onClick={handleExportToExcel}
+                                  className="add_design_button"
+                                >
+                                  сохранить в Excel
+                                </button>
+                              </div>
+                              <div className="kp-button-row">
+                                <button
+                                  type="button"
+                                  onClick={handleMakeKP}
+                                  className="add_design_button"
+                                >
+                                  Сделать КП
+                                </button>
+                              </div>
+                            </>
                           )}
                         </div>
 
