@@ -7,8 +7,6 @@
   flex-direction: row;
 }
 
-
-
 .content-item {
   width: 340px;
   margin: auto;
@@ -115,8 +113,8 @@ button {
   z-index: 1;
 }
 
-/* Ячейка таблицы с кнопкой удаления не должна сжиматься */
-.data td:has(.counter__button_minus) {
+/* Ячейка таблицы с кнопкой удаления не должна сжиматься (только калькулятор) */
+.content-calc .data td:has(.counter__button_minus) {
   min-width: 50px;
   white-space: nowrap;
   width: auto;
@@ -227,8 +225,8 @@ h4 {
   cursor: pointer;
 }
 
-
-.data {
+/* Таблицы данных: только в калькуляторе (страница КП — см. KpPage.css) */
+.content-calc .data {
   font-size: 13px;
   background-color: #f7f8fa;
   color: #2d3436;
@@ -241,7 +239,7 @@ h4 {
   border: 1px solid #dfe5eb;
 }
 
-.data th {
+.content-calc .data th {
   padding: 8px 10px;
   text-align: center;
   font-weight: 600;
@@ -253,7 +251,7 @@ h4 {
   border-bottom: 1px solid #d1d9e0;
 }
 
-.data td {
+.content-calc .data td {
   padding: 8px 10px;
   text-align: center;
   word-wrap: break-word;
@@ -263,13 +261,17 @@ h4 {
   border-top: 1px solid #e5e9ef;
 }
 
-.data tr:nth-child(even) {
+.content-calc .data tr:nth-child(even) {
   background-color: #f1f4f8;
   color: #2d3436;
 }
 
-.data tbody tr:hover {
+.content-calc .data tbody tr:hover {
   background-color: #e8f1fb;
+}
+
+.content-calc .materials-data-table .data tfoot td {
+  border-top: 2px solid #e5e9ef;
 }
 
 .img-icon {
@@ -340,7 +342,7 @@ h4 {
 }
 
 .add_design_button {
-  height:50px;
+  height: 50px;
   border-radius: 8px;
   border: solid 1px rgb(184, 178, 178);
 }
@@ -514,6 +516,11 @@ button::-moz-focus-inner {
   flex-direction: row;
   gap: 20px;
   align-items: flex-start;
+}
+@media (max-width: 1024px) {
+  .selected-item-container {
+    flex-direction: column;
+  }
 }
 
 /* Левая часть - формы и кнопки */
@@ -788,7 +795,7 @@ button::-moz-focus-inner {
   align-items: center;
   justify-content: center;
   height: 80px;
-  margin-top:40px;
+  margin-top: 40px;
   padding: 0;
   background: none;
   border: none;
@@ -863,7 +870,7 @@ button::-moz-focus-inner {
   overflow-y: visible;
 }
 
-.selected-item-container .tables-and-buttons-container .data {
+.content-calc .selected-item-container .tables-and-buttons-container .data {
   width: 100%;
   max-width: 100%;
   table-layout: auto;
@@ -872,7 +879,7 @@ button::-moz-focus-inner {
 }
 
 /* Адаптивность для мобильных устройств */
-@media screen and (max-width: 550px) {
+@media screen and (max-width: 1024px) {
   .main-content {
     min-height: 100vh;
     display: flex;
@@ -923,7 +930,7 @@ button::-moz-focus-inner {
   }
 
   /* Ячейка с кнопкой удаления не должна сжиматься */
-  .data td:has(.counter__button_minus) {
+  .content-calc .data td:has(.counter__button_minus) {
     min-width: 50px !important;
     white-space: nowrap;
   }
@@ -951,7 +958,7 @@ button::-moz-focus-inner {
     justify-content: center;
     margin: 0 auto;
   }*/
-} 
+}
 
 /* Адаптивность для экранов менее 375px - два столбца */
 @media screen and (max-width: 375px) {
@@ -996,7 +1003,7 @@ button::-moz-focus-inner {
   }
 
   /* Ячейка с кнопкой удаления не должна сжиматься */
-  .data td:has(.counter__button_minus) {
+  .content-calc .data td:has(.counter__button_minus) {
     min-width: 50px !important;
     white-space: nowrap;
   }

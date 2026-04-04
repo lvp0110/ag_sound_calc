@@ -10,7 +10,7 @@ const getApiBaseUrl = () => {
   }
   
   // В production используем прямой URL
-  return 'https://constrtodo.ru:3005/api/v1';
+  return 'https://dev3.constrtodo.ru:3005/api/v1';
 };
 
 const API_BASE_URL = getApiBaseUrl();
@@ -62,7 +62,7 @@ export const getImageUrl = (imageName) => {
   
   // Нормализуем полный URL от API до имени файла, чтобы можно было подменять на zipsCeilingApiImages.
   const devBase = 'http://localhost:3005/api/v1/constr/';
-  const prodBase = 'https://constrtodo.ru:3005/api/v1/constr/';
+  const prodBase = 'https://dev3.constrtodo.ru:3005/api/v1/constr/';
   if (imageName.startsWith(devBase)) {
     imageName = imageName.slice(devBase.length);
   } else if (imageName.startsWith(prodBase)) {
@@ -103,7 +103,7 @@ export const getImageUrl = (imageName) => {
     return `http://localhost:3005/api/v1/constr/${processedImageName}`;
   }
   
-  return `https://constrtodo.ru:3005/api/v1/constr/${processedImageName}`;
+  return `https://dev3.constrtodo.ru:3005/api/v1/constr/${processedImageName}`;
 };
 
 
@@ -266,7 +266,7 @@ export const getConstructionProps = async (code) => {
       return '/api/v2';
     }
     
-    return 'https://constrtodo.ru:3005/api/v2';
+    return 'https://dev3.constrtodo.ru:3005/api/v2';
   };
   
   const API_V2_BASE_URL = getApiV2BaseUrl();

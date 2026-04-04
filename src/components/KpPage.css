@@ -5,6 +5,7 @@
   margin: 0 auto;
   font-family: "Montserrat", sans-serif;
   color: #2c2f33;
+  --table-border: #c9d0d6;
 }
 
 .kp-page__back {
@@ -110,6 +111,122 @@
   padding: 0;
 }
 
+/* Одна карточка на конструкцию: таблицы разделены линией */
+.kp-page .kp-table-card--group {
+  display: flex;
+  flex-direction: column;
+}
+
+.kp-page .kp-table-card--group > .tbl-in + .tbl-in {
+  border-top: 1px solid var(--table-border);
+}
+
+.kp-page .kp-table-card {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  border-radius: 12px;
+  border: 2px solid #cfe0e8;
+  background: #ffffff;
+  box-shadow:
+    0 4px 18px rgba(26, 42, 58, 0.08),
+    0 1px 3px rgba(26, 42, 58, 0.05);
+  overflow-x: auto;
+  overflow-y: visible;
+}
+
+.kp-page .kp-table-card .data {
+  border: none;
+  background: transparent;
+}
+
+/* Заголовок карточки: первая строка первого thead («Конструкция») или первая строка thead у материалов («Материалы», …) */
+.kp-page .kp-table-card .data thead:first-of-type tr:first-child th {
+  padding-top: 14px;
+  padding-bottom: 12px;
+  font-size: 15px;
+  font-weight: 700;
+  font-style: normal;
+  letter-spacing: 0.02em;
+  text-align: left;
+  color: #1a1d21;
+  border-bottom: 1px solid var(--table-border);
+}
+
+/* Блок «Услуги» — заголовок по центру */
+.kp-page #kp-table-services thead:first-of-type tr:first-child th {
+  text-align: center;
+}
+
+/* Строка заголовков колонок: второй ряд в одном thead или единственный ряд во втором thead (таблица «Конструкция») */
+.kp-page .kp-table-card .data thead:first-of-type tr:nth-child(2) th,
+.kp-page .kp-table-card .data thead:nth-of-type(2) tr th {
+  padding-top: 10px;
+  padding-bottom: 10px;
+  font-size: 13px;
+  font-weight: 600;
+  font-style: normal;
+  background: #f3f8fb;
+  color: #2c3a45;
+  border-bottom: 1px solid #e2e8ee;
+}
+
+.kp-page .kp-table-card .data tbody td {
+  border-top-color: #edf2f6;
+}
+
+.kp-page .kp-table-card .data tbody tr:nth-child(even) {
+  background-color: #fafcfd;
+}
+
+.kp-page .kp-table-card .data tbody tr:hover {
+  background-color: #f0f7fb;
+}
+
+.kp-page .kp-table-card .data tfoot td {
+  background: linear-gradient(180deg, #f5fafc 0%, #eef6fa 100%);
+  border-top: 2px solid var(--table-border);
+  font-weight: 700;
+}
+
+/* Итог «Стоимость конструкций» и «Стоимость монтажа» */
+.kp-page .construction-grand-total-wrap.kp-table-card .data thead tr:first-child th:first-child {
+  text-align: left;
+}
+
+.kp-page .construction-grand-total-wrap.kp-table-card .data thead tr:first-child th,
+.kp-page .construction-grand-total-wrap.kp-table-card .data thead tr:first-child th + th {
+  background: linear-gradient(180deg, #f6fbfd 0%, #eaf4f9 100%);
+  font-style: italic;
+  border-top: none;
+  padding-top: 14px;
+  padding-bottom: 12px;
+}
+
+.kp-page
+  .construction-grand-total-wrap.kp-table-card
+  .data
+  thead
+  tr.construction-grand-total-montage-row
+  th,
+.kp-page
+  .construction-grand-total-wrap.kp-table-card
+  .data
+  thead
+  tr.construction-grand-total-montage-row
+  th
+  + th {
+  background: linear-gradient(180deg, #f6fbfd 0%, #eaf4f9 100%);
+  font-style: italic;
+  border-top: 1px solid var(--table-border);
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+
+.kp-page .construction-grand-total-wrap.kp-table-card .data {
+  margin: 0;
+}
+
 .kp-page__tables-empty {
   margin: 0;
   padding: 16px 0;
@@ -118,15 +235,127 @@
   color: #6d7277;
 }
 
+/* Таблицы на странице КП (отдельно от калькулятора — там .content-calc .data) */
+.kp-page .data {
+  font-size: 14px;
+  background-color: #ffffff;
+  color: #1a1d21;
+  border-collapse: collapse;
+  width: 100%;
+  max-width: 100%;
+  table-layout: auto;
+  word-wrap: break-word;
+  box-sizing: border-box;
+  border: 1px solid var(--table-border);
+}
+
+.kp-page .data th {
+  padding: 10px 12px;
+  text-align: center;
+  font-weight: 700;
+  font-style: italic;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  hyphens: auto;
+  background-color: #dde9ef;
+  color: #1a1d21;
+  border-bottom: 1px solid var(--table-border);
+}
+
+.kp-page .data td {
+  padding: 10px 12px;
+  text-align: center;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  hyphens: auto;
+  line-height: 1.45;
+  border-top: 1px solid #e2e8ee;
+}
+
+.kp-page .data tbody tr:nth-child(even) {
+  background-color: #f9fbfc;
+  color: #1a1d21;
+}
+
+.kp-page .data tbody tr:hover {
+  background-color: #f0f6fa;
+}
+
+.kp-page .data tfoot td {
+  background-color: #f3f7fa;
+  border-top-color: var(--table-border);
+}
+
 .kp-page__services {
+  margin-top: 20px;
+  width: 100%;
+  max-width: 100%;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.kp-page__construction-grand-total {
   margin-top: 20px;
   width: 100%;
   max-width: 100%;
   align-self: stretch;
 }
 
-.kp-page__services .data td:first-child {
+.kp-page__services .data td.kp-page__service-name-td--preset {
   white-space: nowrap;
+}
+
+.kp-page__service-name-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.kp-page__service-name-cell .kp-page__services-input {
+  flex: 1;
+  min-width: 80px;
+}
+
+.kp-page__service-row-remove {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  font-size: 20px;
+  line-height: 1;
+  color: #6d7277;
+  background: #fff;
+  border: 1px solid #c9d0d6;
+  border-radius: 4px;
+  cursor: pointer;
+  box-shadow: none;
+}
+
+.kp-page__service-row-remove:hover {
+  color: #c53030;
+  border-color: #e2a4a4;
+  background: #fff5f5;
+}
+
+.kp-page__services-add {
+  margin: 0 auto;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1a1d21;
+  padding: 8px 14px;
+  background: #eef6fa;
+  border: 1px solid #6cabc8;
+  border-radius: 4px;
+  cursor: pointer;
+  height: auto;
+}
+
+.kp-page__services-add:hover {
+  background: #e2f0f7;
 }
 
 .kp-page__services-input {
@@ -138,13 +367,90 @@
   font-family: inherit;
   font-size: 14px;
   color: #1a1d21;
-  border: 1px solid #c9d0d6;
-  border-radius: 4px;
-  background: #fff;
+  /* border: 1px solid #c9d0d6; #eef6fa */
+  border: none;
+  /* border-radius: 4px; */
+  /* background: #fff; */
 }
 
 .kp-page__services-input:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px #ffffff, 0 0 0 4px #6cabc8;
+  /* box-shadow: 0 0 0 1px #ffffff, 0 0 0 1px #6cabc8; */
 }
 
+.kp-page__services-input--computed {
+  background: #f3f5f7;
+  color: #3a4046;
+  cursor: default;
+}
+
+.kp-page__services-input--computed:focus-visible {
+  box-shadow: none;
+}
+
+/* Сворачиваемые «Материалы», «Общестроительные материалы», «Монтаж» в карточках КП */
+.kp-page .materials-data-table--collapsible .materials-data-table__section-title-th,
+.kp-page .kp-page__montage-section-title-th {
+  cursor: pointer;
+  user-select: none;
+  /* font-size: 18px;
+  color: #000000; */
+}
+
+.kp-page .materials-data-table__section-title-th:focus-visible,
+.kp-page .kp-page__montage-section-title-th:focus-visible {
+  outline: 2px solid #6cabc8;
+  outline-offset: 2px;
+}
+
+.kp-page .kp-collapsible-title-row {
+  display: flex;
+  width: 100%;
+  box-sizing: border-box;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75em;
+}
+
+.kp-page .kp-collapsible-title-inner {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5em;
+  min-width: 0;
+}
+
+.kp-page .kp-collapsible-title-sum {
+  font-weight: bold;
+  white-space: nowrap;
+  flex-shrink: 0;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.kp-page span {
+  display: inline-flex;
+  align-items: center;
+  color: #1a1d21;
+  font-size: 14px;
+}
+
+/* Стрелка: вправо = раздел свёрнут, вниз = развернут */
+.kp-page .kp-collapsible-chevron {
+  flex-shrink: 0;
+  box-sizing: border-box;
+  display: inline-block;
+  width: 0.45em;
+  height: 0.45em;
+  border-style: solid;
+  border-color: currentColor;
+  border-width: 0 0.12em 0.12em 0;
+  transform: rotate(-45deg);
+  transform-origin: 45% 55%;
+  opacity: 1;
+  transition: transform 0.15s ease;
+}
+
+.kp-page .kp-collapsible-chevron--expanded {
+  transform: rotate(45deg);
+  transform-origin: 50% 50%;
+}

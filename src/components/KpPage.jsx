@@ -1,6 +1,14 @@
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import ConstructionList from "./tables/ConstructionList";
+import ConstructionList, {
+  ConstructionGrandTotalBlock,
+} from "./tables/ConstructionList";
+import {
+  computeGrandTotalRubForConstructions,
+  formatRub,
+  montageLineProductRub,
+  parseKpDecimal,
+} from "./tables/MaterialsList";
 import {
   CALCULATOR_STATE_STORAGE_KEY,
   migrateMaterialsFromSavedState,
@@ -42,22 +50,236 @@ const initialForm = {
   object: "",
 };
 
+function formatServiceSum(product) {
+  return new Intl.NumberFormat("ru-RU", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }).format(product);
+}
+
+function serviceRowSum(priceStr, qtyStr) {
+  const p = parseKpDecimal(priceStr);
+  const q = parseKpDecimal(qtyStr);
+  if (p === null || q === null) return "";
+  return formatServiceSum(p * q);
+}
+
+/** Сумма монтажа по КП: отдельные цена×кол-во в каждой карточке (key_id). */
+function montageGrandTotalRubForKp(constructions, montageByKeyId) {
+  let sum = 0;
+  let any = false;
+  for (const c of constructions) {
+    const row = montageByKeyId[c.key_id];
+    if (!row) continue;
+    const p = parseKpDecimal(row.price);
+    const q = parseKpDecimal(row.quantity);
+    if (p !== null && q !== null) {
+      sum += p * q;
+      any = true;
+    }
+  }
+  return any ? sum : null;
+}
+
+function newCustomServiceRow() {
+  const id =
+    typeof crypto !== "undefined" && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `svc-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+  return {
+    id,
+    preset: false,
+    name: "",
+    price: "",
+    quantity: "",
+    unit: "",
+  };
+}
+
+const MONTAGE_ROW_LABEL = "Монтаж";
+
+const INITIAL_SERVICE_ROWS = [
+  {
+    id: "delivery",
+    preset: true,
+    name: "Доставка",
+    price: "",
+    quantity: "",
+    unit: "",
+  },
+];
+
 const KpPage = () => {
   const navigate = useNavigate();
   const [form, setForm] = useState(initialForm);
   const [calcTables] = useState(loadCalculatorTablesState);
-  const [services, setServices] = useState({
-    montage: "",
-    delivery: "",
-  });
+  /** Монтаж по карточкам: key_id конструкции → { price, quantity, unit } */
+  const [montageByKeyId, setMontageByKeyId] = useState(() => ({}));
+  /** Раскрыт блок «Монтаж» в карточке (по key_id); по умолчанию свёрнут */
+  const [montageSectionOpenByKeyId, setMontageSectionOpenByKeyId] = useState(
+    () => ({})
+  );
+  const [serviceRows, setServiceRows] = useState(INITIAL_SERVICE_ROWS);
 
   const onFieldChange = (key) => (e) => {
     setForm((prev) => ({ ...prev, [key]: e.target.value }));
   };
 
-  const onServicePriceChange = (key) => (e) => {
-    setServices((prev) => ({ ...prev, [key]: e.target.value }));
+  const updateServiceRow = (id, field) => (e) => {
+    const value = e.target.value;
+    setServiceRows((rows) =>
+      rows.map((r) => (r.id === id ? { ...r, [field]: value } : r))
+    );
   };
+
+  const addServiceRow = () => {
+    setServiceRows((rows) => [...rows, newCustomServiceRow()]);
+  };
+
+  const removeServiceRow = (id) => {
+    setServiceRows((rows) => rows.filter((r) => r.preset || r.id !== id));
+  };
+
+  const updateMontageRow = useCallback((key_id, field) => (e) => {
+    const value = e.target.value;
+    setMontageByKeyId((prev) => ({
+      ...prev,
+      [key_id]: {
+        price: "",
+        quantity: "",
+        unit: "",
+        ...prev[key_id],
+        [field]: value,
+      },
+    }));
+  }, []);
+
+  const toggleMontageSection = useCallback((key_id) => {
+    setMontageSectionOpenByKeyId((prev) => ({
+      ...prev,
+      [key_id]: !prev[key_id],
+    }));
+  }, []);
+
+  const renderKpMontageSlot = useCallback(
+    ({ key_id, cardIndex }) => {
+      const row = montageByKeyId[key_id] ?? {
+        price: "",
+        quantity: "",
+        unit: "",
+      };
+      const montageOpen = montageSectionOpenByKeyId[key_id] === true;
+      return (
+        <div className="tbl-in kp-page__montage-table-wrap">
+          <table
+            className="data"
+            id={`kp-table-montage-${key_id}`}
+            aria-label={`Монтаж, карточка ${cardIndex + 1}`}
+          >
+            <thead>
+              <tr>
+                <th
+                  colSpan={5}
+                  role="button"
+                  tabIndex={0}
+                  aria-expanded={montageOpen}
+                  className="kp-page__montage-section-title-th"
+                  onClick={() => toggleMontageSection(key_id)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      toggleMontageSection(key_id);
+                    }
+                  }}
+                >
+                  <span className="kp-collapsible-title-row">
+                    <span className="kp-collapsible-title-inner">
+                      <span
+                        className={`kp-collapsible-chevron${
+                          montageOpen
+                            ? " kp-collapsible-chevron--expanded"
+                            : ""
+                        }`}
+                        aria-hidden
+                      />
+                      <span>Монтаж</span>
+                    </span>
+                    <span className="kp-collapsible-title-sum" aria-hidden>
+                      {formatRub(montageLineProductRub(row))}
+                    </span>
+                  </span>
+                </th>
+              </tr>
+              {montageOpen && (
+                <tr>
+                  <th>Название</th>
+                  <th>Цена</th>
+                  <th>Количество</th>
+                  <th>Ед. изм.</th>
+                  <th>Сумма</th>
+                </tr>
+              )}
+            </thead>
+            {montageOpen && (
+              <tbody>
+                <tr>
+                  <td className="kp-page__service-name-td--preset">
+                    {MONTAGE_ROW_LABEL}
+                  </td>
+                  <td>
+                    <input
+                      id={`kp-montage-${key_id}-price`}
+                      type="text"
+                      className="kp-page__services-input"
+                      value={row.price}
+                      onChange={updateMontageRow(key_id, "price")}
+                      aria-label={`Цена, ${MONTAGE_ROW_LABEL} (карточка ${cardIndex + 1})`}
+                    />
+                  </td>
+                  <td>
+                    <input
+                      id={`kp-montage-${key_id}-quantity`}
+                      type="text"
+                      className="kp-page__services-input"
+                      value={row.quantity}
+                      onChange={updateMontageRow(key_id, "quantity")}
+                      aria-label={`Количество, ${MONTAGE_ROW_LABEL} (карточка ${cardIndex + 1})`}
+                    />
+                  </td>
+                  <td>
+                    <input
+                      id={`kp-montage-${key_id}-unit`}
+                      type="text"
+                      className="kp-page__services-input"
+                      value={row.unit}
+                      onChange={updateMontageRow(key_id, "unit")}
+                      aria-label={`Единица измерения, ${MONTAGE_ROW_LABEL} (карточка ${cardIndex + 1})`}
+                    />
+                  </td>
+                  <td>
+                    <input
+                      id={`kp-montage-${key_id}-sum`}
+                      type="text"
+                      readOnly
+                      className="kp-page__services-input kp-page__services-input--computed"
+                      value={serviceRowSum(row.price, row.quantity)}
+                      aria-label={`Сумма, ${MONTAGE_ROW_LABEL} (карточка ${cardIndex + 1}, цена × количество)`}
+                    />
+                  </td>
+                </tr>
+              </tbody>
+            )}
+          </table>
+        </div>
+      );
+    },
+    [
+      montageByKeyId,
+      montageSectionOpenByKeyId,
+      toggleMontageSection,
+      updateMontageRow,
+    ]
+  );
 
   return (
     <div className="kp-page">
@@ -161,6 +383,9 @@ const KpPage = () => {
                 constructions={calcTables.ConstrToCalc}
                 readOnly
                 materialsByConstruction={calcTables.materialsByConstruction}
+                renderKpMontageSlot={renderKpMontageSlot}
+                montageByKeyId={montageByKeyId}
+                showGrandTotalInline={false}
               />
             </>
           ) : (
@@ -171,56 +396,136 @@ const KpPage = () => {
           )}
         </div>
 
-        <div className="tbl-in kp-page__services">
-          <table className="data" id="kp-table-services" aria-label="Услуги">
-            <thead>
-              <tr>
-                <th
-                  colSpan={2}
-                  style={{
-                    fontSize: "14px",
-                    fontWeight: "bold",
-                    textAlign: "center",
-                  }}
-                >
-                  Услуги
-                </th>
-              </tr>
-              <tr>
-                <th>Название</th>
-                <th>Цена</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>Монтаж</td>
-                <td>
-                  <input
-                    id="kp-service-montage"
-                    type="text"
-                    className="kp-page__services-input"
-                    value={services.montage}
-                    onChange={onServicePriceChange("montage")}
-                    aria-label="Цена, монтаж"
-                  />
-                </td>
-              </tr>
-              <tr>
-                <td>Доставка</td>
-                <td>
-                  <input
-                    id="kp-service-delivery"
-                    type="text"
-                    className="kp-page__services-input"
-                    value={services.delivery}
-                    onChange={onServicePriceChange("delivery")}
-                    aria-label="Цена, доставка"
-                  />
-                </td>
-              </tr>
-            </tbody>
-          </table>
+        <div className="kp-page__services">
+          <div className="kp-table-card">
+            <div className="tbl-in">
+              <table
+                className="data"
+                id="kp-table-services"
+                aria-label="Услуги"
+              >
+                <thead>
+                  <tr>
+                    <th colSpan={5}>Услуги</th>
+                  </tr>
+                  <tr>
+                    <th>Название</th>
+                    <th>Цена</th>
+                    <th>Количество</th>
+                    <th>Ед. изм.</th>
+                    <th>Сумма</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {serviceRows.map((row) => (
+                    <tr key={row.id}>
+                      <td
+                        className={
+                          row.preset
+                            ? "kp-page__service-name-td--preset"
+                            : undefined
+                        }
+                      >
+                        {row.preset ? (
+                          row.name
+                        ) : (
+                          <div className="kp-page__service-name-cell">
+                            <input
+                              type="text"
+                              className="kp-page__services-input"
+                              value={row.name}
+                              onChange={updateServiceRow(row.id, "name")}
+                              aria-label="Название услуги"
+                            />
+                            <button
+                              type="button"
+                              className="kp-page__service-row-remove"
+                              onClick={() => removeServiceRow(row.id)}
+                              aria-label="Удалить строку"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                      <td>
+                        <input
+                          id={
+                            row.preset ? `kp-service-${row.id}-price` : undefined
+                          }
+                          type="text"
+                          className="kp-page__services-input"
+                          value={row.price}
+                          onChange={updateServiceRow(row.id, "price")}
+                          aria-label={`Цена, ${row.name || "услуга"}`}
+                        />
+                      </td>
+                      <td>
+                        <input
+                          id={
+                            row.preset
+                              ? `kp-service-${row.id}-quantity`
+                              : undefined
+                          }
+                          type="text"
+                          className="kp-page__services-input"
+                          value={row.quantity}
+                          onChange={updateServiceRow(row.id, "quantity")}
+                          aria-label={`Количество, ${row.name || "услуга"}`}
+                        />
+                      </td>
+                      <td>
+                        <input
+                          id={
+                            row.preset ? `kp-service-${row.id}-unit` : undefined
+                          }
+                          type="text"
+                          className="kp-page__services-input"
+                          value={row.unit}
+                          onChange={updateServiceRow(row.id, "unit")}
+                          aria-label={`Единица измерения, ${row.name || "услуга"}`}
+                        />
+                      </td>
+                      <td>
+                        <input
+                          id={`kp-service-${row.id}-sum`}
+                          type="text"
+                          readOnly
+                          className="kp-page__services-input kp-page__services-input--computed"
+                          value={serviceRowSum(row.price, row.quantity)}
+                          aria-label={`Сумма, ${row.name || "услуга"} (цена × количество)`}
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="kp-page__services-add"
+            onClick={addServiceRow}
+          >
+            Добавить строку
+          </button>
         </div>
+
+        {calcTables.tableConstrToCalc != null &&
+          calcTables.ConstrToCalc.length > 0 && (
+            <ConstructionGrandTotalBlock
+              readOnly
+              grandTotalRub={computeGrandTotalRubForConstructions(
+                calcTables.ConstrToCalc,
+                calcTables.materialsByConstruction
+              )}
+              montageGrandTotalRub={montageGrandTotalRubForKp(
+                calcTables.ConstrToCalc,
+                montageByKeyId
+              )}
+              wrapClassName="kp-page__construction-grand-total"
+            />
+          )}
       </main>
     </div>
   );

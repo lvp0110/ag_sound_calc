@@ -1739,7 +1739,6 @@ const Calculator = () => {
                               <ConstructionList
                                 constructions={ConstrToCalc}
                                 onDelete={delConstrFromList}
-                                materialsByConstruction={materialsByConstruction}
                               />
                             )}
                         </div>

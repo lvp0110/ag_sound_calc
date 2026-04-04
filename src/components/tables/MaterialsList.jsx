@@ -17,6 +17,24 @@ export const formatRub = (value) => {
   });
 };
 
+/** Те же правила, что ввод цены/количества на КП (пробелы, запятая). */
+export function parseKpDecimal(raw) {
+  if (raw == null) return null;
+  const s = String(raw).trim().replace(/\s/g, "").replace(",", ".");
+  if (s === "") return null;
+  const n = Number(s);
+  return Number.isFinite(n) ? n : null;
+}
+
+/** Сумма строки «Монтаж» (цена × количество) или null, если данные неполные. */
+export function montageLineProductRub(row) {
+  if (!row || typeof row !== "object") return null;
+  const p = parseKpDecimal(row.price);
+  const q = parseKpDecimal(row.quantity);
+  if (p === null || q === null) return null;
+  return p * q;
+}
+
 const lineSumRub = (material, pricePerM2, pricePerUnit) => {
   const units = material.Units;
   if (isM2Units(units)) {
@@ -48,18 +66,38 @@ export function computeTotalRubForMaterialsData(data) {
   }, 0);
 }
 
+/** Сумма в ₽ по всем конструкциям (материалы по key_id). */
+export function computeGrandTotalRubForConstructions(
+  constructions,
+  materialsByConstruction
+) {
+  if (!Array.isArray(constructions) || constructions.length === 0) return 0;
+  if (!Array.isArray(materialsByConstruction)) return 0;
+  return constructions.reduce((sum, constRItem) => {
+    const matEntry = materialsByConstruction.find(
+      (m) => m.key_id === constRItem.key_id
+    );
+    return sum + computeTotalRubForMaterialsData(matEntry?.data ?? []);
+  }, 0);
+}
+
 /**
  * Таблица со списком материалов
  * @param {object} [calculatedMaterials] — { data: Material[] } (одна группа, например из КП)
  * @param {Material[]} [data] — строки материалов; если задано, имеет приоритет над calculatedMaterials
  * @param {string} [tableId] — id таблицы (для экспорта; по умолчанию table2 для первой группы)
+ * @param {string} [sectionTitle] — заголовок блока (по умолчанию «материалы»)
+ * @param {boolean} [collapsible=false] — на КП: таблица свёрнута, раскрытие по клику на заголовок
  */
 const MaterialsList = ({
   calculatedMaterials,
   data: dataProp,
   tableId = "table2",
+  sectionTitle = "Материалы",
+  collapsible = false,
 }) => {
   const [isNarrowScreen, setIsNarrowScreen] = useState(false);
+  const [sectionOpen, setSectionOpen] = useState(false);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(max-width: 768px)");
@@ -91,79 +129,125 @@ const MaterialsList = ({
 
   const totalSumRub = computeTotalRubForMaterialsData(data);
 
+  const showBody = !collapsible || sectionOpen;
+  const titleThProps = collapsible
+    ? {
+        role: "button",
+        tabIndex: 0,
+        "aria-expanded": sectionOpen,
+        onClick: () => setSectionOpen((v) => !v),
+        onKeyDown: (e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            setSectionOpen((v) => !v);
+          }
+        },
+        className: "materials-data-table__section-title-th",
+      }
+    : {};
+
   return (
-    <div className="tbl-in materials-data-table">
+    <div
+      className={`tbl-in materials-data-table${
+        collapsible ? " materials-data-table--collapsible" : ""
+      }`}
+    >
       <table className="data" id={tableId} data-materials-table="true">
         <thead>
           <tr>
             <th
               colSpan={isNarrowScreen ? 4 : 8}
               style={{
-                fontSize: "14px",
+                ...(collapsible
+                  ? {}
+                  : { fontSize: "14px", color: "#1a1d21" }),
                 fontWeight: "bold",
-                textAlign: "center",
+                textAlign: "left",
               }}
+              {...titleThProps}
             >
-               материалы
+              {collapsible ? (
+                <span className="kp-collapsible-title-row">
+                  <span className="kp-collapsible-title-inner">
+                    <span
+                      className={`kp-collapsible-chevron${
+                        sectionOpen ? " kp-collapsible-chevron--expanded" : ""
+                      }`}
+                      aria-hidden
+                    />
+                    <span>{sectionTitle}</span>
+                  </span>
+                  <span className="kp-collapsible-title-sum" aria-hidden>
+                    {hasData ? formatRub(totalSumRub) : "—"}
+                  </span>
+                </span>
+              ) : (
+                sectionTitle
+              )}
             </th>
           </tr>
-          <tr>
-            {!isNarrowScreen && <th>артикул</th>}
-            <th>название</th>
-            <th style={{ display: "none" }}></th>
-            <th>кол-во</th>
-            <th>ед.изм</th>
-            {!isNarrowScreen && <th>цена, ₽/м²</th>}
-            {!isNarrowScreen && <th>цена, ₽/ед.</th>}
-            {!isNarrowScreen && <th>сумма, ₽</th>}
-          </tr>
-        </thead>
-        <tbody>
-          {hasData ? (
-            rowModels.map(({ Material, pricePerM2, pricePerUnit, sumRub }, index) => (
-              <tr key={index}>
-                {!isNarrowScreen && (
-                  <td>{filterVariable(Material.Code)}</td>
-                )}
-                <td>{Material.Name}</td>
-                <td style={{ display: "none" }}></td>
-                <td>{convertUnits(Material)}</td>
-                <td>{Material.Units}</td>
-                {!isNarrowScreen && (
-                  <td>{formatRub(pricePerM2)}</td>
-                )}
-                {!isNarrowScreen && (
-                  <td>{formatRub(pricePerUnit)}</td>
-                )}
-                {!isNarrowScreen && (
-                  <td>{formatRub(sumRub)}</td>
-                )}
-              </tr>
-            ))
-          ) : (
+          {showBody && (
             <tr>
-              <td
-                colSpan={isNarrowScreen ? 4 : 8}
-                style={{
-                  textAlign: "center",
-                  padding: "20px",
-                }}
-              >
-                {calculatedMaterials != null || dataProp !== undefined
-                  ? "Нет данных для отображения"
-                  : "Загрузка..."}
-              </td>
+              {!isNarrowScreen && <th>артикул</th>}
+              <th>название</th>
+              <th style={{ display: "none" }}></th>
+              <th>кол-во</th>
+              <th>ед.изм</th>
+              {!isNarrowScreen && <th>цена, ₽/м²</th>}
+              {!isNarrowScreen && <th>цена, ₽/ед.</th>}
+              {!isNarrowScreen && <th>сумма, ₽</th>}
             </tr>
           )}
-        </tbody>
-        {hasData && (
+        </thead>
+        {showBody && (
+          <tbody>
+            {hasData ? (
+              rowModels.map(
+                ({ Material, pricePerM2, pricePerUnit, sumRub }, index) => (
+                  <tr key={index}>
+                    {!isNarrowScreen && (
+                      <td>{filterVariable(Material.Code)}</td>
+                    )}
+                    <td>{Material.Name}</td>
+                    <td style={{ display: "none" }}></td>
+                    <td>{convertUnits(Material)}</td>
+                    <td>{Material.Units}</td>
+                    {!isNarrowScreen && (
+                      <td>{formatRub(pricePerM2)}</td>
+                    )}
+                    {!isNarrowScreen && (
+                      <td>{formatRub(pricePerUnit)}</td>
+                    )}
+                    {!isNarrowScreen && (
+                      <td>{formatRub(sumRub)}</td>
+                    )}
+                  </tr>
+                )
+              )
+            ) : (
+              <tr>
+                <td
+                  colSpan={isNarrowScreen ? 4 : 8}
+                  style={{
+                    textAlign: "center",
+                    padding: "20px",
+                  }}
+                >
+                  {calculatedMaterials != null || dataProp !== undefined
+                    ? "Нет данных для отображения"
+                    : "Загрузка..."}
+                </td>
+              </tr>
+            )}
+          </tbody>
+        )}
+        {showBody && hasData && (
           <tfoot>
             <tr>
               <td
                 colSpan={isNarrowScreen ? 4 : 8}
                 style={{
                   fontWeight: "bold",
-                  borderTop: "2px solid var(--table-border, #ccc)",
                   paddingLeft: "10px",
                   paddingRight: "10px",
                 }}
@@ -177,7 +261,7 @@ const MaterialsList = ({
                     flexWrap: "nowrap",
                   }}
                 >
-                  <span>Итого</span>
+                  <span>Стоимость</span>
                   <span style={{ whiteSpace: "nowrap", textAlign: "right" }}>
                     {formatRub(totalSumRub)}
                   </span>

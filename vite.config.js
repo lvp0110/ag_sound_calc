@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react'
 import { copyFileSync } from 'fs'
 import { join } from 'path'
 
-const API_TARGET = 'https://constrtodo.ru:3005'
+const API_TARGET = 'https://dev3.constrtodo.ru:3005'
 
 // https://vite.dev/config/
 export default defineConfig({

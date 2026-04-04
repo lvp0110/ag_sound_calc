@@ -12,7 +12,7 @@ export const calculateConstruction = async (constrList) => {
       return "/api/v1/calcIsolation/byProduct";
     }
     
-    return "https://constrtodo.ru:3005/api/v1/calcIsolation/byProduct";
+    return "https://dev3.constrtodo.ru:3005/api/v1/calcIsolation/byProduct";
   };
 
   const apiUrl = getApiUrl();
