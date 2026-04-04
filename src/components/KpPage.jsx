@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import ConstructionList, {
   ConstructionGrandTotalBlock,
@@ -112,7 +112,7 @@ const INITIAL_SERVICE_ROWS = [
 const KpPage = () => {
   const navigate = useNavigate();
   const [form, setForm] = useState(initialForm);
-  const [calcTables] = useState(loadCalculatorTablesState);
+  const [calcTables, setCalcTables] = useState(loadCalculatorTablesState);
   /** Монтаж по карточкам: key_id конструкции → { price, quantity, unit } */
   const [montageByKeyId, setMontageByKeyId] = useState(() => ({}));
   /** Раскрыт блок «Монтаж» в карточке (по key_id); по умолчанию свёрнут */
@@ -120,6 +120,39 @@ const KpPage = () => {
     () => ({})
   );
   const [serviceRows, setServiceRows] = useState(INITIAL_SERVICE_ROWS);
+
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(CALCULATOR_STATE_STORAGE_KEY);
+      if (!raw) return;
+      const s = JSON.parse(raw);
+      sessionStorage.setItem(
+        CALCULATOR_STATE_STORAGE_KEY,
+        JSON.stringify({
+          ...s,
+          materialsByConstruction: calcTables.materialsByConstruction,
+        })
+      );
+    } catch {
+      /* ignore */
+    }
+  }, [calcTables.materialsByConstruction]);
+
+  const onGeneralMaterialKpPriceChange = useCallback(
+    (key_id, indexInFullMaterialsData, field, value) => {
+      setCalcTables((prev) => ({
+        ...prev,
+        materialsByConstruction: prev.materialsByConstruction.map((entry) => {
+          if (entry.key_id !== key_id) return entry;
+          const nextData = entry.data.map((row, i) =>
+            i === indexInFullMaterialsData ? { ...row, [field]: value } : row
+          );
+          return { ...entry, data: nextData };
+        }),
+      }));
+    },
+    []
+  );
 
   const onFieldChange = (key) => (e) => {
     setForm((prev) => ({ ...prev, [key]: e.target.value }));
@@ -386,6 +419,9 @@ const KpPage = () => {
                 renderKpMontageSlot={renderKpMontageSlot}
                 montageByKeyId={montageByKeyId}
                 showGrandTotalInline={false}
+                onGeneralMaterialKpPriceChange={
+                  onGeneralMaterialKpPriceChange
+                }
               />
             </>
           ) : (

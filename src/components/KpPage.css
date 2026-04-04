@@ -140,7 +140,7 @@
   background: transparent;
 }
 
-/* Заголовок карточки: первая строка первого thead («Конструкция») или первая строка thead у материалов («Материалы», …) */
+/* Заголовок карточки: первая строка первого thead (название конструкции) или первая строка thead у материалов («Материалы», …) */
 .kp-page .kp-table-card .data thead:first-of-type tr:first-child th {
   padding-top: 14px;
   padding-bottom: 12px;

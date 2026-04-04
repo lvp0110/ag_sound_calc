@@ -80,8 +80,6 @@ export const getResponsiveImageProps = (imageName, type = 'item') => {
     // Если это уже полный URL, используем его
     src = imageName;
   } else {
-    // Для всех изображений (включая иконки секций) используем API
-    // Иконки секций также загружаются через API, так как локальных файлов нет
     src = getImageUrl(imageName);
   }
   

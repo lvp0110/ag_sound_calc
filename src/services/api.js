@@ -15,6 +15,14 @@ const getApiBaseUrl = () => {
 
 const API_BASE_URL = getApiBaseUrl();
 
+const getConstrImagesOrigin = () => {
+  const fromEnv = import.meta.env.VITE_CONSTR_IMAGES_ORIGIN;
+  if (fromEnv && String(fromEnv).trim()) {
+    return String(fromEnv).replace(/\/$/, '');
+  }
+  return 'https://dev3.constrtodo.ru:3005';
+};
+
 /**
  * Получает все конструкции изоляции из API
  * @returns {Promise<Array>} Массив конструкций с полями Code и Img
@@ -96,14 +104,14 @@ export const getImageUrl = (imageName) => {
   } else if (imageName.startsWith('/')) {
     processedImageName = imageName.slice(1);
   }
-  
-  // Формируем URL для изображений из API
-  // Изображения находятся по адресу /api/v1/constr/{imageName}
+
+  // Изображения конструкций: /api/v1/constr/{file}
+  // В dev — через прокси Vite (как JSON), иначе localhost:3005 без своего бэкенда даёт пустые превью.
   if (import.meta.env.DEV) {
-    return `http://localhost:3005/api/v1/constr/${processedImageName}`;
+    return `/api/v1/constr/${processedImageName}`;
   }
-  
-  return `https://dev3.constrtodo.ru:3005/api/v1/constr/${processedImageName}`;
+
+  return `${getConstrImagesOrigin()}/api/v1/constr/${processedImageName}`;
 };
 
 

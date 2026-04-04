@@ -35,19 +35,34 @@ export function montageLineProductRub(row) {
   return p * q;
 }
 
+/** Цены строки: вручную на КП (Kp*) или из прайса по артикулу. */
+export function effectiveMaterialPrices(material, pricePerM2, pricePerUnit) {
+  const kpM2 = parseKpDecimal(material.KpPricePerM2);
+  const kpUnit = parseKpDecimal(material.KpPricePerUnit);
+  return {
+    effM2: kpM2 !== null ? kpM2 : pricePerM2,
+    effUnit: kpUnit !== null ? kpUnit : pricePerUnit,
+  };
+}
+
 const lineSumRub = (material, pricePerM2, pricePerUnit) => {
+  const { effM2, effUnit } = effectiveMaterialPrices(
+    material,
+    pricePerM2,
+    pricePerUnit
+  );
   const units = material.Units;
   if (isM2Units(units)) {
     const qtyM2 = Number(material.Quantity) / 1e6;
     if (Number.isNaN(qtyM2)) return null;
-    if (pricePerM2 != null) return qtyM2 * pricePerM2;
-    if (pricePerUnit != null) return qtyM2 * pricePerUnit;
+    if (effM2 != null) return qtyM2 * effM2;
+    if (effUnit != null) return qtyM2 * effUnit;
     return null;
   }
-  if (pricePerUnit != null) {
+  if (effUnit != null) {
     const q = Number(material.Quantity);
     if (Number.isNaN(q)) return null;
-    return q * pricePerUnit;
+    return q * effUnit;
   }
   return null;
 };
@@ -88,6 +103,8 @@ export function computeGrandTotalRubForConstructions(
  * @param {string} [tableId] — id таблицы (для экспорта; по умолчанию table2 для первой группы)
  * @param {string} [sectionTitle] — заголовок блока (по умолчанию «материалы»)
  * @param {boolean} [collapsible=false] — на КП: таблица свёрнута, раскрытие по клику на заголовок
+ * @param {boolean} [editablePriceCells=false] — ячейки «цена ₽/м²» и «цена ₽/ед.» как поля ввода (блок общестроительных материалов)
+ * @param {(rowIndex: number, field: 'KpPricePerM2'|'KpPricePerUnit', value: string) => void} [onKpMaterialPriceChange]
  */
 const MaterialsList = ({
   calculatedMaterials,
@@ -95,6 +112,8 @@ const MaterialsList = ({
   tableId = "table2",
   sectionTitle = "Материалы",
   collapsible = false,
+  editablePriceCells = false,
+  onKpMaterialPriceChange,
 }) => {
   const [isNarrowScreen, setIsNarrowScreen] = useState(false);
   const [sectionOpen, setSectionOpen] = useState(false);
@@ -212,15 +231,80 @@ const MaterialsList = ({
                     <td style={{ display: "none" }}></td>
                     <td>{convertUnits(Material)}</td>
                     <td>{Material.Units}</td>
-                    {!isNarrowScreen && (
-                      <td>{formatRub(pricePerM2)}</td>
-                    )}
-                    {!isNarrowScreen && (
-                      <td>{formatRub(pricePerUnit)}</td>
-                    )}
-                    {!isNarrowScreen && (
-                      <td>{formatRub(sumRub)}</td>
-                    )}
+                    {!isNarrowScreen &&
+                      (editablePriceCells ? (
+                        <td>
+                          <input
+                            type="text"
+                            className="kp-page__services-input"
+                            value={
+                              Material.KpPricePerM2 != null &&
+                              Material.KpPricePerM2 !== ""
+                                ? String(Material.KpPricePerM2)
+                                : ""
+                            }
+                            onChange={(e) =>
+                              onKpMaterialPriceChange?.(
+                                index,
+                                "KpPricePerM2",
+                                e.target.value
+                              )
+                            }
+                            placeholder={
+                              pricePerM2 != null
+                                ? formatRub(pricePerM2)
+                                : "—"
+                            }
+                            aria-label={`Цена за м², ${Material.Name ?? ""}`}
+                          />
+                        </td>
+                      ) : (
+                        <td>{formatRub(pricePerM2)}</td>
+                      ))}
+                    {!isNarrowScreen &&
+                      (editablePriceCells ? (
+                        <td>
+                          <input
+                            type="text"
+                            className="kp-page__services-input"
+                            value={
+                              Material.KpPricePerUnit != null &&
+                              Material.KpPricePerUnit !== ""
+                                ? String(Material.KpPricePerUnit)
+                                : ""
+                            }
+                            onChange={(e) =>
+                              onKpMaterialPriceChange?.(
+                                index,
+                                "KpPricePerUnit",
+                                e.target.value
+                              )
+                            }
+                            placeholder={
+                              pricePerUnit != null
+                                ? formatRub(pricePerUnit)
+                                : "—"
+                            }
+                            aria-label={`Цена за единицу, ${Material.Name ?? ""}`}
+                          />
+                        </td>
+                      ) : (
+                        <td>{formatRub(pricePerUnit)}</td>
+                      ))}
+                    {!isNarrowScreen &&
+                      (editablePriceCells ? (
+                        <td>
+                          <input
+                            type="text"
+                            readOnly
+                            className="kp-page__services-input kp-page__services-input--computed"
+                            value={formatRub(sumRub)}
+                            aria-label={`Сумма, ${Material.Name ?? ""}`}
+                          />
+                        </td>
+                      ) : (
+                        <td>{formatRub(sumRub)}</td>
+                      ))}
                   </tr>
                 )
               )

@@ -111,6 +111,13 @@ function constructionHeightMm({ lenY, lenZ }) {
   return lenY;
 }
 
+/** Заголовок карточки: название конструкции из строки таблицы. */
+function constructionCardHeading({ title, ag_id: code }) {
+  if (title != null && String(title).trim() !== "") return String(title).trim();
+  if (code != null && String(code).trim() !== "") return String(code).trim();
+  return "Конструкция";
+}
+
 /** Как в колонке «артикул»: без цифры в начале кода показывается «---». */
 function splitMaterialsByArticleDisplay(materials) {
   if (!Array.isArray(materials)) return { withArticle: [], noArticle: [] };
@@ -123,6 +130,16 @@ function splitMaterialsByArticleDisplay(materials) {
   return { withArticle, noArticle };
 }
 
+/** Индексы строк без артикула в исходном `data` карточки (для сопоставления с `noArticle`). */
+function noArticleIndicesInMaterialsData(materials) {
+  if (!Array.isArray(materials)) return [];
+  const idx = [];
+  for (let i = 0; i < materials.length; i += 1) {
+    if (filterVariable(materials[i].Code) === "---") idx.push(i);
+  }
+  return idx;
+}
+
 /**
  * Таблица со списком конструкций
  * @param {boolean} [readOnly] — без колонки удаления (например, страница КП)
@@ -130,6 +147,7 @@ function splitMaterialsByArticleDisplay(materials) {
  * @param {boolean} [showGeneralConstructionMaterials=true] — блок «Общестроительные материалы» (без артикула)
  * @param {(ctx: { key_id: number, cardIndex: number }) => import("react").ReactNode} [renderKpMontageSlot] — раздел «Монтаж» в каждой карточке конструкции на КП (не в «Услугах» и не в строке итога)
  * @param {Record<number, { price?: string, quantity?: string, unit?: string }>} [montageByKeyId] — монтаж по карточке (КП); для итога под карточкой
+ * @param {(key_id: number, indexInFullMaterialsData: number, field: 'KpPricePerM2'|'KpPricePerUnit', value: string) => void} [onGeneralMaterialKpPriceChange] — правка цен «Общестроительные материалы»
  */
 const ConstructionList = ({
   constructions,
@@ -141,6 +159,7 @@ const ConstructionList = ({
   montageByKeyId,
   /** На КП итог выводится отдельным блоком ниже «Услуги». */
   showGrandTotalInline = true,
+  onGeneralMaterialKpPriceChange,
 }) => {
   if (!constructions || constructions.length === 0) {
     return null;
@@ -159,6 +178,9 @@ const ConstructionList = ({
           const materialsData = matEntry?.data ?? [];
           const { withArticle, noArticle } =
             splitMaterialsByArticleDisplay(materialsData);
+          const miscRowToFullIndex = noArticleIndicesInMaterialsData(
+            materialsData
+          );
           const materialsRubTotal =
             computeTotalRubForMaterialsData(materialsData);
           const montageRubCard = montageLineProductRub(
@@ -177,7 +199,7 @@ const ConstructionList = ({
                         colSpan={readOnly ? 5 : 6}
                         style={{ fontWeight: "bold", textAlign: "left" }}
                       >
-                        Конструкция
+                        {constructionCardHeading(constRItem)}
                       </th>
                     </tr>
                     <tr>
@@ -248,6 +270,17 @@ const ConstructionList = ({
                   }
                   sectionTitle="Общестроительные материалы"
                   collapsible={readOnly}
+                  editablePriceCells={readOnly && !!onGeneralMaterialKpPriceChange}
+                  onKpMaterialPriceChange={(rowIndex, field, value) => {
+                    const fullIdx = miscRowToFullIndex[rowIndex];
+                    if (fullIdx === undefined) return;
+                    onGeneralMaterialKpPriceChange?.(
+                      constRItem.key_id,
+                      fullIdx,
+                      field,
+                      value
+                    );
+                  }}
                 />
               )}
             </>
