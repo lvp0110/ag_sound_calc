@@ -379,7 +379,7 @@
   background: #fafcfd;
   border-top: 1px solid #e2e8ee;
   font-weight: normal;
-  text-align: center;
+  text-align: start;
   vertical-align: middle;
   padding: 10px 12px;
 }
@@ -444,6 +444,8 @@
   border-radius: 4px;
   cursor: pointer;
   height: auto;
+  width: auto;
+  box-shadow: none;
 }
 
 .kp-page__services-add:hover {
