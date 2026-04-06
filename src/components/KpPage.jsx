@@ -13,8 +13,8 @@ import {
   CALCULATOR_STATE_STORAGE_KEY,
   migrateMaterialsFromSavedState,
 } from "../constants/calculatorSession";
-import "./KpPage.css";
 import "./Calculator.css";
+import "./KpPage.css";
 
 function loadCalculatorTablesState() {
   try {
@@ -67,7 +67,6 @@ function serviceRowSum(priceStr, qtyStr) {
 /** Сумма монтажа по КП: отдельные цена×кол-во в каждой карточке (key_id). */
 function montageGrandTotalRubForKp(constructions, montageByKeyId) {
   let sum = 0;
-  let any = false;
   for (const c of constructions) {
     const row = montageByKeyId[c.key_id];
     if (!row) continue;
@@ -75,10 +74,21 @@ function montageGrandTotalRubForKp(constructions, montageByKeyId) {
     const q = parseKpDecimal(row.quantity);
     if (p !== null && q !== null) {
       sum += p * q;
-      any = true;
     }
   }
-  return any ? sum : null;
+  return sum;
+}
+
+/** Сумма блока «Услуги» (цена × количество по строкам). */
+function additionalServicesGrandTotalRubForKp(serviceRows) {
+  if (!Array.isArray(serviceRows)) return 0;
+  let sum = 0;
+  for (const row of serviceRows) {
+    const p = parseKpDecimal(row.price);
+    const q = parseKpDecimal(row.quantity);
+    if (p !== null && q !== null) sum += p * q;
+  }
+  return sum;
 }
 
 function newCustomServiceRow() {
@@ -204,46 +214,36 @@ const KpPage = () => {
       const montageOpen = montageSectionOpenByKeyId[key_id] === true;
       return (
         <div className="tbl-in kp-page__montage-table-wrap">
+          <button
+            type="button"
+            className="kp-section-collapsible-toggle"
+            aria-expanded={montageOpen}
+            onClick={() => toggleMontageSection(key_id)}
+          >
+            <span className="kp-collapsible-title-row">
+              <span className="kp-collapsible-title-inner">
+                <span
+                  className={`kp-collapsible-chevron${
+                    montageOpen ? " kp-collapsible-chevron--expanded" : ""
+                  }`}
+                  aria-hidden
+                />
+                <span>Монтаж</span>
+              </span>
+              <span className="kp-collapsible-title-sum" aria-hidden>
+                {formatRub(montageLineProductRub(row))}
+              </span>
+            </span>
+          </button>
           <table
-            className="data"
+            className="data kp-data-table--starts-with-column-headers"
             id={`kp-table-montage-${key_id}`}
             aria-label={`Монтаж, карточка ${cardIndex + 1}`}
+            data-export-section-title="Монтаж"
+            data-erp-data-start-row="1"
           >
-            <thead>
-              <tr>
-                <th
-                  colSpan={5}
-                  role="button"
-                  tabIndex={0}
-                  aria-expanded={montageOpen}
-                  className="kp-page__montage-section-title-th"
-                  onClick={() => toggleMontageSection(key_id)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      toggleMontageSection(key_id);
-                    }
-                  }}
-                >
-                  <span className="kp-collapsible-title-row">
-                    <span className="kp-collapsible-title-inner">
-                      <span
-                        className={`kp-collapsible-chevron${
-                          montageOpen
-                            ? " kp-collapsible-chevron--expanded"
-                            : ""
-                        }`}
-                        aria-hidden
-                      />
-                      <span>Монтаж</span>
-                    </span>
-                    <span className="kp-collapsible-title-sum" aria-hidden>
-                      {formatRub(montageLineProductRub(row))}
-                    </span>
-                  </span>
-                </th>
-              </tr>
-              {montageOpen && (
+            {montageOpen && (
+              <thead>
                 <tr>
                   <th>Название</th>
                   <th>Цена</th>
@@ -251,8 +251,8 @@ const KpPage = () => {
                   <th>Ед. изм.</th>
                   <th>Сумма</th>
                 </tr>
-              )}
-            </thead>
+              </thead>
+            )}
             {montageOpen && (
               <tbody>
                 <tr>
@@ -438,11 +438,11 @@ const KpPage = () => {
               <table
                 className="data"
                 id="kp-table-services"
-                aria-label="Услуги"
+                aria-label="Дополнительне услуги"
               >
                 <thead>
                   <tr>
-                    <th colSpan={5}>Услуги</th>
+                    <th colSpan={5}>Дополнительне услуги</th>
                   </tr>
                   <tr>
                     <th>Название</th>
@@ -535,16 +535,22 @@ const KpPage = () => {
                     </tr>
                   ))}
                 </tbody>
+                <tfoot>
+                  <tr className="kp-page__services-add-row">
+                    <td colSpan={5} className="kp-page__services-add-cell">
+                      <button
+                        type="button"
+                        className="kp-page__services-add"
+                        onClick={addServiceRow}
+                      >
+                        Добавить строку
+                      </button>
+                    </td>
+                  </tr>
+                </tfoot>
               </table>
             </div>
           </div>
-          <button
-            type="button"
-            className="kp-page__services-add"
-            onClick={addServiceRow}
-          >
-            Добавить строку
-          </button>
         </div>
 
         {calcTables.tableConstrToCalc != null &&
@@ -558,6 +564,9 @@ const KpPage = () => {
               montageGrandTotalRub={montageGrandTotalRubForKp(
                 calcTables.ConstrToCalc,
                 montageByKeyId
+              )}
+              additionalServicesGrandTotalRub={additionalServicesGrandTotalRubForKp(
+                serviceRows
               )}
               wrapClassName="kp-page__construction-grand-total"
             />

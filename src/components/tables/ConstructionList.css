@@ -1,0 +1,97 @@
+/* Таблица итогов: строки «Стоимость …» и «Общий итог» */
+.construction-grand-total__line-label {
+  font-weight: bold;
+  text-align: left;
+}
+
+.construction-grand-total__line-amount {
+  font-weight: bold;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.construction-grand-total__line--first .construction-grand-total__line-label--calc {
+  border-top: 2px solid var(--table-border, #ccc);
+  padding-top: 12px;
+  padding-bottom: 8px;
+}
+
+.construction-grand-total__line--first .construction-grand-total__line-amount--calc {
+  border-top: 2px solid var(--table-border, #ccc);
+  padding-top: 12px;
+  padding-bottom: 8px;
+}
+
+.construction-grand-total__line--next .construction-grand-total__line-label--calc,
+.construction-grand-total__line--next .construction-grand-total__line-amount--calc {
+  padding-top: 10px;
+  padding-bottom: 8px;
+}
+
+.construction-grand-total__total-label {
+  font-weight: bold;
+  text-align: left;
+}
+
+.construction-grand-total__total-amount {
+  font-weight: bold;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.construction-grand-total__total-label--calc {
+  border-top: 2px solid var(--table-border, #ccc);
+  padding-top: 12px;
+  padding-bottom: 8px;
+}
+
+.construction-grand-total__total-amount--calc {
+  border-top: 2px solid var(--table-border, #ccc);
+  padding-top: 12px;
+  padding-bottom: 8px;
+}
+
+/* Карточка конструкции (шапка и размеры) */
+.construction-card__heading-th {
+  font-weight: bold;
+  text-align: left;
+}
+
+.construction-card__dim-th {
+  text-align: center;
+}
+
+.construction-card__dim-td {
+  text-align: center;
+}
+
+.construction-card__delete-icon {
+  height: 30px;
+  opacity: 0.7;
+}
+
+/* «Итого» внизу карточки КП: разметка; оформление как у заголовка раздела — в KpPage.css */
+.kp-card-sections-total__inner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75em;
+  flex-wrap: nowrap;
+}
+
+/* Режим без interleaved: общий список конструкций */
+.construction-list-legacy__dim-th {
+  text-align: center;
+}
+
+.construction-list-legacy__code-td {
+  text-align: right;
+}
+
+.construction-list-legacy__title-td {
+  text-align: center;
+}
+
+.construction-list-legacy__dim-td {
+  text-align: center;
+}

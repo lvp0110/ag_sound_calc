@@ -10,8 +10,29 @@ export const exportTablesToExcel = async () => {
 
   const addTableDataToSheet = (table) => {
     if (!table) return;
+    const exportTitle = table.getAttribute("data-export-section-title");
+    if (exportTitle) {
+      const pre = worksheet.addRow([exportTitle]);
+      pre.font = { bold: true, color: { argb: "FF000000" } };
+    }
+
     const rows = table.querySelectorAll("tr");
-    if (rows.length === 0) return;
+    if (rows.length === 0) {
+      worksheet.addRow([]);
+      return;
+    }
+
+    const exportAllRows = table.getAttribute("data-export-all-rows") === "true";
+    if (exportAllRows) {
+      rows.forEach((tr) => {
+        const data = [];
+        tr.querySelectorAll("th,td").forEach((cell) => data.push(cell.innerText));
+        const row = worksheet.addRow(data);
+        row.font = { bold: true, color: { argb: "FF000000" } };
+      });
+      worksheet.addRow([]);
+      return;
+    }
 
     const headerCells = rows[0].querySelectorAll("th");
     const headerData = [];
@@ -80,7 +101,11 @@ export const exportTablesToExcel = async () => {
  */
 const appendTableRowsForErp = (table, textToCopy) => {
   const rows = table.querySelectorAll("tr");
-  for (let i = 2; i < rows.length; i++) {
+  const startRow = parseInt(
+    table.getAttribute("data-erp-data-start-row") || "2",
+    10
+  );
+  for (let i = startRow; i < rows.length; i++) {
     const cells = rows[i].querySelectorAll("td");
     if (cells.length > 0 && cells[0].innerText.trim() === "---") {
       continue;

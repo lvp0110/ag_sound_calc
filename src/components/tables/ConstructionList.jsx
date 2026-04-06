@@ -5,6 +5,7 @@ import MaterialsList, {
   formatRub,
   montageLineProductRub,
 } from "./MaterialsList";
+import "./ConstructionList.css";
 
 /** Строка итога «Стоимость конструкций» (экспорт для КП: итог после блока «Услуги»). */
 export function ConstructionGrandTotalBlock({
@@ -12,83 +13,106 @@ export function ConstructionGrandTotalBlock({
   grandTotalRub,
   /** Итог монтажа по КП (передаётся только на странице КП). */
   montageGrandTotalRub,
+  /** Итог доп. услуг по КП (блок «Услуги»). */
+  additionalServicesGrandTotalRub,
   wrapClassName = "",
 }) {
   const titleColSpan = readOnly ? 3 : 4;
   const grandTotalCardClass = readOnly ? " kp-table-card" : "";
-  const cellTopBorder = readOnly
-    ? {}
-    : {
-        borderTop: "2px solid var(--table-border, #ccc)",
-        paddingTop: "12px",
-        paddingBottom: "8px",
-      };
   const showMontageRow = montageGrandTotalRub !== undefined;
+  const showServicesRow = additionalServicesGrandTotalRub !== undefined;
+  const montagePart =
+    typeof montageGrandTotalRub === "number" && !Number.isNaN(montageGrandTotalRub)
+      ? montageGrandTotalRub
+      : 0;
+  const servicesPart =
+    typeof additionalServicesGrandTotalRub === "number" &&
+    !Number.isNaN(additionalServicesGrandTotalRub)
+      ? additionalServicesGrandTotalRub
+      : 0;
+  const overallTotalRub =
+    (typeof grandTotalRub === "number" && !Number.isNaN(grandTotalRub)
+      ? grandTotalRub
+      : 0) +
+    (showMontageRow ? montagePart : 0) +
+    (showServicesRow ? servicesPart : 0);
+
+  const lineLabelClass = readOnly
+    ? "construction-grand-total__line-label"
+    : "construction-grand-total__line-label construction-grand-total__line-label--calc";
+  const lineAmountClass = readOnly
+    ? "construction-grand-total__line-amount"
+    : "construction-grand-total__line-amount construction-grand-total__line-amount--calc";
+
   return (
     <div
       className={`tbl-in construction-grand-total-wrap${grandTotalCardClass}${
         wrapClassName ? ` ${wrapClassName}` : ""
       }`}
     >
-      <table className="data" id="table-grand-total">
-        <thead>
-          <tr>
+      <table
+        className="data"
+        id="table-grand-total"
+        data-export-all-rows="true"
+      >
+        <tbody>
+          <tr className="construction-grand-total__line construction-grand-total__line--first">
             <th
               colSpan={Math.max(1, titleColSpan - 1)}
-              style={{
-                fontWeight: "bold",
-                textAlign: "left",
-                ...cellTopBorder,
-              }}
+              className={lineLabelClass}
             >
               Стоимость конструкций
             </th>
-            <th
-              style={{
-                fontWeight: "bold",
-                textAlign: "right",
-                whiteSpace: "nowrap",
-                ...cellTopBorder,
-              }}
-            >
-              {formatRub(grandTotalRub)}
-            </th>
+            <th className={lineAmountClass}>{formatRub(grandTotalRub)}</th>
           </tr>
           {showMontageRow && (
-            <tr className="construction-grand-total-montage-row">
+            <tr className="construction-grand-total__line construction-grand-total__line--next">
               <th
                 colSpan={Math.max(1, titleColSpan - 1)}
-                style={{
-                  fontWeight: "bold",
-                  textAlign: "left",
-                  ...(readOnly
-                    ? {}
-                    : {
-                        paddingTop: "10px",
-                        paddingBottom: "8px",
-                      }),
-                }}
+                className={lineLabelClass}
               >
                 Стоимость монтажа
               </th>
-              <th
-                style={{
-                  fontWeight: "bold",
-                  textAlign: "right",
-                  whiteSpace: "nowrap",
-                  ...(readOnly
-                    ? {}
-                    : {
-                        paddingTop: "10px",
-                        paddingBottom: "8px",
-                      }),
-                }}
-              >
+              <th className={lineAmountClass}>
                 {formatRub(montageGrandTotalRub)}
               </th>
             </tr>
           )}
-        </thead>
+          {showServicesRow && (
+            <tr className="construction-grand-total__line construction-grand-total__line--next">
+              <th
+                colSpan={Math.max(1, titleColSpan - 1)}
+                className={lineLabelClass}
+              >
+                Стоимость дополнительных услуг
+              </th>
+              <th className={lineAmountClass}>
+                {formatRub(additionalServicesGrandTotalRub)}
+              </th>
+            </tr>
+          )}
+          <tr className="construction-grand-total__total-row">
+            <th
+              colSpan={Math.max(1, titleColSpan - 1)}
+              className={
+                readOnly
+                  ? "construction-grand-total__total-label"
+                  : "construction-grand-total__total-label construction-grand-total__total-label--calc"
+              }
+            >
+              Общий итог
+            </th>
+            <th
+              className={
+                readOnly
+                  ? "construction-grand-total__total-amount"
+                  : "construction-grand-total__total-amount construction-grand-total__total-amount--calc"
+              }
+            >
+              {formatRub(overallTotalRub)}
+            </th>
+          </tr>
+        </tbody>
       </table>
     </div>
   );
@@ -197,7 +221,7 @@ const ConstructionList = ({
                     <tr>
                       <th
                         colSpan={readOnly ? 5 : 6}
-                        style={{ fontWeight: "bold", textAlign: "left" }}
+                        className="construction-card__heading-th"
                       >
                         {constructionCardHeading(constRItem)}
                       </th>
@@ -205,8 +229,8 @@ const ConstructionList = ({
                     <tr>
                       <th>название</th>
                       <th>шифр</th>
-                      <th style={{ textAlign: "center" }}>ширина, мм</th>
-                      <th style={{ textAlign: "center" }}>высота, мм</th>
+                      <th className="construction-card__dim-th">ширина, мм</th>
+                      <th className="construction-card__dim-th">высота, мм</th>
                       <th>масса</th>
                       {!readOnly && <th></th>}
                     </tr>
@@ -215,10 +239,10 @@ const ConstructionList = ({
                     <tr>
                       <td>{constRItem.title}</td>
                       <td>{constRItem.ag_id}</td>
-                      <td style={{ textAlign: "center" }}>
+                      <td className="construction-card__dim-td">
                         {formatConstructionMm(constRItem.lenX)}
                       </td>
-                      <td style={{ textAlign: "center" }}>
+                      <td className="construction-card__dim-td">
                         {formatConstructionMm(
                           constructionHeightMm(constRItem)
                         )}
@@ -234,10 +258,7 @@ const ConstructionList = ({
                           <img
                             src={`${import.meta.env.BASE_URL}delete-icon.jpg`}
                             alt=""
-                            style={{
-                              height: "30px",
-                              opacity: 0.7,
-                            }}
+                            className="construction-card__delete-icon"
                             loading="lazy"
                             decoding="async"
                             onClick={() => onDelete(constRItem.key_id)}
@@ -302,38 +323,24 @@ const ConstructionList = ({
                     : null}
                   <div className="tbl-in kp-card-sections-total-wrap">
                     <table
-                      className="data"
+                      className="data kp-card-sections-total-table"
                       id={`kp-card-sections-total-${constRItem.key_id}`}
-                      aria-label={`Итого по разделам, карточка ${index + 1}`}
+                      aria-label={`Итого, карточка ${index + 1}`}
                     >
-                      <thead>
+                      <tbody>
                         <tr>
-                          <th
-                            colSpan={2}
-                            style={{
-                              fontWeight: "bold",
-                              textAlign: "left",
-                              borderTop: "2px solid var(--table-border, #ccc)",
-                              paddingTop: "12px",
-                              paddingBottom: "8px",
-                            }}
-                          >
-                            Итого по разделам
-                          </th>
-                          <th
-                            style={{
-                              fontWeight: "bold",
-                              textAlign: "right",
-                              whiteSpace: "nowrap",
-                              borderTop: "2px solid var(--table-border, #ccc)",
-                              paddingTop: "12px",
-                              paddingBottom: "8px",
-                            }}
-                          >
-                            {formatRub(cardSectionsTotalRub)}
-                          </th>
+                          <td className="kp-card-sections-total__cell">
+                            <div className="kp-card-sections-total__inner">
+                              <span className="kp-card-sections-total__label">
+                                Итого
+                              </span>
+                              <span className="kp-card-sections-total__amount">
+                                {formatRub(cardSectionsTotalRub)}
+                              </span>
+                            </div>
+                          </td>
                         </tr>
-                      </thead>
+                      </tbody>
                     </table>
                   </div>
                 </div>
@@ -369,8 +376,8 @@ const ConstructionList = ({
           <tr>
             <th>шифр</th>
             <th>название</th>
-            <th style={{ textAlign: "center" }}>ширина, мм</th>
-            <th style={{ textAlign: "center" }}>высота, мм</th>
+            <th className="construction-list-legacy__dim-th">ширина, мм</th>
+            <th className="construction-list-legacy__dim-th">высота, мм</th>
             <th>масса</th>
             {!readOnly && <th></th>}
           </tr>
@@ -378,12 +385,16 @@ const ConstructionList = ({
         <tbody>
           {constructions.map((constRItem) => (
             <tr key={constRItem.key_id}>
-              <td style={{ textAlign: "right" }}>{constRItem.ag_id}</td>
-              <td style={{ textAlign: "center" }}>{constRItem.title}</td>
-              <td style={{ textAlign: "center" }}>
+              <td className="construction-list-legacy__code-td">
+                {constRItem.ag_id}
+              </td>
+              <td className="construction-list-legacy__title-td">
+                {constRItem.title}
+              </td>
+              <td className="construction-list-legacy__dim-td">
                 {formatConstructionMm(constRItem.lenX)}
               </td>
-              <td style={{ textAlign: "center" }}>
+              <td className="construction-list-legacy__dim-td">
                 {formatConstructionMm(constructionHeightMm(constRItem))}
               </td>
               <td>{constRItem.weight}</td>
@@ -397,10 +408,7 @@ const ConstructionList = ({
                   <img
                     src={`${import.meta.env.BASE_URL}delete-icon.jpg`}
                     alt=""
-                    style={{
-                      height: "30px",
-                      opacity: 0.7,
-                    }}
+                    className="construction-card__delete-icon"
                     loading="lazy"
                     decoding="async"
                     onClick={() => onDelete(constRItem.key_id)}

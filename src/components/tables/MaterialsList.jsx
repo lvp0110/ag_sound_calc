@@ -8,6 +8,7 @@ import {
   getPricePerM2,
   getPricePerUnit,
 } from "../../data/moscowPricePerM2ByArticle";
+import "./MaterialsList.css";
 
 export const formatRub = (value) => {
   if (value == null || Number.isNaN(value)) return "—";
@@ -149,75 +150,73 @@ const MaterialsList = ({
   const totalSumRub = computeTotalRubForMaterialsData(data);
 
   const showBody = !collapsible || sectionOpen;
-  const titleThProps = collapsible
-    ? {
-        role: "button",
-        tabIndex: 0,
-        "aria-expanded": sectionOpen,
-        onClick: () => setSectionOpen((v) => !v),
-        onKeyDown: (e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            setSectionOpen((v) => !v);
-          }
-        },
-        className: "materials-data-table__section-title-th",
-      }
-    : {};
+
+  const collapsibleTitle = collapsible ? (
+    <span className="kp-collapsible-title-row">
+      <span className="kp-collapsible-title-inner">
+        <span
+          className={`kp-collapsible-chevron${
+            sectionOpen ? " kp-collapsible-chevron--expanded" : ""
+          }`}
+          aria-hidden
+        />
+        <span>{sectionTitle}</span>
+      </span>
+      <span className="kp-collapsible-title-sum" aria-hidden>
+        {hasData ? formatRub(totalSumRub) : "—"}
+      </span>
+    </span>
+  ) : null;
 
   return (
-    <div
-      className={`tbl-in materials-data-table${
-        collapsible ? " materials-data-table--collapsible" : ""
-      }`}
-    >
-      <table className="data" id={tableId} data-materials-table="true">
-        <thead>
-          <tr>
-            <th
-              colSpan={isNarrowScreen ? 4 : 8}
-              style={{
-                ...(collapsible
-                  ? {}
-                  : { fontSize: "14px", color: "#1a1d21" }),
-                fontWeight: "bold",
-                textAlign: "left",
-              }}
-              {...titleThProps}
-            >
-              {collapsible ? (
-                <span className="kp-collapsible-title-row">
-                  <span className="kp-collapsible-title-inner">
-                    <span
-                      className={`kp-collapsible-chevron${
-                        sectionOpen ? " kp-collapsible-chevron--expanded" : ""
-                      }`}
-                      aria-hidden
-                    />
-                    <span>{sectionTitle}</span>
-                  </span>
-                  <span className="kp-collapsible-title-sum" aria-hidden>
-                    {hasData ? formatRub(totalSumRub) : "—"}
-                  </span>
-                </span>
-              ) : (
-                sectionTitle
-              )}
-            </th>
-          </tr>
-          {showBody && (
-            <tr>
-              {!isNarrowScreen && <th>артикул</th>}
-              <th>название</th>
-              <th style={{ display: "none" }}></th>
-              <th>кол-во</th>
-              <th>ед.изм</th>
-              {!isNarrowScreen && <th>цена, ₽/м²</th>}
-              {!isNarrowScreen && <th>цена, ₽/ед.</th>}
-              {!isNarrowScreen && <th>сумма, ₽</th>}
-            </tr>
-          )}
-        </thead>
+    <div className="tbl-in materials-data-table">
+      {collapsible && (
+        <button
+          type="button"
+          className="kp-section-collapsible-toggle"
+          aria-expanded={sectionOpen}
+          onClick={() => setSectionOpen((v) => !v)}
+        >
+          {collapsibleTitle}
+        </button>
+      )}
+      <table
+        className={`data${collapsible ? " kp-data-table--starts-with-column-headers" : ""}`}
+        id={tableId}
+        data-materials-table="true"
+        {...(collapsible
+          ? {
+              "data-export-section-title": sectionTitle,
+              "data-erp-data-start-row": "1",
+            }
+          : {})}
+      >
+        {(!collapsible || showBody) && (
+          <thead>
+            {!collapsible && (
+              <tr>
+                <th
+                  colSpan={isNarrowScreen ? 4 : 8}
+                  className="materials-list__section-title-th"
+                >
+                  {sectionTitle}
+                </th>
+              </tr>
+            )}
+            {showBody && (
+              <tr>
+                {!isNarrowScreen && <th>артикул</th>}
+                <th>название</th>
+                <th className="materials-list__col--hidden" />
+                <th>кол-во</th>
+                <th>ед.изм</th>
+                {!isNarrowScreen && <th>цена, ₽/м²</th>}
+                {!isNarrowScreen && <th>цена, ₽/ед.</th>}
+                {!isNarrowScreen && <th>сумма, ₽</th>}
+              </tr>
+            )}
+          </thead>
+        )}
         {showBody && (
           <tbody>
             {hasData ? (
@@ -228,7 +227,7 @@ const MaterialsList = ({
                       <td>{filterVariable(Material.Code)}</td>
                     )}
                     <td>{Material.Name}</td>
-                    <td style={{ display: "none" }}></td>
+                    <td className="materials-list__col--hidden" />
                     <td>{convertUnits(Material)}</td>
                     <td>{Material.Units}</td>
                     {!isNarrowScreen &&
@@ -312,10 +311,7 @@ const MaterialsList = ({
               <tr>
                 <td
                   colSpan={isNarrowScreen ? 4 : 8}
-                  style={{
-                    textAlign: "center",
-                    padding: "20px",
-                  }}
+                  className="materials-list__empty-message"
                 >
                   {calculatedMaterials != null || dataProp !== undefined
                     ? "Нет данных для отображения"
@@ -330,23 +326,11 @@ const MaterialsList = ({
             <tr>
               <td
                 colSpan={isNarrowScreen ? 4 : 8}
-                style={{
-                  fontWeight: "bold",
-                  paddingLeft: "10px",
-                  paddingRight: "10px",
-                }}
+                className="materials-list__footer-cell"
               >
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    gap: "12px",
-                    flexWrap: "nowrap",
-                  }}
-                >
+                <div className="materials-list__footer-inner">
                   <span>Стоимость</span>
-                  <span style={{ whiteSpace: "nowrap", textAlign: "right" }}>
+                  <span className="materials-list__footer-sum">
                     {formatRub(totalSumRub)}
                   </span>
                 </div>
