@@ -739,6 +739,7 @@ button::-moz-focus-inner {
   background: #f8f9fa;
   border-radius: 10px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  scroll-margin-top: 16px;
 }
 
 .item-info-materials h3 {
@@ -774,7 +775,7 @@ button::-moz-focus-inner {
   color: #666;
   line-height: 1.8;
   padding: 10px 0;
-  border-bottom: 1px solid #e0e0e0;
+  /* border-bottom: 1px solid #e0e0e0; */
 }
 
 .item-info-material-item:last-child {
@@ -782,7 +783,7 @@ button::-moz-focus-inner {
 }
 
 .item-info-material-item::before {
-  content: "•";
+  /* content: "•"; */
   color: #6cabc8;
   font-weight: bold;
   display: inline-block;
@@ -790,43 +791,110 @@ button::-moz-focus-inner {
   margin-right: 8px;
 }
 
-.our-history-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  height: 80px;
-  margin-top: 40px;
-  padding: 0;
-  background: none;
+.item-info-material-trigger {
+  display: inline;
+  max-width: 100%;
+  height: auto;
+  padding: 10px;
+  margin: 0;
   border: none;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
   cursor: pointer;
-  vertical-align: middle;
-  transition: transform 0.2s ease, opacity 0.2s ease;
+  /* text-decoration: underline; */
+  text-decoration-color: rgba(108, 171, 200, 0.45);
+  text-underline-offset: 3px;
 }
 
-.our-history-button:hover {
-  transform: scale(1.05);
-  opacity: 0.9;
+.item-info-material-trigger:hover:not(:disabled) {
+  color: #5a9bb3;
+  text-decoration-color: #5a9bb3;
 }
 
-.our-history-button:active {
-  transform: scale(0.98);
+.item-info-material-trigger:disabled {
+  cursor: default;
+  text-decoration: none;
+  opacity: 0.85;
 }
 
-.our-history-svg {
+.item-info-material-isolation-panel {
+  margin-top: 12px;
+  margin-left: 0.5em;
+  padding: 14px 16px;
+  background: #fff;
+  border-radius: 8px;
+  border: 1px solid #e4e8ec;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
+.item-info-material-isolation-status {
+  margin: 0;
+  font-size: 14px;
+  color: #888;
+}
+
+.item-info-material-isolation-error {
+  margin: 0;
+  font-size: 14px;
+  color: #b54a4a;
+}
+
+.item-info-material-isolation-body {
+  font-size: 14px;
+  color: #555;
+  line-height: 1.55;
+}
+
+.item-info-material-isolation-title {
+  font-family: "Montserrat", sans-serif;
+  font-size: 17px;
+  font-weight: 600;
+  color: #444;
+  margin: 0 0 10px 0;
+}
+
+.item-info-material-isolation-meta {
+  margin: 0 0 10px 0;
+  font-size: 14px;
+}
+
+.item-info-material-isolation-img-wrap {
+  margin: 0 0 12px 0;
+  max-width: 220px;
+}
+
+.item-info-material-isolation-img {
   display: block;
-  height: 100%;
-  width: auto;
-  max-height: 80px;
-  object-fit: contain;
+  width: 100%;
+  height: auto;
+  border-radius: 6px;
 }
 
-@media screen and (max-width: 768px) {
-  .our-history-button {
-    margin-left: 10px;
-    margin-top: 10px;
-    height: 80px;
-  }
+.item-info-material-isolation-block {
+  margin-bottom: 12px;
+}
+
+.item-info-material-isolation-block p {
+  margin: 6px 0 0 0;
+}
+
+.item-info-material-isolation-label {
+  font-weight: 600;
+  color: #6cabc8;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.item-info-material-isolation-row {
+  margin: 6px 0 0 0;
+  font-size: 14px;
+}
+
+.item-info-material-isolation-row .item-info-material-isolation-label {
+  display: inline;
+  margin-bottom: 0;
 }
 
 /* Двухколоночный layout для экранов более 768px */

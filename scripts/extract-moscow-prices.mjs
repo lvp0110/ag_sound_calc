@@ -320,10 +320,6 @@ export function getPricePerUnit(article) {
 `;
 
   fs.writeFileSync(OUT, header + body, "utf8");
-  console.log("Записано:", OUT);
-  console.log("Позиций (уникальных артикулов):", sortedKeys.length);
-  console.log("С ценой за м²:", Object.keys(pricePerM2Flat).length);
-  console.log("С ценой за ед.:", Object.keys(pricePerUnitFlat).length);
 }
 
 main().catch((e) => {

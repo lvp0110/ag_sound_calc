@@ -1,12 +1,26 @@
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
-import { copyFileSync } from 'fs'
+import { copyFileSync, existsSync } from 'fs'
 import { join } from 'path'
 
-const API_TARGET = 'https://dev3.constrtodo.ru:3005'
-
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '')
+  const API_TARGET =
+    env.VITE_API_ORIGIN?.replace(/\/$/, '') ||
+    'https://dev3.constrtodo.ru:3005'
+  /** Куда проксировать только GET превью /api/v1/constr/* (JSON и расчёт идут на API_TARGET) */
+  const CONSTR_PROXY_TARGET =
+    env.VITE_CONSTR_IMAGES_ORIGIN?.replace(/\/$/, '') || API_TARGET
+
+  const setProxyOriginHeaders = (proxyReq, targetBase) => {
+    proxyReq.setHeader('origin', targetBase)
+    proxyReq.setHeader('referer', `${targetBase}/`)
+  }
+
+  const constrPublicDir = join(process.cwd(), 'public', 'api', 'v1', 'constr')
+
+  return {
   // Base path для GitHub Pages
   // Если репозиторий называется username.github.io, установите base: '/'
   // Для остальных репозиториев путь будет /repository-name/
@@ -36,6 +50,29 @@ export default defineConfig({
     port: 5173, // Явно указываем порт
     // В Vite все запросы автоматически перенаправляются на index.html для SPA
     proxy: {
+      // Должно быть выше «/api», иначе превью уйдут на API_TARGET без учёта VITE_CONSTR_IMAGES_ORIGIN
+      '/api/v1/constr': {
+        target: CONSTR_PROXY_TARGET,
+        changeOrigin: true,
+        secure: false,
+        rewrite: (path) => path.replace(/^\/api/, '/api'),
+        bypass(req) {
+          if (req.method !== 'GET' && req.method !== 'HEAD') return
+          const raw = req.url || ''
+          const pathname = raw.split('?')[0] || ''
+          if (!pathname.startsWith('/api/v1/constr/')) return
+          const name = decodeURIComponent(pathname.slice('/api/v1/constr/'.length))
+          if (!name || name.includes('..') || name.includes('/') || name.includes('\\'))
+            return
+          const fp = join(constrPublicDir, name)
+          if (existsSync(fp)) return raw
+        },
+        configure: (proxy, _options) => {
+          proxy.on('proxyReq', (proxyReq, _req, _res) => {
+            setProxyOriginHeaders(proxyReq, CONSTR_PROXY_TARGET)
+          })
+        },
+      },
       '/api': {
         target: API_TARGET,
         changeOrigin: true,
@@ -45,9 +82,7 @@ export default defineConfig({
           proxy.on('error', (err, _req, _res) => {
           });
           proxy.on('proxyReq', (proxyReq, req, _res) => {
-            // Приводим Origin/Referer к целевому хосту, чтобы API не резал localhost
-            proxyReq.setHeader('origin', API_TARGET);
-            proxyReq.setHeader('referer', `${API_TARGET}/`);
+            setProxyOriginHeaders(proxyReq, API_TARGET)
           });
           proxy.on('proxyRes', (proxyRes, req, _res) => {
           });
@@ -55,4 +90,5 @@ export default defineConfig({
       },
     },
   },
+  }
 })

@@ -75,13 +75,11 @@ export const getResponsiveImageProps = (imageName, type = 'item') => {
     return { src: '', srcSet: '', sizes: '' };
   }
   
-  let src;
-  if (imageName.startsWith('http://') || imageName.startsWith('https://')) {
-    // Если это уже полный URL, используем его
-    src = imageName;
-  } else {
-    src = getImageUrl(imageName);
-  }
+  // Всегда через getImageUrl: нормализация путей / полных URL к превью и одинаковая логика с калькулятором
+  const src =
+    imageName.startsWith('data:') || imageName.startsWith('blob:')
+      ? imageName
+      : getImageUrl(imageName);
   
   // Генерируем srcset (пока API не поддерживает параметры размера, возвращается пустая строка)
   // В будущем, если API начнет поддерживать параметры размера, можно передать true в apiSupportsSizeParams

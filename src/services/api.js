@@ -23,21 +23,52 @@ const getConstrImagesOrigin = () => {
   return 'https://dev3.constrtodo.ru:3005';
 };
 
+/** Относительный путь с учётом `base` из Vite (GitHub Pages и т.д.) */
+const withAppBase = (pathStartingWithSlash) => {
+  const base = import.meta.env.BASE_URL || '/';
+  const normalized = base === '/' ? '' : base.replace(/\/$/, '');
+  return `${normalized}${pathStartingWithSlash}`;
+};
+
 /**
- * Получает все конструкции изоляции из API
- * @returns {Promise<Array>} Массив конструкций с полями Code и Img
+ * URL превью конструкции по уже нормализованному имени файла.
+ * В dev по умолчанию — тот же origin + прокси (как JSON). Если задан VITE_CONSTR_IMAGES_ORIGIN,
+ * картинки грузятся с указанного хоста (удобно при VITE_API_ORIGIN=localhost без статики превью).
+ */
+const resolveConstrPreviewUrl = (processedImageName) => {
+  const subpath = `/api/v1/constr/${processedImageName}`;
+  const useSeparateImageOrigin =
+    Boolean(import.meta.env.VITE_CONSTR_IMAGES_ORIGIN?.trim()) ||
+    !import.meta.env.DEV;
+  if (useSeparateImageOrigin) {
+    return `${getConstrImagesOrigin()}${subpath}`;
+  }
+  return withAppBase(subpath);
+};
+
+/** Нормализует тело ответа GET /api/v1/AllIsolationConstr к массиву записей. */
+const parseAllIsolationConstrBody = (result) => {
+  if (!result) return [];
+  if (Array.isArray(result)) return result;
+  if (Array.isArray(result.data)) return result.data;
+  return [];
+};
+
+/**
+ * Получает все конструкции изоляции из API (GET …/AllIsolationConstr, Accept: application/json)
+ * @returns {Promise<Array>} Массив конструкций (Code, Name, Description, Img и др.)
  */
 export const getAllIsolationConstr = async () => {
   const url = `${API_BASE_URL}/AllIsolationConstr`;
-  
+
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000);
-    
+
     const response = await fetch(url, {
       method: 'GET',
       headers: {
-        'accept': 'application/json',
+        accept: 'application/json',
       },
       signal: controller.signal,
     });
@@ -49,12 +80,7 @@ export const getAllIsolationConstr = async () => {
     }
 
     const result = await response.json();
-    
-    if (result.code === 200 && result.data) {
-      return result.data;
-    }
-    
-    return [];
+    return parseAllIsolationConstrBody(result);
   } catch (error) {
     return [];
   }
@@ -67,7 +93,17 @@ export const getAllIsolationConstr = async () => {
  */
 export const getImageUrl = (imageName) => {
   if (!imageName) return '';
-  
+
+  const s = String(imageName).trim();
+  // Уже собранный URL превью (или вложенный после повторного вызова) — оставляем только имя файла
+  const constrMarker = 'api/v1/constr/';
+  const lastConstr = s.lastIndexOf(constrMarker);
+  if (lastConstr !== -1) {
+    imageName = s.slice(lastConstr + constrMarker.length);
+  } else {
+    imageName = s;
+  }
+
   // Нормализуем полный URL от API до имени файла, чтобы можно было подменять на zipsCeilingApiImages.
   const devBase = 'http://localhost:3005/api/v1/constr/';
   const prodBase = 'https://dev3.constrtodo.ru:3005/api/v1/constr/';
@@ -105,15 +141,32 @@ export const getImageUrl = (imageName) => {
     processedImageName = imageName.slice(1);
   }
 
-  // Изображения конструкций: /api/v1/constr/{file}
-  // В dev — через прокси Vite (как JSON), иначе localhost:3005 без своего бэкенда даёт пустые превью.
-  if (import.meta.env.DEV) {
-    return `/api/v1/constr/${processedImageName}`;
+  // Иконки секций из public/ (не эндпойнт API)
+  if (/^icon_[^/]+\.svg$/i.test(processedImageName)) {
+    return withAppBase(`/${processedImageName}`);
   }
 
-  return `${getConstrImagesOrigin()}/api/v1/constr/${processedImageName}`;
+  return resolveConstrPreviewUrl(processedImageName);
 };
 
+
+/**
+ * Мапа Code → URL превью по уже загруженному списку из AllIsolationConstr
+ * @param {Array} constructions
+ * @returns {Map<string, string>}
+ */
+export const buildImagesMapFromConstructions = (constructions) => {
+  const imagesMap = new Map();
+  if (!Array.isArray(constructions)) return imagesMap;
+  constructions.forEach((item) => {
+    const code = item.Code ?? item.code;
+    const img = item.Img ?? item.img;
+    if (code && img) {
+      imagesMap.set(code, getImageUrl(img));
+    }
+  });
+  return imagesMap;
+};
 
 /**
  * Создает мапу изображений по коду конструкции
@@ -121,15 +174,7 @@ export const getImageUrl = (imageName) => {
  */
 export const getImagesMap = async () => {
   const constructions = await getAllIsolationConstr();
-  const imagesMap = new Map();
-  
-  constructions.forEach((item) => {
-    if (item.Code && item.Img) {
-      imagesMap.set(item.Code, getImageUrl(item.Img));
-    }
-  });
-  
-  return imagesMap;
+  return buildImagesMapFromConstructions(constructions);
 };
 
 /**
@@ -265,6 +310,41 @@ export const extractMaterialsFromProps = (props) => {
  * @param {string} code - Код конструкции (например, "AG.W101")
  * @returns {Promise<Object|null>} Объект с данными свойств конструкции или null, если не найдена
  */
+/**
+ * Материалы звукоизоляционной конструкции (GET …/IsolationConstrMaterials/{code})
+ * @param {string} isolationConstrCode — шифр конструкции, напр. "AG.W101"
+ * @returns {Promise<{ code?: number, data?: Array|null }|null>}
+ */
+export const getIsolationConstrMaterials = async (isolationConstrCode) => {
+  if (!isolationConstrCode) return null;
+  const encoded = encodeURIComponent(String(isolationConstrCode).trim());
+  const url = `${API_BASE_URL}/IsolationConstrMaterials/${encoded}`;
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+    const response = await fetch(url, {
+      method: "GET",
+      headers: {
+        accept: "application/json",
+      },
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const result = await response.json();
+    return result && typeof result === "object" ? result : null;
+  } catch (error) {
+    return null;
+  }
+};
+
 export const getConstructionProps = async (code) => {
   if (!code) return null;
   

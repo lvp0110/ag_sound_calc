@@ -1,4 +1,8 @@
-import { getImagesMap, getImageUrl } from '../services/api';
+import {
+  getAllIsolationConstr,
+  buildImagesMapFromConstructions,
+  getImageUrl,
+} from '../services/api';
 
 // Новые файлы для потолков ЗИПС (загружаются через API, а не локально)
 const zipsCeilingApiImages = {
@@ -423,6 +427,26 @@ const ItemsBase = [
 ];
 
 /**
+ * Подставляет название и описание из ответа GET /AllIsolationConstr (поля Name, Description).
+ */
+const mergeCatalogFromApi = (items, constructions) => {
+  const byCode = new Map(
+    constructions
+      .filter((c) => c && c.Code)
+      .map((c) => [c.Code, c])
+  );
+  return items.map((item) => {
+    const api = byCode.get(item.ag_id);
+    if (!api) return { ...item };
+    return {
+      ...item,
+      title: api.Name ?? item.title,
+      description: api.Description ?? item.description,
+    };
+  });
+};
+
+/**
  * Обогащает items изображениями из API по совпадению ag_id и Code
  * @param {Array} items - Массив items для обогащения
  * @param {Map<string, string>} imagesMap - Мапа изображений из API (Code -> Img)
@@ -465,8 +489,10 @@ const enrichItemsWithImages = (items, imagesMap) => {
  */
 export const getItemsWithApiImages = async () => {
   try {
-    const imagesMap = await getImagesMap();
-    return enrichItemsWithImages(ItemsBase, imagesMap);
+    const constructions = await getAllIsolationConstr();
+    const withCatalog = mergeCatalogFromApi(ItemsBase, constructions);
+    const imagesMap = buildImagesMapFromConstructions(constructions);
+    return enrichItemsWithImages(withCatalog, imagesMap);
   } catch (error) {
     // В случае ошибки возвращаем items с преобразованными путями для элемента "P"
     return ItemsBase.map(item => {

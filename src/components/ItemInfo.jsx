@@ -6,11 +6,10 @@ import {
   getConstructionByCode,
   getConstructionProps,
   extractMaterialsFromProps,
+  getIsolationConstrMaterials,
 } from "../services/api";
 import { getMaterialsListViaCalc } from "../services/constructionApi";
 import { getResponsiveImageProps } from "../utils/responsiveImages";
-// import articles from "../data/articles";
-// import Modal from "./Modal";
 import "./Calculator.css";
 
 // Мапа CAD изображений (чертежей) для потолков ЗИПС
@@ -31,15 +30,16 @@ const ItemInfo = () => {
   const [materials, setMaterials] = useState(null);
   const [loading, setLoading] = useState(true);
   const [materialsExpanded, setMaterialsExpanded] = useState(false);
-  // const [historyModal, setHistoryModal] = useState({
-  //   isOpen: false,
-  //   title: "",
-  //   html: "",
-  // });
+  /** Код материала из строки списка (constr_materials), для которого раскрыты детали с API */
+  const [expandedMaterialLineCode, setExpandedMaterialLineCode] = useState(null);
+  const [materialIsolationDetail, setMaterialIsolationDetail] = useState(null);
+  const [materialIsolationLoading, setMaterialIsolationLoading] = useState(false);
+  const [materialIsolationError, setMaterialIsolationError] = useState(null);
   const [zipsItems, setZipsItems] = useState(null); // Оба варианта ЗИПС (потолок и облицовка)
   const [currentImageIndex, setCurrentImageIndex] = useState(0); // Индекс текущего изображения в слайдере
   const [currentCadIndex, setCurrentCadIndex] = useState(0); // Индекс текущего чертежа в слайдере
   const initialIndexSet = useRef(false); // Флаг для отслеживания, были ли установлены начальные индексы
+  const materialsSectionRef = useRef(null);
 
   // Загружаем данные элемента и конструкции из API
   useEffect(() => {
@@ -60,14 +60,7 @@ const ItemInfo = () => {
         
         // Определяем секцию из state навигации, sessionStorage или выбираем элемент
         const navigationCId = location.state?.c_id || sessionStorage.getItem('itemInfo_c_id');
-        console.log('[ItemInfo] Получение state навигации:', {
-          id,
-          locationState: location.state,
-          sessionStorageCId: sessionStorage.getItem('itemInfo_c_id'),
-          navigationCId,
-          sameAgItems: sameAgItems.map(i => ({ id: i.id, c_id: i.c_id, title: i.title })),
-        });
-        
+
         // Если есть navigationCId, используем его для выбора элемента
         // Иначе выбираем по умолчанию (сначала облицовку, потом потолок)
         let foundItem;
@@ -81,11 +74,7 @@ const ItemInfo = () => {
             sameAgItems[0] ||
             null;
         }
-        
-        console.log('[ItemInfo] Выбранный элемент:', {
-          foundItem: foundItem ? { id: foundItem.id, c_id: foundItem.c_id, title: foundItem.title } : null,
-        });
-        
+
         // Очищаем sessionStorage после использования
         if (navigationCId) {
           sessionStorage.removeItem('itemInfo_c_id');
@@ -154,6 +143,20 @@ const ItemInfo = () => {
     initialIndexSet.current = false;
   }, [id]);
 
+  useEffect(() => {
+    setExpandedMaterialLineCode(null);
+    setMaterialIsolationDetail(null);
+    setMaterialIsolationError(null);
+    setMaterialIsolationLoading(false);
+  }, [id]);
+
+  useEffect(() => {
+    if (!materialsExpanded) return;
+    const el = materialsSectionRef.current;
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [materialsExpanded]);
+
   // Устанавливаем начальные индексы слайдера после загрузки данных
   useEffect(() => {
     if (zipsItems && item && !initialIndexSet.current && [201, 202, 203, 204, 205].includes(item.id)) {
@@ -165,29 +168,18 @@ const ItemInfo = () => {
       
       // Получаем c_id из sessionStorage, если он был сохранен
       const selectedCId = sessionStorage.getItem('itemInfo_selected_c_id') || item.c_id;
-      
-      console.log('[ItemInfo] Установка индексов:', {
-        itemCId: item.c_id,
-        selectedCId,
-        hasCeilingImage,
-        hasLiningImage,
-        hasCeilingCad,
-        hasLiningCad,
-      });
-      
+
       if ((hasCeilingImage || hasLiningImage) && (hasCeilingCad || hasLiningCad)) {
         // Если перешли из секции потолок (c_id === "C"), показываем потолок первым (индекс 0)
         // Если перешли из секции облицовка (c_id === "L"), показываем облицовку первой
         if (selectedCId === "C") {
           // Потолок идет первым в массиве, индекс 0
-          console.log('[ItemInfo] Устанавливаем индексы для потолка: 0, 0');
           setCurrentImageIndex(0);
           setCurrentCadIndex(0);
         } else if (selectedCId === "L") {
           // Облицовка идет второй в массиве (индекс 1), если потолок есть
           const imageIndex = hasCeilingImage ? 1 : 0;
           const cadIndex = hasCeilingCad ? 1 : 0;
-          console.log('[ItemInfo] Устанавливаем индексы для облицовки:', { imageIndex, cadIndex });
           setCurrentImageIndex(imageIndex);
           setCurrentCadIndex(cadIndex);
         }
@@ -227,6 +219,55 @@ const ItemInfo = () => {
 
   // Получаем данные из API или используем данные из item как fallback
   const data = constructionData || {};
+
+  /** Шифр конструкции для GET …/IsolationConstrMaterials/{code} (тот же, что в примере AG.W101) */
+  const isolationConstrCodeForMaterialsApi =
+    data.Code || item.ag_id || id;
+
+  const handleMaterialLineClick = async (material) => {
+    const lineCode = material.code || material.Code;
+    if (!lineCode) return;
+    if (!isolationConstrCodeForMaterialsApi) {
+      setMaterialIsolationError("Не задан шифр конструкции для запроса.");
+      return;
+    }
+
+    if (expandedMaterialLineCode === lineCode) {
+      setExpandedMaterialLineCode(null);
+      setMaterialIsolationDetail(null);
+      setMaterialIsolationError(null);
+      return;
+    }
+
+    setExpandedMaterialLineCode(lineCode);
+    setMaterialIsolationDetail(null);
+    setMaterialIsolationError(null);
+    setMaterialIsolationLoading(true);
+
+    const res = await getIsolationConstrMaterials(isolationConstrCodeForMaterialsApi);
+    setMaterialIsolationLoading(false);
+
+    if (!res) {
+      setMaterialIsolationError("Не удалось загрузить данные материала.");
+      return;
+    }
+
+    const arr = Array.isArray(res.data) ? res.data : null;
+    if (!arr?.length) {
+      setMaterialIsolationError("Для этой конструкции нет подробных данных.");
+      return;
+    }
+
+    const found = arr.find(
+      (row) => String(row.Code ?? row.code) === String(lineCode)
+    );
+    if (!found) {
+      setMaterialIsolationError("Материал не найден в ответе сервера.");
+      return;
+    }
+
+    setMaterialIsolationDetail(found);
+  };
   
   // Для ЗИПС получаем оба изображения (потолок и облицовка)
   const isZIPS = zipsItems && (zipsItems.ceiling || zipsItems.lining);
@@ -412,7 +453,10 @@ const ItemInfo = () => {
               
               if (materialsToDisplay && Array.isArray(materialsToDisplay) && materialsToDisplay.length > 0) {
                 return (
-                  <div className="item-info-materials">
+                  <div
+                    className="item-info-materials"
+                    ref={materialsSectionRef}
+                  >
                     <h3 
                       onClick={() => setMaterialsExpanded(!materialsExpanded)}
                       style={{ cursor: 'pointer', userSelect: 'none' }}
@@ -440,10 +484,160 @@ const ItemInfo = () => {
                           
                           // Выводим только название материала
                           const displayText = name || 'Неизвестный материал';
-                          
+                          const lineCode = material.code || material.Code;
+                          const isOpen =
+                            lineCode &&
+                            expandedMaterialLineCode === lineCode;
+
                           return (
-                            <li key={index} className="item-info-material-item">
-                              {displayText}
+                            <li
+                              key={lineCode ? String(lineCode) : index}
+                              className="item-info-material-item"
+                            >
+                              <button
+                                type="button"
+                                className="item-info-material-trigger"
+                                onClick={() => handleMaterialLineClick(material)}
+                                disabled={!lineCode}
+                                aria-expanded={Boolean(isOpen)}
+                              >
+                                {displayText}
+                              </button>
+                              {isOpen && (
+                                <div
+                                  className="item-info-material-isolation-panel"
+                                  role="region"
+                                  aria-live="polite"
+                                >
+                                  {materialIsolationLoading && (
+                                    <p className="item-info-material-isolation-status">
+                                      Загрузка…
+                                    </p>
+                                  )}
+                                  {!materialIsolationLoading &&
+                                    materialIsolationError && (
+                                      <p className="item-info-material-isolation-error">
+                                        {materialIsolationError}
+                                      </p>
+                                    )}
+                                  {!materialIsolationLoading &&
+                                    !materialIsolationError &&
+                                    materialIsolationDetail && (
+                                      <div className="item-info-material-isolation-body">
+                                        {(materialIsolationDetail.Name ||
+                                          materialIsolationDetail.name) && (
+                                          <h4 className="item-info-material-isolation-title">
+                                            {materialIsolationDetail.Name ||
+                                              materialIsolationDetail.name}
+                                          </h4>
+                                        )}
+                                        {(materialIsolationDetail.Code ||
+                                          materialIsolationDetail.code) && (
+                                          <p className="item-info-material-isolation-meta">
+                                            <span className="item-info-material-isolation-label">
+                                              Код:{" "}
+                                            </span>
+                                            {materialIsolationDetail.Code ||
+                                              materialIsolationDetail.code}
+                                          </p>
+                                        )}
+                                        {(materialIsolationDetail.Img ||
+                                          materialIsolationDetail.img) && (
+                                          <div className="item-info-material-isolation-img-wrap">
+                                            <img
+                                              src={getImageUrl(
+                                                materialIsolationDetail.Img ||
+                                                  materialIsolationDetail.img
+                                              )}
+                                              alt=""
+                                              className="item-info-material-isolation-img"
+                                              loading="lazy"
+                                              decoding="async"
+                                            />
+                                          </div>
+                                        )}
+                                        {(materialIsolationDetail.Description ||
+                                          materialIsolationDetail.description) && (
+                                          <div className="item-info-material-isolation-block">
+                                            <span className="item-info-material-isolation-label">
+                                              Описание
+                                            </span>
+                                            <p>
+                                              {materialIsolationDetail.Description ||
+                                                materialIsolationDetail.description}
+                                            </p>
+                                          </div>
+                                        )}
+                                        {(materialIsolationDetail.Specification ||
+                                          materialIsolationDetail.specification) && (
+                                          <div className="item-info-material-isolation-block">
+                                            <span className="item-info-material-isolation-label">
+                                              Характеристики и применение
+                                            </span>
+                                            <p>
+                                              {materialIsolationDetail.Specification ||
+                                                materialIsolationDetail.specification}
+                                            </p>
+                                          </div>
+                                        )}
+                                        {[
+                                          [
+                                            "Размеры (Д×Ш×В), мм",
+                                            (() => {
+                                              const L =
+                                                materialIsolationDetail.Length ??
+                                                materialIsolationDetail.length;
+                                              const W =
+                                                materialIsolationDetail.Width ??
+                                                materialIsolationDetail.width;
+                                              const H =
+                                                materialIsolationDetail.Height ??
+                                                materialIsolationDetail.height;
+                                              if (
+                                                [L, W, H].every(
+                                                  (v) =>
+                                                    v == null ||
+                                                    v === "" ||
+                                                    Number(v) === 0
+                                                )
+                                              ) {
+                                                return null;
+                                              }
+                                              return `${L ?? "—"} × ${W ?? "—"} × ${H ?? "—"}`;
+                                            })(),
+                                          ],
+                                          [
+                                            "Единица",
+                                            materialIsolationDetail.Units ||
+                                              materialIsolationDetail.units,
+                                          ],
+                                          [
+                                            "Упаковка",
+                                            materialIsolationDetail.InfoPack ||
+                                              materialIsolationDetail.infoPack,
+                                          ],
+                                          [
+                                            "Тип",
+                                            materialIsolationDetail.Type ||
+                                              materialIsolationDetail.type,
+                                          ],
+                                        ].map(([label, value]) =>
+                                          value ? (
+                                            <p
+                                              key={label}
+                                              className="item-info-material-isolation-row"
+                                            >
+                                              <span className="item-info-material-isolation-label">
+                                                {label}:{" "}
+                                              </span>
+                                              {value}
+                                            </p>
+                                          ) : null
+                                        )}
+                                      </div>
+                                    )}
+                                </div>
+                              )}
                             </li>
                           );
                         })}
@@ -501,34 +695,7 @@ const ItemInfo = () => {
           {data.Specification && (
             <div className="item-info-section">
               <h3>Описание</h3>
-              <p>
-                {data.Specification}
-                {/* <button 
-                  className="our-history-button"
-                  onClick={() => {
-                    if (!articles || articles.length === 0) return;
-                    const randomArticle = articles[Math.floor(Math.random() * articles.length)];
-                    // Преобразуем переносы строк в <br> для корректного отображения
-                    const htmlContent = (randomArticle?.content || "")
-                      .split("\n")
-                      .map(line => line.trim())
-                      .filter(Boolean)
-                      .join("<br>");
-                    setHistoryModal({
-                      isOpen: true,
-                      title: randomArticle?.name || "Наша история",
-                      html: htmlContent,
-                    });
-                  }}
-                  aria-label="Наша история"
-                >
-                  <img 
-                    src={`${import.meta.env.BASE_URL || '/'}our-history.png`} 
-                    alt="Наша история" 
-                    className="our-history-svg"
-                  />
-                </button> */}
-              </p>
+              <p>{data.Specification}</p>
             </div>
           )}
           </div>
@@ -542,17 +709,6 @@ const ItemInfo = () => {
           Перейти к расчету
         </button>
       </div>
-      {/* <Modal
-        isOpen={historyModal.isOpen}
-        onClose={() => setHistoryModal({ isOpen: false, title: "", html: "" })}
-        title={historyModal.title}
-        html={historyModal.html}
-        imageUrl={`${import.meta.env.BASE_URL || '/'}our-history.png`}
-        imageWidth="120px"
-        imageHeight="120px"
-        confirmButtonText="Закрыть"
-        confirmButtonColor="#6cabc8"
-      /> */}
     </div>
   );
 };

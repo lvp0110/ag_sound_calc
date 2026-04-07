@@ -57,9 +57,11 @@ calc-react/
 
 ## API
 
-Приложение использует API для получения данных о конструкциях:
-- Dev режим: прокси через `/api` на `https://dev3.constrtodo.ru:3005` (настроен в `vite.config.js`)
-- Production: прямой запрос к `https://dev3.constrtodo.ru:3005/api/v1`
+Приложение получает каталог конструкций и превью через **GET** `/api/v1/AllIsolationConstr` (заголовок `Accept: application/json`).
+
+- **Dev:** запросы идут на относительный путь `/api/v1/...`; Vite проксирует `/api` на бэкенд (см. `vite.config.js`). По умолчанию цель прокси — `https://dev3.constrtodo.ru:3005`. Для локального API на порту 3005 добавьте в `.env.local` строку `VITE_API_ORIGIN=http://localhost:3005` и перезапустите `npm run dev`.
+- **Превью конструкций** (`/api/v1/constr/…`): в dev этот путь проксируется отдельно — на `VITE_CONSTR_IMAGES_ORIGIN`, если задан, иначе на тот же хост, что и `VITE_API_ORIGIN` / dev3. Эндпоинт часто отсутствует на публичных стендах (404): тогда положите файлы с именами из поля `Img` в каталог `public/api/v1/constr/` (см. подсказку там) или укажите в `.env.local` бэкенд, который реально отдаёт эти файлы: `VITE_CONSTR_IMAGES_ORIGIN=https://хост:порт`.
+- **Production:** прямой запрос к `https://dev3.constrtodo.ru:3005/api/v1`; для превью можно переопределить хост через `VITE_CONSTR_IMAGES_ORIGIN`.
 
 ## Публикация на GitHub Pages
 
