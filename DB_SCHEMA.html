@@ -301,7 +301,8 @@ erDiagram
         TEXT office_address
         VARCHAR kp_date
         TEXT object_name
-        JSONB calc_tables
+        JSONB calc_params
+        JSONB price_overrides
         JSONB montage_data
         JSONB service_rows
         DECIMAL total_cost
@@ -430,9 +431,14 @@ erDiagram
               <td><span class="field-desc">Объект</span></td>
             </tr>
             <tr>
-              <td><span class="field-name">calc_tables</span></td>
+              <td><span class="field-name">calc_params</span></td>
               <td><span class="field-type">JSONB</span></td>
-              <td><span class="tag tag-json">JSON</span><span class="field-desc">Конструкции + материалы</span></td>
+              <td><span class="tag tag-json">JSON</span><span class="field-desc">Параметры расчёта (вход для /api/v1/calcIsolation/byProduct)</span></td>
+            </tr>
+            <tr>
+              <td><span class="field-name">price_overrides</span></td>
+              <td><span class="field-type">JSONB</span></td>
+              <td><span class="tag tag-json">JSON</span><span class="field-desc">Ручные цены менеджера (override для расчёта/КП)</span></td>
             </tr>
             <tr>
               <td><span class="field-name">montage_data</span></td>
@@ -492,14 +498,14 @@ flowchart TD
 
     LIST --> CLICK_CARD{Действие}
     CLICK_CARD -- Просмотр --> VIEW["/kp/:id\nRead-only просмотр"]
-    CLICK_CARD -- Создать на основе --> COPY_LIST[Данные КП\nв sessionStorage]
-    CLICK_CARD -- Новое КП --> NEW_KP[Очистить sessionStorage]
+    CLICK_CARD -- Создать на основе --> COPY_LIST["/kp?p=urlencoded(JSON(calc_params))"]
+    CLICK_CARD -- Новое КП --> NEW_KP["/kp (без p)"]
 
     NEW_KP --> KP_OPEN
     COPY_LIST --> KP_OPEN
 
     VIEW --> VIEW_ACT{Действие}
-    VIEW_ACT -- Создать на основе --> COPY_VIEW[Данные КП\nв sessionStorage]
+    VIEW_ACT -- Создать на основе --> COPY_VIEW["/kp?p=urlencoded(JSON(calc_params))"]
     VIEW_ACT -- Скачать PDF --> PDF[GET /api/kp/:id/pdf\nPuppeteer → PDF]
 
     COPY_VIEW --> KP_OPEN
@@ -585,7 +591,7 @@ flowchart TD
           <tr>
             <td><span class="method method-post">POST</span></td>
             <td><span class="path">/api/kp</span></td>
-            <td><span class="endpoint-body">{ form, calc_tables, montage_data, service_rows, total_cost }</span></td>
+            <td><span class="endpoint-body">{ form, calc_params, price_overrides, montage_data, service_rows, total_cost }</span></td>
             <td><span class="endpoint-desc">Создать и сохранить КП</span></td>
           </tr>
           <tr>
