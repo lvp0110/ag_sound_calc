@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Схема БД и архитектура — ag_sound_calc</title>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      line-height: 1.6;
+    }
+
+    header {
+      background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%);
+      border-bottom: 1px solid #334155;
+      padding: 2rem 3rem;
+    }
+
+    header h1 {
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: #f1f5f9;
+    }
+
+    header p {
+      color: #94a3b8;
+      margin-top: 0.4rem;
+      font-size: 0.95rem;
+    }
+
+    nav {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    nav a {
+      padding: 0.4rem 1rem;
+      border-radius: 6px;
+      background: #1e293b;
+      color: #7dd3fc;
+      text-decoration: none;
+      font-size: 0.875rem;
+      border: 1px solid #334155;
+      transition: background 0.2s;
+    }
+
+    nav a:hover { background: #334155; }
+
+    main {
+      max-width: 1300px;
+      margin: 0 auto;
+      padding: 2rem 2rem 4rem;
+    }
+
+    section {
+      margin-bottom: 4rem;
+    }
+
+    h2 {
+      font-size: 1.4rem;
+      font-weight: 600;
+      color: #f1f5f9;
+      margin-bottom: 1.5rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 2px solid #1e40af;
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+
+    h2 .badge {
+      font-size: 0.75rem;
+      background: #1e40af;
+      color: #bfdbfe;
+      padding: 0.2rem 0.6rem;
+      border-radius: 20px;
+      font-weight: 500;
+    }
+
+    .diagram-box {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 2rem;
+      overflow-x: auto;
+    }
+
+    .diagram-box .mermaid {
+      display: flex;
+      justify-content: center;
+    }
+
+    /* DB schema table cards */
+    .tables-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .table-card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .table-card-header {
+      background: #1e40af;
+      padding: 0.75rem 1.25rem;
+      font-weight: 700;
+      font-size: 1rem;
+      color: #eff6ff;
+      letter-spacing: 0.02em;
+    }
+
+    .table-card table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.875rem;
+    }
+
+    .table-card th {
+      background: #0f172a;
+      color: #94a3b8;
+      padding: 0.5rem 1rem;
+      text-align: left;
+      font-weight: 600;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .table-card td {
+      padding: 0.5rem 1rem;
+      border-top: 1px solid #1e293b;
+      vertical-align: top;
+    }
+
+    .table-card tr:hover td { background: #0f172a33; }
+
+    .field-name { color: #7dd3fc; font-family: monospace; font-size: 0.85rem; }
+    .field-type { color: #a78bfa; font-family: monospace; font-size: 0.8rem; }
+    .field-desc { color: #94a3b8; font-size: 0.8rem; }
+
+    .tag {
+      display: inline-block;
+      font-size: 0.65rem;
+      padding: 0.1rem 0.4rem;
+      border-radius: 4px;
+      font-weight: 700;
+      margin-right: 0.25rem;
+      vertical-align: middle;
+    }
+
+    .tag-pk { background: #854d0e; color: #fef3c7; }
+    .tag-fk { background: #065f46; color: #d1fae5; }
+    .tag-nn { background: #1e3a5f; color: #bfdbfe; }
+    .tag-json { background: #4c1d95; color: #ede9fe; }
+
+    /* API table */
+    .api-section { margin-bottom: 2rem; }
+    .api-section h3 {
+      color: #93c5fd;
+      font-size: 1rem;
+      margin-bottom: 0.75rem;
+      font-weight: 600;
+    }
+
+    .api-table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #1e293b;
+      border-radius: 10px;
+      overflow: hidden;
+      font-size: 0.875rem;
+    }
+
+    .api-table th {
+      background: #0f172a;
+      color: #94a3b8;
+      padding: 0.6rem 1rem;
+      text-align: left;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .api-table td {
+      padding: 0.6rem 1rem;
+      border-top: 1px solid #0f172a;
+      vertical-align: top;
+    }
+
+    .method {
+      display: inline-block;
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 0.15rem 0.5rem;
+      border-radius: 4px;
+      font-family: monospace;
+      min-width: 52px;
+      text-align: center;
+    }
+
+    .method-post { background: #166534; color: #bbf7d0; }
+    .method-get  { background: #1e3a5f; color: #bfdbfe; }
+    .method-put  { background: #78350f; color: #fde68a; }
+
+    .path { color: #7dd3fc; font-family: monospace; font-size: 0.85rem; }
+    .endpoint-desc { color: #cbd5e1; }
+    .endpoint-body { color: #a78bfa; font-family: monospace; font-size: 0.8rem; }
+
+    .badge-auth {
+      font-size: 0.65rem;
+      background: #7c3aed;
+      color: #ede9fe;
+      padding: 0.1rem 0.4rem;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+
+    /* Routes table */
+    .routes-table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #1e293b;
+      border-radius: 10px;
+      overflow: hidden;
+      font-size: 0.875rem;
+    }
+
+    .routes-table th {
+      background: #0f172a;
+      color: #94a3b8;
+      padding: 0.6rem 1rem;
+      text-align: left;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+    }
+
+    .routes-table td {
+      padding: 0.6rem 1rem;
+      border-top: 1px solid #0f172a;
+    }
+
+    .route-path { color: #7dd3fc; font-family: monospace; }
+    .route-comp { color: #a78bfa; font-family: monospace; font-size: 0.85rem; }
+    .route-new  { color: #4ade80; font-size: 0.75rem; font-weight: 600; }
+    .route-mod  { color: #fb923c; font-size: 0.75rem; font-weight: 600; }
+    .route-same { color: #94a3b8; font-size: 0.75rem; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>ag_sound_calc — Архитектура и схема БД</h1>
+  <p>Backend + Auth + История коммерческих предложений</p>
+  <nav>
+    <a href="#db-diagram">Схема БД</a>
+    <a href="#db-tables">Таблицы</a>
+    <a href="#app-flow">Процессы</a>
+    <a href="#api">API</a>
+    <a href="#routes">Маршруты</a>
+    <a href="#deploy">Деплой</a>
+  </nav>
+</header>
+
+<main>
+
+  <!-- DB Diagram -->
+  <section id="db-diagram">
+    <h2>Схема базы данных <span class="badge">PostgreSQL</span></h2>
+    <div class="diagram-box">
+      <div class="mermaid">
+erDiagram
+    users {
+        UUID id PK
+        VARCHAR full_name
+        VARCHAR phone
+        VARCHAR email
+        TEXT office_address
+        VARCHAR password_hash
+        TIMESTAMP created_at
+        TIMESTAMP updated_at
+    }
+
+    kp {
+        UUID id PK
+        UUID user_id FK
+        VARCHAR title
+        VARCHAR manager_name
+        VARCHAR phone
+        VARCHAR email
+        TEXT office_address
+        VARCHAR kp_date
+        TEXT object_name
+        JSONB calc_tables
+        JSONB montage_data
+        JSONB service_rows
+        DECIMAL total_cost
+        TIMESTAMP created_at
+    }
+
+    users ||--o{ kp : "создаёт"
+      </div>
+    </div>
+  </section>
+
+  <!-- Tables detail -->
+  <section id="db-tables">
+    <h2>Описание таблиц</h2>
+    <div class="tables-grid">
+
+      <div class="table-card">
+        <div class="table-card-header">users</div>
+        <table>
+          <thead>
+            <tr>
+              <th>Поле</th>
+              <th>Тип</th>
+              <th>Описание</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="field-name">id</span></td>
+              <td><span class="field-type">UUID</span></td>
+              <td><span class="tag tag-pk">PK</span><span class="field-desc">gen_random_uuid()</span></td>
+            </tr>
+            <tr>
+              <td><span class="field-name">full_name</span></td>
+              <td><span class="field-type">VARCHAR(255)</span></td>
+              <td><span class="tag tag-nn">NOT NULL</span><span class="field-desc">ФИО менеджера</span></td>
+            </tr>
+            <tr>
+              <td><span class="field-name">phone</span></td>
+              <td><span class="field-type">VARCHAR(50)</span></td>
+              <td><span class="field-desc">Телефон</span></td>
+            </tr>
+            <tr>
+              <td><span class="field-name">email</span></td>
+              <td><span class="field-type">VARCHAR(255)</span></td>
+              <td><span class="tag tag-nn">NOT NULL</span><span class="field-desc">Почта (логин), UNIQUE</span></td>
+            </tr>
+            <tr>
+              <td><span class="field-name">office_address</span></td>
+              <td><span class="field-type">TEXT</span></td>
+              <td><span class="field-desc">Адрес офиса</span></td>
+            </tr>
+            <tr>
+              <td><span class="field-name">password_hash</span></td>
+              <td><span class="field-type">VARCHAR(255)</span></td>
+              <td><span class="tag tag-nn">NOT NULL</span><span class="field-desc">bcrypt хэш</span></td>
+            </tr>
+            <tr>
+              <td><span class="field-name">created_at</span></td>
+              <td><span class="field-type">TIMESTAMP</span></td>
+              <td><span class="field-desc">NOW()</span></td>
+            </tr>
+            <tr>
+              <td><span class="field-name">updated_at</span></td>
+              <td><span class="field-type">TIMESTAMP</span></td>
+              <td><span class="field-desc">NOW()</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="table-card">
+        <div class="table-card-header">kp</div>
+        <table>
+          <thead>
+            <tr>
+              <th>Поле</th>
+              <th>Тип</th>
+              <th>Описание</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><span class="field-name">id</span></td>
+              <td><span class="field-type">UUID</span></td>
+              <td><span class="tag tag-pk">PK</span><span class="field-desc">gen_random_uuid()</span></td>
+            </tr>
+            <tr>
+              <td><span class="field-name">user_id</span></td>
+              <td><span class="field-type">UUID</span></td>
+              <td><span class="tag tag-fk">FK</span><span class="field-desc">→ users.id CASCADE</span></td>
+            </tr>
+            <tr>
+              <td><span class="field-name">title</span></td>
+              <td><span class="field-type">VARCHAR(255)</span></td>
+              <td><span class="field-desc">Авто: "КП от {date}"</span></td>
+            </tr>
+            <tr>
+              <td><span class="field-name">manager_name</span></td>
+              <td><span class="field-type">VARCHAR(255)</span></td>
+              <td><span class="field-desc">ФИО (snapshot)</span></td>
+            </tr>
+            <tr>
+              <td><span class="field-name">phone</span></td>
+              <td><span class="field-type">VARCHAR(50)</span></td>
+              <td><span class="field-desc">Телефон</span></td>
+            </tr>
+            <tr>
+              <td><span class="field-name">email</span></td>
+              <td><span class="field-type">VARCHAR(255)</span></td>
+              <td><span class="field-desc">Почта</span></td>
+            </tr>
+            <tr>
+              <td><span class="field-name">office_address</span></td>
+              <td><span class="field-type">TEXT</span></td>
+              <td><span class="field-desc">Адрес офиса</span></td>
+            </tr>
+            <tr>
+              <td><span class="field-name">kp_date</span></td>
+              <td><span class="field-type">VARCHAR(50)</span></td>
+              <td><span class="field-desc">Дата КП</span></td>
+            </tr>
+            <tr>
+              <td><span class="field-name">object_name</span></td>
+              <td><span class="field-type">TEXT</span></td>
+              <td><span class="field-desc">Объект</span></td>
+            </tr>
+            <tr>
+              <td><span class="field-name">calc_tables</span></td>
+              <td><span class="field-type">JSONB</span></td>
+              <td><span class="tag tag-json">JSON</span><span class="field-desc">Конструкции + материалы</span></td>
+            </tr>
+            <tr>
+              <td><span class="field-name">montage_data</span></td>
+              <td><span class="field-type">JSONB</span></td>
+              <td><span class="tag tag-json">JSON</span><span class="field-desc">{ [key_id]: {price,qty,unit} }</span></td>
+            </tr>
+            <tr>
+              <td><span class="field-name">service_rows</span></td>
+              <td><span class="field-type">JSONB</span></td>
+              <td><span class="tag tag-json">JSON</span><span class="field-desc">[{id,name,price,qty,unit}]</span></td>
+            </tr>
+            <tr>
+              <td><span class="field-name">total_cost</span></td>
+              <td><span class="field-type">DECIMAL(12,2)</span></td>
+              <td><span class="field-desc">Итоговая сумма</span></td>
+            </tr>
+            <tr>
+              <td><span class="field-name">created_at</span></td>
+              <td><span class="field-type">TIMESTAMP</span></td>
+              <td><span class="field-desc">NOW()</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- App Flow -->
+  <section id="app-flow">
+    <h2>Схема работы приложения</h2>
+    <div class="diagram-box">
+      <div class="mermaid">
+flowchart TD
+    A([Пользователь]) --> B{Зарегистрирован?}
+
+    B -- Нет --> REG["/register\nФорма регистрации"]
+    REG --> REG2[POST /api/auth/register]
+    REG2 --> LOGIN_AFTER[Перенаправление на /kp]
+
+    B -- Да --> KP_OPEN[Открывает /kp]
+    LOGIN_AFTER --> KP_OPEN
+
+    KP_OPEN --> AUTH{Авторизован?}
+
+    AUTH -- Нет --> MODAL[LoginModal\nФорма входа]
+    MODAL --> DO_LOGIN[POST /api/auth/login]
+    DO_LOGIN --> TOKEN[Access token\nRefresh в httpOnly cookie]
+    TOKEN --> FILL[Данные пользователя\nподставлены в форму]
+
+    AUTH -- Да --> FILL
+
+    FILL --> EDIT[Пользователь редактирует\nполя КП и таблицы]
+    EDIT --> SUBMIT[Кнопка\nСформировать КП]
+    SUBMIT --> SAVE[POST /api/kp\nСохранить в БД]
+    SAVE --> LIST["/kp/list\nСписок КП"]
+
+    LIST --> CLICK_CARD{Действие}
+    CLICK_CARD -- Просмотр --> VIEW["/kp/:id\nRead-only просмотр"]
+    CLICK_CARD -- Создать на основе --> COPY_LIST[Данные КП\nв sessionStorage]
+    CLICK_CARD -- Новое КП --> NEW_KP[Очистить sessionStorage]
+
+    NEW_KP --> KP_OPEN
+    COPY_LIST --> KP_OPEN
+
+    VIEW --> VIEW_ACT{Действие}
+    VIEW_ACT -- Создать на основе --> COPY_VIEW[Данные КП\nв sessionStorage]
+    VIEW_ACT -- Скачать PDF --> PDF[GET /api/kp/:id/pdf\nPuppeteer → PDF]
+
+    COPY_VIEW --> KP_OPEN
+
+    style A fill:#1e40af,color:#e0f2fe,stroke:#3b82f6
+    style FILL fill:#065f46,color:#d1fae5,stroke:#10b981
+    style SAVE fill:#065f46,color:#d1fae5,stroke:#10b981
+    style PDF fill:#4c1d95,color:#ede9fe,stroke:#8b5cf6
+    style MODAL fill:#7c2d12,color:#fed7aa,stroke:#f97316
+      </div>
+    </div>
+  </section>
+
+  <!-- API -->
+  <section id="api">
+    <h2>API Endpoints <span class="badge">Express REST</span></h2>
+
+    <div class="api-section">
+      <h3>Авторизация</h3>
+      <table class="api-table">
+        <thead>
+          <tr><th>Метод</th><th>Путь</th><th>Тело запроса</th><th>Описание</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="method method-post">POST</span></td>
+            <td><span class="path">/api/auth/register</span></td>
+            <td><span class="endpoint-body">{ full_name, email, phone, office_address, password }</span></td>
+            <td><span class="endpoint-desc">Регистрация нового пользователя</span></td>
+          </tr>
+          <tr>
+            <td><span class="method method-post">POST</span></td>
+            <td><span class="path">/api/auth/login</span></td>
+            <td><span class="endpoint-body">{ email, password }</span></td>
+            <td><span class="endpoint-desc">Вход → access JWT + refresh cookie</span></td>
+          </tr>
+          <tr>
+            <td><span class="method method-post">POST</span></td>
+            <td><span class="path">/api/auth/refresh</span></td>
+            <td><span class="endpoint-body">*(httpOnly cookie)*</span></td>
+            <td><span class="endpoint-desc">Обновить access token</span></td>
+          </tr>
+          <tr>
+            <td><span class="method method-post">POST</span></td>
+            <td><span class="path">/api/auth/logout</span></td>
+            <td>—</td>
+            <td><span class="endpoint-desc">Выход, очистка cookie</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="api-section">
+      <h3>Пользователь <span class="badge-auth">требует auth</span></h3>
+      <table class="api-table">
+        <thead>
+          <tr><th>Метод</th><th>Путь</th><th>Тело запроса</th><th>Описание</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="method method-get">GET</span></td>
+            <td><span class="path">/api/users/me</span></td>
+            <td>—</td>
+            <td><span class="endpoint-desc">Данные текущего пользователя</span></td>
+          </tr>
+          <tr>
+            <td><span class="method method-put">PUT</span></td>
+            <td><span class="path">/api/users/me</span></td>
+            <td><span class="endpoint-body">{ full_name, phone, email, office_address }</span></td>
+            <td><span class="endpoint-desc">Обновить данные профиля</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="api-section">
+      <h3>Коммерческие предложения <span class="badge-auth">требует auth</span></h3>
+      <table class="api-table">
+        <thead>
+          <tr><th>Метод</th><th>Путь</th><th>Тело запроса</th><th>Описание</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="method method-post">POST</span></td>
+            <td><span class="path">/api/kp</span></td>
+            <td><span class="endpoint-body">{ form, calc_tables, montage_data, service_rows, total_cost }</span></td>
+            <td><span class="endpoint-desc">Создать и сохранить КП</span></td>
+          </tr>
+          <tr>
+            <td><span class="method method-get">GET</span></td>
+            <td><span class="path">/api/kp</span></td>
+            <td>—</td>
+            <td><span class="endpoint-desc">Список КП текущего пользователя</span></td>
+          </tr>
+          <tr>
+            <td><span class="method method-get">GET</span></td>
+            <td><span class="path">/api/kp/:id</span></td>
+            <td>—</td>
+            <td><span class="endpoint-desc">Полные данные одного КП (только своего)</span></td>
+          </tr>
+          <tr>
+            <td><span class="method method-get">GET</span></td>
+            <td><span class="path">/api/kp/:id/pdf</span></td>
+            <td>—</td>
+            <td><span class="endpoint-desc">Сгенерировать и скачать PDF (Puppeteer)</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Routes -->
+  <section id="routes">
+    <h2>Маршруты фронтенда</h2>
+    <table class="routes-table">
+      <thead>
+        <tr><th>Путь</th><th>Компонент</th><th>Статус</th><th>Описание</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="route-path">/calc/:id?</span></td>
+          <td><span class="route-comp">Calculator.jsx</span></td>
+          <td><span class="route-same">без изменений</span></td>
+          <td>Калькулятор конструкций</td>
+        </tr>
+        <tr>
+          <td><span class="route-path">/kp</span></td>
+          <td><span class="route-comp">KpPage.jsx</span></td>
+          <td><span class="route-mod">изменён</span></td>
+          <td>Создание КП. Требует auth — показывает LoginModal</td>
+        </tr>
+        <tr>
+          <td><span class="route-path">/kp/list</span></td>
+          <td><span class="route-comp">KpList.jsx</span></td>
+          <td><span class="route-new">новый</span></td>
+          <td>Список КП пользователя</td>
+        </tr>
+        <tr>
+          <td><span class="route-path">/kp/:id</span></td>
+          <td><span class="route-comp">KpView.jsx</span></td>
+          <td><span class="route-new">новый</span></td>
+          <td>Просмотр КП (read-only)</td>
+        </tr>
+        <tr>
+          <td><span class="route-path">/register</span></td>
+          <td><span class="route-comp">RegisterPage.jsx</span></td>
+          <td><span class="route-new">новый</span></td>
+          <td>Регистрация нового пользователя</td>
+        </tr>
+        <tr>
+          <td><span class="route-path">/info/:id</span></td>
+          <td><span class="route-comp">ItemInfo.jsx</span></td>
+          <td><span class="route-same">без изменений</span></td>
+          <td>Информация о конструкции</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- Deploy -->
+  <section id="deploy">
+    <h2>Схема деплоя <span class="badge">Docker Compose</span></h2>
+    <div class="diagram-box">
+      <div class="mermaid">
+graph LR
+    subgraph "Docker Compose (удалённая машина)"
+      PG[(postgres\nPostgreSQL 16)]
+      BE["backend\nNode.js + Express\nPort 3000"]
+    end
+
+    BR["Браузер\n(пользователь)"]
+
+    BR -- "HTTP/HTTPS :3000" --> BE
+    BE -- "Статика dist/" --> BR
+    BE -- "API /api/*" --> BR
+    BE <--> PG
+
+    style PG fill:#1e3a5f,color:#bfdbfe,stroke:#3b82f6
+    style BE fill:#065f46,color:#d1fae5,stroke:#10b981
+    style BR fill:#1e293b,color:#e2e8f0,stroke:#475569
+      </div>
+    </div>
+    <div style="margin-top:1.5rem; background:#1e293b; border-radius:10px; padding:1.25rem 1.5rem; border:1px solid #334155;">
+      <p style="color:#94a3b8; font-size:0.875rem; margin-bottom:0.75rem;">Контейнеры:</p>
+      <ul style="list-style:none; display:flex; flex-direction:column; gap:0.5rem;">
+        <li style="display:flex;gap:0.75rem;align-items:flex-start;">
+          <span style="background:#1e3a5f;color:#93c5fd;padding:0.2rem 0.6rem;border-radius:5px;font-family:monospace;font-size:0.8rem;white-space:nowrap">postgres</span>
+          <span style="color:#cbd5e1;font-size:0.875rem">PostgreSQL 16, том для данных, порт внутренний</span>
+        </li>
+        <li style="display:flex;gap:0.75rem;align-items:flex-start;">
+          <span style="background:#065f46;color:#6ee7b7;padding:0.2rem 0.6rem;border-radius:5px;font-family:monospace;font-size:0.8rem;white-space:nowrap">backend</span>
+          <span style="color:#cbd5e1;font-size:0.875rem">Node.js + Express: раздаёт /api/* и статику dist/ (Vite build), включает Puppeteer/Chromium для PDF</span>
+        </li>
+      </ul>
+    </div>
+  </section>
+
+</main>
+
+<script>
+  mermaid.initialize({
+    startOnLoad: true,
+    theme: 'dark',
+    themeVariables: {
+      background: '#1e293b',
+      primaryColor: '#1e40af',
+      primaryTextColor: '#e2e8f0',
+      primaryBorderColor: '#3b82f6',
+      lineColor: '#64748b',
+      secondaryColor: '#065f46',
+      tertiaryColor: '#4c1d95',
+      edgeLabelBackground: '#1e293b',
+      nodeTextColor: '#e2e8f0',
+    },
+    flowchart: { curve: 'basis', htmlLabels: true },
+    er: { diagramPadding: 30 }
+  });
+</script>
+
+</body>
+</html>
