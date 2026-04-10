@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import ConstructionList, {
   ConstructionGrandTotalBlock,
 } from "./tables/ConstructionList";
@@ -46,6 +45,7 @@ const initialForm = {
   phone: "",
   email: "",
   officeAddress: "",
+  region: "",
   date: "",
   object: "",
 };
@@ -120,7 +120,6 @@ const INITIAL_SERVICE_ROWS = [
 ];
 
 const KpPage = () => {
-  const navigate = useNavigate();
   const [form, setForm] = useState(initialForm);
   const [calcTables, setCalcTables] = useState(loadCalculatorTablesState);
   /** Монтаж по карточкам: key_id конструкции → { price, quantity, unit } */
@@ -316,17 +315,47 @@ const KpPage = () => {
 
   return (
     <div className="kp-page">
-      <button
-        type="button"
-        className="kp-page__back"
-        onClick={() => navigate("/calc")}
-      >
-        ← К калькулятору
-      </button>
       <main className="kp-page__main">
         <h1 className="kp-page__title">Коммерческое предложение</h1>
 
         <section className="kp-page__contact" aria-label="Контактные данные">
+          <div className="kp-page__field-row">
+            <label className="kp-page__label" htmlFor="kp-date">
+              Дата:
+            </label>
+            <input
+              id="kp-date"
+              className="kp-page__input"
+              type="text"
+              value={form.date}
+              onChange={onFieldChange("date")}
+            />
+          </div>
+          <div className="kp-page__field-row">
+            <label className="kp-page__label" htmlFor="kp-region">
+              Регион:
+            </label>
+            <input
+              id="kp-region"
+              className="kp-page__input"
+              type="text"
+              autoComplete="address-level1"
+              value={form.region}
+              onChange={onFieldChange("region")}
+            />
+          </div>
+          <div className="kp-page__field-row">
+            <label className="kp-page__label" htmlFor="kp-object">
+              Объект:
+            </label>
+            <input
+              id="kp-object"
+              className="kp-page__input"
+              type="text"
+              value={form.object}
+              onChange={onFieldChange("object")}
+            />
+          </div>
           <div className="kp-page__field-row">
             <label className="kp-page__label" htmlFor="kp-manager">
               Менеджер:
@@ -366,7 +395,7 @@ const KpPage = () => {
               onChange={onFieldChange("email")}
             />
           </div>
-          <div className="kp-page__field-row">
+          <div className="kp-page__field-row kp-page__field-row--last">
             <label className="kp-page__label" htmlFor="kp-address">
               Адрес офиса:
             </label>
@@ -377,30 +406,6 @@ const KpPage = () => {
               autoComplete="street-address"
               value={form.officeAddress}
               onChange={onFieldChange("officeAddress")}
-            />
-          </div>
-          <div className="kp-page__field-row">
-            <label className="kp-page__label" htmlFor="kp-date">
-              Дата:
-            </label>
-            <input
-              id="kp-date"
-              className="kp-page__input"
-              type="text"
-              value={form.date}
-              onChange={onFieldChange("date")}
-            />
-          </div>
-          <div className="kp-page__field-row kp-page__field-row--last">
-            <label className="kp-page__label" htmlFor="kp-object">
-              Объект:
-            </label>
-            <input
-              id="kp-object"
-              className="kp-page__input"
-              type="text"
-              value={form.object}
-              onChange={onFieldChange("object")}
             />
           </div>
         </section>

@@ -49,26 +49,27 @@ const SelectedItemForms = ({
 
   return (
     <div className="selected-item-forms">
-      <div className="selected-item-header">
+      <button
+        type="button"
+        className="selected-item-header"
+        onClick={handleInfoClick}
+        aria-label={`Информация: ${selectedItem.title}`}
+        title="Информация"
+      >
         <h3>{selectedItem.title}</h3>
-        <button 
-          className="info-button" 
-          onClick={handleInfoClick}
-          aria-label="Информация"
-          title="Информация"
-        >
-          <svg 
-            width="20" 
-            height="20" 
-            viewBox="0 0 20 20" 
-            fill="none" 
+        <span className="selected-item-header-icon" aria-hidden="true">
+          <svg
+            width="20"
+            height="20"
+            viewBox="0 0 20 20"
+            fill="none"
             xmlns="http://www.w3.org/2000/svg"
           >
-            <circle cx="10" cy="10" r="9" stroke="currentColor" strokeWidth="2" fill="none"/>
+            <circle cx="10" cy="10" r="9" stroke="currentColor" strokeWidth="2" fill="none" />
             <text x="10" y="14" textAnchor="middle" fontSize="14" fontWeight="bold" fill="currentColor" fontStyle="italic">i</text>
           </svg>
-        </button>
-      </div>
+        </span>
+      </button>
 
       {isFloorTemplate && (
         <FloorForm

@@ -1,0 +1,132 @@
+.price-page {
+  min-height: 100vh;
+  padding: 24px 20px 48px;
+  max-width: 960px;
+  margin: 0 auto;
+  font-family: "Montserrat", sans-serif;
+  color: #2c2f33;
+  --price-border: #c9d0d6;
+}
+
+.price-page__main {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 12px;
+}
+
+.price-page__title {
+  margin: 4px 0 0 4px;
+  font-size: 22px;
+  font-weight: 600;
+  color: #6d7277;
+}
+
+.price-page__subtitle {
+  margin: 0 4px 8px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #5a5e62;
+}
+
+.price-page__code {
+  font-size: 12px;
+  padding: 2px 6px;
+  background: #eef6fa;
+  border-radius: 4px;
+}
+
+.price-page__search-label {
+  font-size: 13px;
+  font-weight: 700;
+  font-style: italic;
+  color: #1a1d21;
+  margin: 4px 4px 0;
+}
+
+.price-page__search {
+  width: 100%;
+  max-width: 420px;
+  margin: 0 4px;
+  padding: 10px 12px;
+  font-family: inherit;
+  font-size: 14px;
+  border: 1px solid var(--price-border);
+  border-radius: 6px;
+  box-sizing: border-box;
+}
+
+.price-page__search:focus {
+  outline: 2px solid #6cabc8;
+  outline-offset: 1px;
+}
+
+.price-page__table-wrap {
+  margin-top: 8px;
+  width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--price-border);
+  border-radius: 6px;
+  background: #fff;
+}
+
+.price-page__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.price-page__table th,
+.price-page__table td {
+  padding: 10px 12px;
+  text-align: right;
+  border-bottom: 1px solid var(--price-border);
+}
+
+.price-page__table th:nth-child(1),
+.price-page__table td:nth-child(1),
+.price-page__table th:nth-child(2),
+.price-page__table td:nth-child(2) {
+  text-align: left;
+}
+
+.price-page__table th:nth-child(3),
+.price-page__table td:nth-child(3),
+.price-page__table th:nth-child(4),
+.price-page__table td:nth-child(4) {
+  text-align: right;
+}
+
+.price-page__table thead th {
+  background: #eef6fa;
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.02em;
+  color: #1a1d21;
+}
+
+.price-page__table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.price-page__table tbody tr:hover td {
+  background: #f8fafb;
+}
+
+.price-page__article {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.price-page__name {
+  max-width: 420px;
+  line-height: 1.35;
+  hyphens: auto;
+  word-break: break-word;
+}
+
+.price-page__empty {
+  margin: 16px 4px;
+  font-size: 14px;
+  color: #6d7277;
+}

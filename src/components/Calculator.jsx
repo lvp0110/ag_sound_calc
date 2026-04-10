@@ -496,6 +496,10 @@ const Calculator = () => {
     navigate("/kp");
   };
 
+  const handleOpenPrice = () => {
+    navigate("/price");
+  };
+
   const addConstrToCalc = useCallback(async () => {
     // Валидация входных данных
     const inputError = validateInput(
@@ -759,8 +763,8 @@ const Calculator = () => {
   }, [id, itemsWithImages]);
 
   return (
-    <div>
-      <div className="content-calc" style={{ height: "100vh" }}>
+    <div className="calculator-page">
+      <div className="content-calc">
         <div className="main-content">
           {/* Четыре секции */}
           {mainSections.map((section) => {
@@ -938,30 +942,30 @@ const Calculator = () => {
                         onClick={(e) => e.stopPropagation()}
                       >
                         <div className="selected-item-forms">
-                          <div className="selected-item-header">
+                          <button
+                            type="button"
+                            className="selected-item-header"
+                            onClick={() => {
+                              sessionStorage.setItem('itemInfo_c_id', selectedItem.c_id);
+                              navigate(`/info/${selectedItem.ag_id}`, { state: { c_id: selectedItem.c_id } });
+                            }}
+                            aria-label={`Информация: ${selectedItem.title}`}
+                            title="Информация"
+                          >
                             <h3>{selectedItem.title}</h3>
-                            <button 
-                              className="info-button" 
-                              onClick={() => {
-                                // Сохраняем c_id в sessionStorage для передачи в ItemInfo
-                                sessionStorage.setItem('itemInfo_c_id', selectedItem.c_id);
-                                navigate(`/info/${selectedItem.ag_id}`, { state: { c_id: selectedItem.c_id } });
-                              }}
-                              aria-label="Информация"
-                              title="Информация"
-                            >
-                              <svg 
-                                width="20" 
-                                height="20" 
-                                viewBox="0 0 20 20" 
-                                fill="none" 
+                            <span className="selected-item-header-icon" aria-hidden="true">
+                              <svg
+                                width="20"
+                                height="20"
+                                viewBox="0 0 20 20"
+                                fill="none"
                                 xmlns="http://www.w3.org/2000/svg"
                               >
-                                <circle cx="10" cy="10" r="9" stroke="currentColor" strokeWidth="2" fill="none"/>
+                                <circle cx="10" cy="10" r="9" stroke="currentColor" strokeWidth="2" fill="none" />
                                 <text x="10" y="14" textAnchor="middle" fontSize="14" fontWeight="bold" fill="currentColor" fontStyle="italic">i</text>
                               </svg>
-                            </button>
-                          </div>
+                            </span>
+                          </button>
                           {/* Формы конструкций для выбранного элемента */}
                           {/* Полы: template 1, 111, 3, 607.1, 608.1, 609.1, 610.1, 2.1, 9, 9.1 */}
                           {(selectedItem.template == 1 ||
@@ -1720,6 +1724,13 @@ const Calculator = () => {
                                   className="add_design_button"
                                 >
                                   Сделать КП
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={handleOpenPrice}
+                                  className="add_design_button"
+                                >
+                                  Прайс
                                 </button>
                               </div>
                             </>

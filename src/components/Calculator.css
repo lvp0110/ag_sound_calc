@@ -1,6 +1,14 @@
+.calculator-page {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 .content-calc {
   width: auto;
-  height: 100vh;
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
   margin-bottom: 10px;
   display: flex;
@@ -417,10 +425,14 @@ h4 {
 .selected-item-forms .kp-button-row {
   width: 100%;
   align-self: stretch;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 .selected-item-forms .kp-button-row .add_design_button {
-  width: 100%;
+  flex: 1 1 140px;
+  min-width: 0;
 }
 .buttons-container button {
   outline: none !important;
@@ -536,7 +548,27 @@ button::-moz-focus-inner {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 10px;
+  margin: 0 0 10px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 6px 8px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  border-radius: 10px;
+  transition: background 0.2s ease;
+}
+
+.selected-item-header:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.selected-item-header:focus-visible {
+  outline: 2px solid #3fc3ee;
+  outline-offset: 2px;
 }
 
 .selected-item-forms h3 {
@@ -549,7 +581,7 @@ button::-moz-focus-inner {
   flex: 1;
 }
 
-.info-button {
+.selected-item-header-icon {
   width: 32px;
   height: 32px;
   padding: 0;
@@ -557,7 +589,6 @@ button::-moz-focus-inner {
   border-radius: 50%;
   background: #ffffff;
   color: #3fc3ee;
-  cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -566,17 +597,17 @@ button::-moz-focus-inner {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
-.info-button:hover {
+.selected-item-header:hover .selected-item-header-icon {
   background: #f0f0f0;
   border-color: #3fc3ee;
   transform: scale(1.1);
 }
 
-.info-button:active {
+.selected-item-header:active .selected-item-header-icon {
   transform: scale(0.95);
 }
 
-.info-button svg {
+.selected-item-header-icon svg {
   width: 18px;
   height: 18px;
 }

@@ -1,5 +1,5 @@
 /**
- * Читает прайс Москва (*.xlsx), собирает цены руб/м² и руб/ед. по артикулу.
+ * Читает прайс Москва (*.xlsx), собирает наименование и цены руб/м², руб/ед. по артикулу.
  * Запуск: node scripts/extract-moscow-prices.mjs [путь-к-файлу.xlsx]
  */
 import ExcelJS from "exceljs";
@@ -98,13 +98,27 @@ function val(row, col1) {
   return row.getCell(col1).value;
 }
 
-function rowPrices(artRaw, m2, perUnit) {
+/** Наименование из ячейки(A…) — без служебных заголовков прайса */
+function maybeName(raw) {
+  const t = cellToString(raw);
+  if (!t || t.length < 8) return undefined;
+  if (t.includes("МАТЕРИАЛЫ ДЛЯ") && t.length < 140) return undefined;
+  if (t.startsWith("Москва:") || t.startsWith("Санкт-Петербург")) return undefined;
+  if (/лист\s+\d+\s+из\s+\d+/i.test(t)) return undefined;
+  if (t.includes("Цены указаны в Рублях")) return undefined;
+  if (t.includes("ДЕКОРАТИВНО-АКУСТИЧЕСКИЕ") && t.length < 90) return undefined;
+  return t.replace(/\s+/g, " ").trim();
+}
+
+function rowPrices(artRaw, m2, perUnit, nameRaw) {
   const article = normalizeArticle(artRaw);
   if (!article) return null;
   if (m2 == null && perUnit == null) return null;
   const o = { article };
   if (m2 != null) o.m2 = m2;
   if (perUnit != null) o.perUnit = perUnit;
+  const nm = nameRaw != null ? maybeName(nameRaw) : undefined;
+  if (nm) o.name = nm;
   return o;
 }
 
@@ -119,7 +133,7 @@ function tryParsePriceRow(row) {
     const m2 = parseMoney(c[3]);
     const perUnit = parseMoney(c[4]);
     const art = c[1] || normalizeArticle(val(row, 2));
-    const got = rowPrices(art, m2, perUnit);
+    const got = rowPrices(art, m2, perUnit, c[0]);
     if (got) return got;
   }
 
@@ -132,7 +146,7 @@ function tryParsePriceRow(row) {
   ) {
     const m2 = parseMoney(c[4]);
     const perUnit = parseMoney(c[5]);
-    const got = rowPrices(c[1], m2, perUnit);
+    const got = rowPrices(c[1], m2, perUnit, c[0]);
     if (got) return got;
   }
 
@@ -140,7 +154,8 @@ function tryParsePriceRow(row) {
   if (isArticleRaw(val(row, 3), c[2]) && isUnit(c[3])) {
     const m2 = parseMoney(c[4]);
     const perUnit = parseMoney(c[5]);
-    const got = rowPrices(c[2] || val(row, 3), m2, perUnit);
+    const nameBlob = [c[0], c[1]].filter(Boolean).join(" ").trim();
+    const got = rowPrices(c[2] || val(row, 3), m2, perUnit, nameBlob || undefined);
     if (got) return got;
   }
 
@@ -152,7 +167,7 @@ function tryParsePriceRow(row) {
       extractArticleFromBlob(c0) ||
       ((c[3] && c[3].length > 20) ? extractArticleFromBlob(c[3]) : null);
     if (art) {
-      const got = rowPrices(art, m2, perUnit);
+      const got = rowPrices(art, m2, perUnit, c0);
       if (got) return got;
     }
   }
@@ -167,7 +182,7 @@ function tryParsePriceRow(row) {
   ) {
     const m2 = parseMoney(c[2]);
     const perUnit = parseMoney(c[3]);
-    const got = rowPrices(c[1], m2, perUnit);
+    const got = rowPrices(c[1], m2, perUnit, c0);
     if (got) return got;
   }
 
@@ -185,6 +200,8 @@ function tryParsePriceRow(row) {
       const o = { article: normalizeArticle(art) };
       if (m2 != null) o.m2 = m2;
       if (perUnit != null) o.perUnit = perUnit;
+      const nm = maybeName(c0);
+      if (nm) o.name = nm;
       return o;
     }
   }
@@ -203,7 +220,7 @@ async function main() {
   const wb = new ExcelJS.Workbook();
   await wb.xlsx.readFile(xlsxPath);
 
-  /** @type {Record<string, { m2?: number; perUnit?: number }>} */
+  /** @type {Record<string, { m2?: number; perUnit?: number; name?: string }>} */
   const byArticle = {};
   const duplicates = [];
 
@@ -257,6 +274,12 @@ async function main() {
         next.perUnit = parsed.perUnit;
       }
 
+      if (parsed.name) {
+        if (!next.name || parsed.name.length > next.name.length) {
+          next.name = parsed.name;
+        }
+      }
+
       if (next.m2 != null || next.perUnit != null) {
         byArticle[parsed.article] = next;
       }
@@ -274,6 +297,7 @@ async function main() {
     const row = { article };
     if (v.m2 != null) row.pricePerM2 = v.m2;
     if (v.perUnit != null) row.pricePerUnit = v.perUnit;
+    if (v.name) row.name = v.name;
     return row;
   });
 
@@ -289,7 +313,7 @@ async function main() {
   );
 
   const header = `/* Автогенерация: node scripts/extract-moscow-prices.mjs
- * Источник: Москва прайс АГ (руб./м² и руб./ед., где указано). Дата выгрузки — см. имя xlsx.
+ * Источник: Москва прайс АГ (наименование, руб./м² и руб./ед., где указано). Дата — см. имя xlsx.
  */
 
 `;

@@ -14,22 +14,6 @@
   --kp-card-section-heading-letter-spacing: 0.02em;
 }
 
-.kp-page__back {
-  font-family: inherit;
-  font-size: 14px;
-  font-weight: 600;
-  color: #6cabc8;
-  background: none;
-  border: none;
-  padding: 16px 0;
-  cursor: pointer;
-  height: auto;
-}
-
-.kp-page__back:hover {
-  text-decoration: underline;
-}
-
 .kp-page__main {
   display: flex;
   flex-direction: column;
