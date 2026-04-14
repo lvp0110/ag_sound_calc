@@ -110,6 +110,26 @@ function maybeName(raw) {
   return t.replace(/\s+/g, " ").trim();
 }
 
+function normalizeNameForCompare(s) {
+  return String(s || "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
+}
+
+function combineNameParts(...parts) {
+  const cleaned = parts
+    .map((p) => maybeName(p))
+    .filter(Boolean);
+  if (!cleaned.length) return undefined;
+  if (cleaned.length === 1) return cleaned[0];
+
+  const [a, b] = cleaned;
+  if (normalizeNameForCompare(a) === normalizeNameForCompare(b)) return a;
+
+  return cleaned.join(" ");
+}
+
 function rowPrices(artRaw, m2, perUnit, nameRaw) {
   const article = normalizeArticle(artRaw);
   if (!article) return null;
@@ -154,7 +174,7 @@ function tryParsePriceRow(row) {
   if (isArticleRaw(val(row, 3), c[2]) && isUnit(c[3])) {
     const m2 = parseMoney(c[4]);
     const perUnit = parseMoney(c[5]);
-    const nameBlob = [c[0], c[1]].filter(Boolean).join(" ").trim();
+    const nameBlob = combineNameParts(c[0], c[1]);
     const got = rowPrices(c[2] || val(row, 3), m2, perUnit, nameBlob || undefined);
     if (got) return got;
   }
@@ -225,7 +245,12 @@ async function main() {
   const duplicates = [];
 
   for (const ws of wb.worksheets) {
-    if (!/^Table\s*\d+$/i.test(ws.name.trim()) && !ws.name.startsWith("Table")) continue;
+    const sheetName = String(ws.name || "").trim();
+    const looksLikePriceSheet =
+      /^Table\s*\d+$/i.test(sheetName) ||
+      /^Table\b/i.test(sheetName) ||
+      /^Sheet\d*$/i.test(sheetName);
+    if (!looksLikePriceSheet) continue;
 
     for (let r = 1; r <= ws.rowCount; r++) {
       const row = ws.getRow(r);

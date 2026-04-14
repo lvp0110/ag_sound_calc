@@ -358,6 +358,10 @@
   align-self: stretch;
 }
 
+.kp-page__services .kp-table-card + .kp-table-card {
+  margin-top: 16px;
+}
+
 /* Кнопка «Добавить строку» внутри таблицы услуг */
 .kp-page .kp-table-card #kp-table-services tfoot td.kp-page__services-add-cell {
   background: #fafcfd;
@@ -383,24 +387,55 @@
   white-space: nowrap;
 }
 
+.kp-page .kp-table-card #kp-table-additional-materials,
+.kp-page .kp-table-card #kp-table-services {
+  table-layout: fixed;
+}
+
+.kp-page .kp-table-card #kp-table-additional-materials th:nth-child(1),
+.kp-page .kp-table-card #kp-table-additional-materials td:nth-child(1),
+.kp-page .kp-table-card #kp-table-services th:nth-child(1),
+.kp-page .kp-table-card #kp-table-services td:nth-child(1) {
+  width: 60%;
+  text-align: left;
+}
+
+.kp-page .kp-table-card #kp-table-additional-materials th:nth-child(n + 2),
+.kp-page .kp-table-card #kp-table-additional-materials td:nth-child(n + 2),
+.kp-page .kp-table-card #kp-table-services th:nth-child(n + 2),
+.kp-page .kp-table-card #kp-table-services td:nth-child(n + 2) {
+  width: 10%;
+}
+
+.kp-page .kp-table-card #kp-table-additional-materials td:nth-child(n + 2) .kp-page__services-input,
+.kp-page .kp-table-card #kp-table-services td:nth-child(n + 2) .kp-page__services-input {
+  min-width: 0;
+}
+
 .kp-page__service-name-cell {
   display: flex;
   align-items: center;
   gap: 8px;
   min-width: 0;
+  white-space: normal;
 }
 
 .kp-page__service-name-cell .kp-page__services-input {
   flex: 1;
-  min-width: 80px;
+  min-width: 0;
+  white-space: normal;
 }
 
 .kp-page__service-row-remove {
   flex-shrink: 0;
-  width: 32px;
-  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  min-height: 0;
   padding: 0;
-  font-size: 20px;
+  font-size: 18px;
   line-height: 1;
   color: #6d7277;
   background: #fff;
@@ -408,6 +443,10 @@
   border-radius: 4px;
   cursor: pointer;
   box-shadow: none;
+}
+
+.kp-page__service-remove-col {
+  white-space: nowrap;
 }
 
 .kp-page__service-row-remove:hover {
@@ -446,6 +485,15 @@
   font-size: 14px;
   color: #1a1d21;
   border: none;
+}
+
+.kp-page__services-textarea {
+  resize: none;
+  overflow: hidden;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.35;
+  min-height: 30px;
 }
 
 .kp-page__services-input:focus-visible {

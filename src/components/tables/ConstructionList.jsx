@@ -227,29 +227,18 @@ const ConstructionList = ({
                       </th>
                     </tr>
                     <tr>
+                      {!readOnly && <th className="construction-card__delete-col" />}
                       <th>название</th>
                       <th>шифр</th>
                       <th className="construction-card__dim-th">ширина, мм</th>
                       <th className="construction-card__dim-th">высота, мм</th>
                       <th>масса</th>
-                      {!readOnly && <th></th>}
                     </tr>
                   </thead>
                   <tbody>
                     <tr>
-                      <td>{constRItem.title}</td>
-                      <td>{constRItem.ag_id}</td>
-                      <td className="construction-card__dim-td">
-                        {formatConstructionMm(constRItem.lenX)}
-                      </td>
-                      <td className="construction-card__dim-td">
-                        {formatConstructionMm(
-                          constructionHeightMm(constRItem)
-                        )}
-                      </td>
-                      <td>{constRItem.weight}</td>
                       {!readOnly && (
-                        <td>
+                        <td className="construction-card__delete-col">
                           <input
                             type="button"
                             className="counter__button_minus"
@@ -265,6 +254,17 @@ const ConstructionList = ({
                           />
                         </td>
                       )}
+                      <td>{constRItem.title}</td>
+                      <td>{constRItem.ag_id}</td>
+                      <td className="construction-card__dim-td">
+                        {formatConstructionMm(constRItem.lenX)}
+                      </td>
+                      <td className="construction-card__dim-td">
+                        {formatConstructionMm(
+                          constructionHeightMm(constRItem)
+                        )}
+                      </td>
+                      <td>{constRItem.weight}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -374,32 +374,19 @@ const ConstructionList = ({
       <table className="data" id="table1">
         <thead>
           <tr>
+            {!readOnly && <th className="construction-card__delete-col" />}
             <th>шифр</th>
             <th>название</th>
             <th className="construction-list-legacy__dim-th">ширина, мм</th>
             <th className="construction-list-legacy__dim-th">высота, мм</th>
             <th>масса</th>
-            {!readOnly && <th></th>}
           </tr>
         </thead>
         <tbody>
           {constructions.map((constRItem) => (
             <tr key={constRItem.key_id}>
-              <td className="construction-list-legacy__code-td">
-                {constRItem.ag_id}
-              </td>
-              <td className="construction-list-legacy__title-td">
-                {constRItem.title}
-              </td>
-              <td className="construction-list-legacy__dim-td">
-                {formatConstructionMm(constRItem.lenX)}
-              </td>
-              <td className="construction-list-legacy__dim-td">
-                {formatConstructionMm(constructionHeightMm(constRItem))}
-              </td>
-              <td>{constRItem.weight}</td>
               {!readOnly && (
-                <td>
+                <td className="construction-card__delete-col">
                   <input
                     type="button"
                     className="counter__button_minus"
@@ -415,6 +402,19 @@ const ConstructionList = ({
                   />
                 </td>
               )}
+              <td className="construction-list-legacy__code-td">
+                {constRItem.ag_id}
+              </td>
+              <td className="construction-list-legacy__title-td">
+                {constRItem.title}
+              </td>
+              <td className="construction-list-legacy__dim-td">
+                {formatConstructionMm(constRItem.lenX)}
+              </td>
+              <td className="construction-list-legacy__dim-td">
+                {formatConstructionMm(constructionHeightMm(constRItem))}
+              </td>
+              <td>{constRItem.weight}</td>
             </tr>
           ))}
         </tbody>

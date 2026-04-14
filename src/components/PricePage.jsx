@@ -1,6 +1,10 @@
 import { useMemo, useState } from "react";
 import { pricePerM2List } from "../data/moscowPricePerM2ByArticle";
 import { formatRub } from "./tables/MaterialsList";
+import {
+  CALCULATOR_STATE_STORAGE_KEY,
+  migrateAdditionalMaterialsFromSavedState,
+} from "../constants/calculatorSession";
 import "./PricePage.css";
 
 function formatPriceCell(value) {
@@ -10,6 +14,43 @@ function formatPriceCell(value) {
 
 const PricePage = () => {
   const [query, setQuery] = useState("");
+
+  const addRowToAdditionalMaterials = (row) => {
+    const primaryPrice = Number(row.pricePerM2);
+    const unitPrice = Number(row.pricePerUnit);
+    const hasPrimaryPrice = Number.isFinite(primaryPrice);
+    const hasUnitPrice = Number.isFinite(unitPrice);
+    const nextRow = {
+      id:
+        typeof crypto !== "undefined" && crypto.randomUUID
+          ? crypto.randomUUID()
+          : `mat-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+      name: row.name?.trim() || String(row.article ?? ""),
+      price: hasPrimaryPrice
+        ? String(row.pricePerM2)
+        : hasUnitPrice
+          ? String(row.pricePerUnit)
+          : "",
+      quantity: "",
+      unit: hasPrimaryPrice ? "м²" : hasUnitPrice ? "ед." : "",
+    };
+
+    try {
+      const raw = sessionStorage.getItem(CALCULATOR_STATE_STORAGE_KEY);
+      const saved = raw ? JSON.parse(raw) : {};
+      const currentRows = migrateAdditionalMaterialsFromSavedState(saved);
+      const nextRows = [...currentRows, nextRow];
+      sessionStorage.setItem(
+        CALCULATOR_STATE_STORAGE_KEY,
+        JSON.stringify({
+          ...saved,
+          additionalMaterials: nextRows,
+        })
+      );
+    } catch {
+      // ignore storage errors
+    }
+  };
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -59,7 +100,20 @@ const PricePage = () => {
             </thead>
             <tbody>
               {filtered.map((row) => (
-                <tr key={row.article}>
+                <tr
+                  key={row.article}
+                  className="price-page__row-clickable"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => addRowToAdditionalMaterials(row)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      addRowToAdditionalMaterials(row);
+                    }
+                  }}
+                  aria-label={`Добавить материал ${row.name?.trim() || row.article} в дополнительные материалы`}
+                >
                   <td className="price-page__article">{row.article}</td>
                   <td className="price-page__name">
                     {row.name?.trim() ? row.name : "—"}

@@ -70,6 +70,12 @@
   opacity: 0.7;
 }
 
+.construction-card__delete-col {
+  width: 1%;
+  white-space: nowrap;
+  text-align: center;
+}
+
 /* «Итого» внизу карточки КП: разметка; оформление как у заголовка раздела — в KpPage.css */
 .kp-card-sections-total__inner {
   display: flex;

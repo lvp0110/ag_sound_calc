@@ -113,6 +113,15 @@
   background: #f8fafb;
 }
 
+.price-page__row-clickable {
+  cursor: pointer;
+}
+
+.price-page__row-clickable:focus-visible td {
+  outline: 2px solid #6cabc8;
+  outline-offset: -2px;
+}
+
 .price-page__article {
   font-variant-numeric: tabular-nums;
   white-space: nowrap;

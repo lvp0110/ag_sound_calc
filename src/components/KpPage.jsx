@@ -10,6 +10,7 @@ import {
 } from "./tables/MaterialsList";
 import {
   CALCULATOR_STATE_STORAGE_KEY,
+  migrateAdditionalMaterialsFromSavedState,
   migrateMaterialsFromSavedState,
 } from "../constants/calculatorSession";
 import "./Calculator.css";
@@ -37,6 +38,17 @@ function loadCalculatorTablesState() {
       ConstrToCalc: [],
       materialsByConstruction: [],
     };
+  }
+}
+
+function loadAdditionalMaterialsState() {
+  try {
+    const raw = sessionStorage.getItem(CALCULATOR_STATE_STORAGE_KEY);
+    if (!raw) return [];
+    const saved = JSON.parse(raw);
+    return migrateAdditionalMaterialsFromSavedState(saved);
+  } catch {
+    return [];
   }
 }
 
@@ -106,6 +118,20 @@ function newCustomServiceRow() {
   };
 }
 
+function newCustomMaterialRow() {
+  const id =
+    typeof crypto !== "undefined" && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `mat-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+  return {
+    id,
+    name: "",
+    price: "",
+    quantity: "",
+    unit: "",
+  };
+}
+
 const MONTAGE_ROW_LABEL = "Монтаж";
 
 const INITIAL_SERVICE_ROWS = [
@@ -128,6 +154,10 @@ const KpPage = () => {
   const [montageSectionOpenByKeyId, setMontageSectionOpenByKeyId] = useState(
     () => ({})
   );
+  const [materialRows, setMaterialRows] = useState(() => {
+    const savedRows = loadAdditionalMaterialsState();
+    return savedRows.length > 0 ? savedRows : [newCustomMaterialRow()];
+  });
   const [serviceRows, setServiceRows] = useState(INITIAL_SERVICE_ROWS);
 
   useEffect(() => {
@@ -140,12 +170,13 @@ const KpPage = () => {
         JSON.stringify({
           ...s,
           materialsByConstruction: calcTables.materialsByConstruction,
+          additionalMaterials: materialRows,
         })
       );
     } catch {
       /* ignore */
     }
-  }, [calcTables.materialsByConstruction]);
+  }, [calcTables.materialsByConstruction, materialRows]);
 
   const onGeneralMaterialKpPriceChange = useCallback(
     (key_id, indexInFullMaterialsData, field, value) => {
@@ -180,6 +211,35 @@ const KpPage = () => {
 
   const removeServiceRow = (id) => {
     setServiceRows((rows) => rows.filter((r) => r.preset || r.id !== id));
+  };
+
+  const updateMaterialRow = (id, field) => (e) => {
+    const value = e.target.value;
+    setMaterialRows((rows) =>
+      rows.map((r) => (r.id === id ? { ...r, [field]: value } : r))
+    );
+  };
+
+  const autoResizeNameField = (e) => {
+    const field = e.target;
+    field.style.height = "auto";
+    field.style.height = `${field.scrollHeight}px`;
+  };
+
+  useEffect(() => {
+    const fields = document.querySelectorAll(".kp-page__services-textarea");
+    fields.forEach((field) => {
+      field.style.height = "auto";
+      field.style.height = `${field.scrollHeight}px`;
+    });
+  }, [materialRows, serviceRows]);
+
+  const addMaterialRow = () => {
+    setMaterialRows((rows) => [...rows, newCustomMaterialRow()]);
+  };
+
+  const removeMaterialRow = (id) => {
+    setMaterialRows((rows) => rows.filter((r) => r.id !== id));
   };
 
   const updateMontageRow = useCallback((key_id, field) => (e) => {
@@ -442,9 +502,121 @@ const KpPage = () => {
             <div className="tbl-in">
               <table
                 className="data"
+                id="kp-table-additional-materials"
+                aria-label="Дополнительные материалы"
+              >
+                <colgroup>
+                  <col style={{ width: "50%" }} />
+                  <col style={{ width: "12%" }} />
+                  <col style={{ width: "10%" }} />
+                  <col style={{ width: "7%" }} />
+                  <col style={{ width: "20%" }} />
+                </colgroup>
+                <thead>
+                  <tr>
+                    <th colSpan={5}>Дополнительные материалы</th>
+                  </tr>
+                  <tr>
+                    <th>Название</th>
+                    <th>Цена</th>
+                    <th>Количество</th>
+                    <th>Ед. изм.</th>
+                    <th>Сумма</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {materialRows.map((row) => (
+                    <tr key={row.id}>
+                      <td>
+                        <div className="kp-page__service-name-cell">
+                          <button
+                            type="button"
+                            className="kp-page__service-row-remove"
+                            onClick={() => removeMaterialRow(row.id)}
+                            aria-label="Удалить строку"
+                          >
+                            ×
+                          </button>
+                          <textarea
+                            className="kp-page__services-input kp-page__services-textarea"
+                            value={row.name}
+                            onChange={updateMaterialRow(row.id, "name")}
+                            onInput={autoResizeNameField}
+                            aria-label="Название материала"
+                            rows={1}
+                          />
+                        </div>
+                      </td>
+                      <td>
+                        <input
+                          type="text"
+                          className="kp-page__services-input"
+                          value={row.price}
+                          onChange={updateMaterialRow(row.id, "price")}
+                          aria-label={`Цена, ${row.name || "материал"}`}
+                        />
+                      </td>
+                      <td>
+                        <input
+                          type="text"
+                          className="kp-page__services-input"
+                          value={row.quantity}
+                          onChange={updateMaterialRow(row.id, "quantity")}
+                          aria-label={`Количество, ${row.name || "материал"}`}
+                        />
+                      </td>
+                      <td>
+                        <input
+                          type="text"
+                          className="kp-page__services-input"
+                          value={row.unit}
+                          onChange={updateMaterialRow(row.id, "unit")}
+                          aria-label={`Единица измерения, ${row.name || "материал"}`}
+                        />
+                      </td>
+                      <td>
+                        <input
+                          type="text"
+                          readOnly
+                          className="kp-page__services-input kp-page__services-input--computed"
+                          value={serviceRowSum(row.price, row.quantity)}
+                          aria-label={`Сумма, ${row.name || "материал"} (цена × количество)`}
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="kp-page__services-add-row">
+                    <td colSpan={5} className="kp-page__services-add-cell">
+                      <button
+                        type="button"
+                        className="kp-page__services-add"
+                        onClick={addMaterialRow}
+                      >
+                        Добавить строку
+                      </button>
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          </div>
+
+          <div className="kp-table-card">
+            <div className="tbl-in">
+              <table
+                className="data"
                 id="kp-table-services"
                 aria-label="Дополнительне услуги"
               >
+                <colgroup>
+                  <col style={{ width: "60%" }} />
+                  <col style={{ width: "10%" }} />
+                  <col style={{ width: "10%" }} />
+                  <col style={{ width: "10%" }} />
+                  <col style={{ width: "10%" }} />
+                </colgroup>
                 <thead>
                   <tr>
                     <th colSpan={5}>Дополнительне услуги</th>
@@ -471,13 +643,6 @@ const KpPage = () => {
                           row.name
                         ) : (
                           <div className="kp-page__service-name-cell">
-                            <input
-                              type="text"
-                              className="kp-page__services-input"
-                              value={row.name}
-                              onChange={updateServiceRow(row.id, "name")}
-                              aria-label="Название услуги"
-                            />
                             <button
                               type="button"
                               className="kp-page__service-row-remove"
@@ -486,6 +651,14 @@ const KpPage = () => {
                             >
                               ×
                             </button>
+                            <textarea
+                              className="kp-page__services-input kp-page__services-textarea"
+                              value={row.name}
+                              onChange={updateServiceRow(row.id, "name")}
+                              onInput={autoResizeNameField}
+                              aria-label="Название услуги"
+                              rows={1}
+                            />
                           </div>
                         )}
                       </td>
