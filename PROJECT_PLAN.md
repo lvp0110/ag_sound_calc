@@ -1,66 +1,58 @@
-# План проекта: ag_sound_calc — Backend + Auth + История КП
+# План проекта: ag_sound_calc — Backend + Auth + Offer-first КП
 
 ## Описание
 
-Доработка существующего React-приложения (калькулятор акустических конструкций с генерацией КП). Цель — добавить бэкенд, базу данных и полный цикл работы с коммерческими предложениями: создание, хранение, просмотр истории, копирование. Для каждого сотрудника — отдельная учётная запись.
+Доработка существующего React-приложения (калькулятор акустических конструкций с генерацией КП). Цель — реализовать проект целиком: backend, БД, авторизацию, хранение офферов и повторный расчёт материалов с актуальными ценами.
+
+Ключевая модель домена — `Offer` (см. `types.ts`). Оффер создаётся сразу после запуска формирования КП из калькулятора, затем пользователь попадает на готовую страницу `/kp/:id`.
 
 ---
 
 ## Стек технологий
 
-
-| Слой            | Технология                                                            | Обоснование                                  |
-| --------------- | --------------------------------------------------------------------- | -------------------------------------------- |
-| Frontend        | React 19 + React Router 7 (существующий)                              | Без смены фреймворка                         |
-| Backend         | **Node.js + Express**                                                 | Единый язык с фронтом, быстрый старт         |
-| База данных     | **PostgreSQL**                                                        | Реляционная, JSONB для динамических полей КП |
-| ORM             | **Prisma**                                                            | Type-safe миграции, отличный DX              |
-| Авторизация     | **JWT** (access token в памяти) + **httpOnly Cookie** (refresh token) | Защита от XSS                                |
-| Хэширование     | **bcrypt**                                                            | Стандарт для паролей                         |
-| PDF             | **Puppeteer**                                                         | Рендерит существующую HTML-страницу КП в PDF |
-| Контейнеризация | **Docker + Docker Compose**                                           | postgres + express (API + статика фронта)    |
-| Конфигурация    | **dotenv**                                                            | Управление окружением                        |
-
+| Слой            | Технология                                                   | Обоснование                                     |
+| --------------- | ------------------------------------------------------------ | ----------------------------------------------- |
+| Frontend        | React 19 + React Router 7 (существующий)                     | Без смены фреймворка                            |
+| Backend         | **Node.js + Express**                                        | Единый язык с фронтом, быстрый старт            |
+| База данных     | **PostgreSQL**                                               | Реляционная модель + JSONB для вложенных данных |
+| ORM             | **Prisma**                                                   | Type-safe миграции, удобный DX                  |
+| Авторизация     | **JWT** (access token) + **httpOnly Cookie** (refresh token) | Безопасный и стандартный поток auth             |
+| Хэширование     | **bcrypt**                                                   | Стандарт хранения паролей                       |
+| PDF             | **Puppeteer**                                                | Рендер КП-страницы в PDF                        |
+| Контейнеризация | **Docker + Docker Compose**                                  | Единый запуск postgres + backend                |
+| Конфигурация    | **dotenv**                                                   | Управление окружением                           |
 
 ---
 
-## Принцип хранения данных расчёта
+## Принцип хранения данных расчёта (Offer-first)
 
-Вместо хранения результатов расчёта (таблиц материалов) — сохраняем только **параметры** вызова `/api/v1/calcIsolation/byProduct` (`**calc_params`**). При каждом открытии КП расчёт выполняется заново → данные всегда актуальны (актуальные цены, нормы расхода).**  
-`****sessionStorage` для передачи данных расчёта не используем.**
+Храним не полный результат расчёта, а входные параметры `calc_params` для каждой конструкции (`Construction`) и пользовательские правки цен материалов в `materials`.
 
-Переход с калькулятора на страницу создания КП выполняется через URL:
+При каждом открытии `/kp/:id`:
 
-```
-/kp?p=<urlencoded(JSON(calc_params))>
-```
+1. Бэкенд берёт `calc_params` всех конструкций оффера.
+2. Вызывает внешний сервис `/api/v1/calcIsolation/byProduct` (контракт не меняется).
+3. Получает актуальные материалы/цены.
+4. Накладывает сохранённые пользовательские override (только где пользователь редактировал цены).
+5. Возвращает готовые данные фронту.
 
-Где `p` — это строка `encodeURIComponent(JSON.stringify(calc_params))`.
+`sessionStorage` передачи расчетов не используются.
 
-**Структура `calc_params` (массив конструкций):**
+**Структура `calc_params` (на одну конструкцию):**
 
 ```javascript
-[
-  {
-    // Параметры для API /api/v1/calcIsolation/byProduct
-    Code: string, // Код конструкции (напр. "AG.W101")
-    LenX: number, // мм
-    LenY: number, // мм
-    LenZ: number, // мм
-    AddCeilShift: number,
-    step: number, // 400 или 600
-    dframe: boolean,
-    Area: number, // м²
-    Perimeter: number, // м
-    Openings: [{ lenX, lenZ, Type }],
-
-    // Метаданные для отображения
-    key_id: number, // уникальный ID конструкции в рамках КП
-    title: string,
-    type: string, // F / C / L / W
-    ag_id: string,
-  },
-];
+{
+  Code: string,
+  LenX: number,
+  LenY: number,
+  LenZ: number,
+  AddCeilShift: number,
+  step: number,
+  dframe: boolean,
+  Area: number,
+  Perimeter: number,
+  Openings: [{ lenX, lenZ, Type }],
+}
 ```
 
 ---
@@ -68,7 +60,6 @@
 ## Схема базы данных
 
 ### Таблица `users`
-
 
 | Поле             | Тип                          | Описание                 |
 | ---------------- | ---------------------------- | ------------------------ |
@@ -81,30 +72,45 @@
 | `created_at`     | TIMESTAMP                    | Дата создания            |
 | `updated_at`     | TIMESTAMP                    | Дата обновления          |
 
+### Таблица `offers`
 
-### Таблица `kp`
+| Поле               | Тип                | Описание                       |
+| ------------------ | ------------------ | ------------------------------ |
+| `id`               | UUID PK            | ID оффера                      |
+| `user_id`          | UUID FK → users.id | Владелец оффера                |
+| `title`            | VARCHAR(255)       | Заголовок КП                   |
+| `manager_name`     | VARCHAR(255)       | ФИО менеджера (snapshot)       |
+| `phone`            | VARCHAR(50)        | Телефон                        |
+| `email`            | VARCHAR(255)       | Почта                          |
+| `office_address`   | TEXT               | Адрес офиса                    |
+| `kp_date`          | VARCHAR(50)        | Дата КП                        |
+| `object_name`      | TEXT               | Объект                         |
+| `logo_url`         | TEXT               | Логотип КП                     |
+| `region`           | VARCHAR(120)       | Регион                         |
+| `markup_percent`   | NUMERIC(6,2)       | Наценка (%)                    |
+| `discount_percent` | NUMERIC(6,2)       | Скидка (%)                     |
+| `services`         | JSONB              | `Offer.services` (`Service[]`) |
+| `created_at`       | TIMESTAMP          | Дата создания                  |
+| `updated_at`       | TIMESTAMP          | Дата обновления                |
 
+### Таблица `offer_constructions`
 
-| Поле              | Тип                | Описание                                                             |
-| ----------------- | ------------------ | -------------------------------------------------------------------- |
-| `id`              | UUID PK            | Уникальный идентификатор                                             |
-| `user_id`         | UUID FK → users.id | Владелец КП                                                          |
-| `title`           | VARCHAR(255)       | Заголовок (авто: "КП от {date} / {object}")                          |
-| `manager_name`    | VARCHAR(255)       | ФИО менеджера (snapshot)                                             |
-| `phone`           | VARCHAR(50)        | Телефон                                                              |
-| `email`           | VARCHAR(255)       | Почта                                                                |
-| `office_address`  | TEXT               | Адрес офиса                                                          |
-| `kp_date`         | VARCHAR(50)        | Дата КП                                                              |
-| `object_name`     | TEXT               | Объект                                                               |
-| `calc_params`     | JSONB NOT NULL     | Параметры для повторного расчёта (см. выше)                          |
-| `price_overrides` | JSONB              | Ручные цены менеджера `{ [Code]: { KpPricePerM2, KpPricePerUnit } }` |
-| `montage_data`    | JSONB              | Монтаж `{ [key_id]: { price, quantity, unit } }`                     |
-| `service_rows`    | JSONB              | Доп. услуги `[{ id, preset, name, price, quantity, unit }]`          |
-| `total_cost`      | DECIMAL(12,2)      | Итоговая сумма (snapshot для списка)                                 |
-| `created_at`      | TIMESTAMP          | Дата создания                                                        |
+| Поле          | Тип                 | Описание                                            |
+| ------------- | ------------------- | --------------------------------------------------- |
+| `id`          | UUID PK             | ID записи                                           |
+| `offer_id`    | UUID FK → offers.id | Ссылка на оффер                                     |
+| `position`    | INTEGER NOT NULL    | Порядок конструкции внутри оффера                   |
+| `calc_params` | JSONB NOT NULL      | Параметры запроса `/api/v1/calcIsolation/byProduct` |
+| `materials`   | JSONB               | `Construction.materials` (`Material[]`)             |
+| `montage`     | JSONB               | `Construction.montage` (`Service[]`)                |
+| `created_at`  | TIMESTAMP           | Дата создания                                       |
+| `updated_at`  | TIMESTAMP           | Дата обновления                                     |
 
+Ограничения и индексы:
 
-> `calc_params` хранит только входные параметры (компактно). Фактический состав материалов и количества всегда вычисляются заново при открытии КП.
+- `UNIQUE(offer_id, position)`;
+- индекс по `offer_id`;
+- FK `offer_id -> offers.id` с `ON DELETE CASCADE`.
 
 ---
 
@@ -112,80 +118,90 @@
 
 ### Авторизация
 
-
 | Метод | Путь                 | Тело                                                    | Описание                |
 | ----- | -------------------- | ------------------------------------------------------- | ----------------------- |
 | POST  | `/api/auth/register` | `{ full_name, email, phone, office_address, password }` | Регистрация             |
-| POST  | `/api/auth/login`    | `{ email, password }`                                   | Вход → JWT + cookie     |
-| POST  | `/api/auth/refresh`  | *(cookie)*                                              | Обновление access token |
+| POST  | `/api/auth/login`    | `{ email, password }`                                   | Вход → токены           |
+| POST  | `/api/auth/refresh`  | _(cookie refresh)_                                      | Обновление access token |
 | POST  | `/api/auth/logout`   | —                                                       | Выход                   |
 
+### Пользователь _(auth)_
 
-### Пользователь *(требует auth)*
+| Метод | Путь            | Тело                                          | Описание             |
+| ----- | --------------- | --------------------------------------------- | -------------------- |
+| GET   | `/api/users/me` | —                                             | Текущий пользователь |
+| PUT   | `/api/users/me` | `{ full_name, phone, email, office_address }` | Обновить профиль     |
 
+### Офферы / КП _(auth)_
 
-| Метод | Путь            | Тело                                          | Описание                     |
-| ----- | --------------- | --------------------------------------------- | ---------------------------- |
-| GET   | `/api/users/me` | —                                             | Данные текущего пользователя |
-| PUT   | `/api/users/me` | `{ full_name, phone, email, office_address }` | Обновить данные              |
+| Метод | Путь                    | Тело                                            | Описание                                                      |
+| ----- | ----------------------- | ----------------------------------------------- | ------------------------------------------------------------- |
+| POST  | `/api/offers`           | `{ form, offerDraft }`                          | Создать оффер + конструкции, выполнить расчёт, вернуть модель |
+| GET   | `/api/offers`           | —                                               | Список офферов пользователя                                   |
+| GET   | `/api/offers/:id`       | —                                               | Оффер + пересчитанные материалы                               |
+| PATCH | `/api/offers/:id`       | `{ form, services, constructions, total_cost }` | Сохранить правки                                              |
+| POST  | `/api/offers/:id/clone` | -                                               | Создать новый оффер на основе существующего                   |
+| GET   | `/api/offers/:id/pdf`   | —                                               | Скачать PDF                                                   |
 
-
-### КП *(требует auth)*
-
-
-| Метод | Путь              | Тело                                                            | Описание                        |
-| ----- | ----------------- | --------------------------------------------------------------- | ------------------------------- |
-| POST  | `/api/kp`         | `{ form, calc_params, montage_data, service_rows, total_cost }` | Создать КП                      |
-| GET   | `/api/kp`         | —                                                               | Список КП текущего пользователя |
-| GET   | `/api/kp/:id`     | —                                                               | Одно КП (только своё)           |
-| GET   | `/api/kp/:id/pdf` | —                                                               | Скачать КП в PDF                |
-
+Примечание: внешний `/api/v1/calcIsolation/byProduct` не меняется.
 
 ---
 
 ## Маршруты фронтенда
 
-
 | Маршрут     | Компонент          | Описание                                          |
 | ----------- | ------------------ | ------------------------------------------------- |
-| `/calc`     | `Calculator.jsx`   | Калькулятор (без изменений)                       |
-| `/kp`       | `KpPage.jsx`       | Создание КП (требует auth, показывает LoginModal) |
-| `/kp/list`  | `KpList.jsx`       | Список КП текущего пользователя                   |
-| `/kp/:id`   | `KpView.jsx`       | Просмотр КП (read-only)                           |
-| `/register` | `RegisterPage.jsx` | Регистрация нового пользователя                   |
-
+| `/calc`     | `Calculator.jsx`   | Инициирует создание оффера (`POST /api/offers`)   |
+| `/kp/:id`   | `KpPage.jsx`       | Основная страница просмотра/редактирования оффера |
+| `/kp/list`  | `KpList.jsx`       | Список офферов                                    |
+| `/register` | `RegisterPage.jsx` | Регистрация                                       |
 
 ---
 
 ## Логика работы приложения
 
-### Создание КП (`/kp`)
+### Создание оффера
 
-1. Пользователь переходит на `/kp`
-2. Если не авторизован → показывается `LoginModal`
-3. После входа данные пользователя подставляются в форму (ФИО, телефон, почта, адрес)
-4. Страница парсит query `p` → получает `calc_params` (массив конструкций) → делает расчёт через `/api/v1/calcIsolation/byProduct`
-5. Пользователь редактирует поля КП и (при необходимости) цены/строки «Монтаж» и «Услуги»
-6. Нажимает "Сформировать КП" → `POST /api/kp` (сохраняем `**calc_params`**, `price_overrides`, `montage_data`, `service_rows`, `total_cost` + snapshot полей формы) → redirect на `/kp/:id`
+1. Пользователь заканчивает расчёты в калькуляторе (`Construction[]`).
+2. Фронт делает `POST /api/offers`.
+3. Бэкенд создаёт оффер.
+4. Фронт переходит на `/kp/:id`.
 
-### Просмотр КП (`/kp/:id`)
+### Работа с `/kp/:id`
 
-- Read-only отображение (та же вёрстка, без полей ввода)
-- При загрузке: `GET /api/kp/:id` → берём `calc_params` и делаем повторный расчёт через `/api/v1/calcIsolation/byProduct`
-- "Создать на основе" → redirect на `/kp?p=<urlencoded(JSON(calc_params))>`
-- "Скачать PDF" → `GET /api/kp/:id/pdf`
+- На загрузке: `GET /api/offers/:id`.
+- Бэкенд всегда пересчитывает материалы по `calc_params`.
+- Бэкенд накладывает сохранённые правки цен из `constructions[].materials`.
+- Пользователь редактирует данные, затем сохраняет изменения с помощью `PATCH /api/offers/:id`.
 
-### Список КП (`/kp/list`)
+### Создание на основе
 
-- Отображаются карточки: дата, объект, сумма, менеджер
-- Клик на карточку → `/kp/:id` (просмотр)
-- "Создать на основе" у карточки → redirect на `/kp?p=<urlencoded(JSON(calc_params))>` (берём `calc_params` из выбранного КП)
+- Из `/kp/list` или карточки оффера пользователь вызывает `POST /api/offers/:id/clone`.
+- Бэкенд создаёт новый оффер на основе исходного, копирует все поля.
+- После создания фронт получает новый `offerId` и открывает новый `/kp/:offerId`.
+
+---
+
+## Флоу (Mermaid)
+
+```mermaid
+flowchart LR
+  calculator[CalculatorPage] -->|"POST /api/offers"| backendCreate[BackendCreateOffer]
+  backendCreate --> dbOffers[(offersAndOfferConstructions)]
+  backendCreate --> calcService[/api/v1/calcIsolation/byProduct]
+  calcService --> backendCompose[BackendComposeOfferView]
+  backendCompose --> kpPage[kpByIdPage]
+  kpPage -->|"PATCH /api/offers/:id"| backendUpdate[BackendUpdateOffer]
+  backendUpdate --> dbOffers
+  kpPage -->|"GET /api/offers/:id"| backendReload[BackendRecalculateAndMergeOverrides]
+  backendReload --> calcService
+```
 
 ---
 
 ## Структура папок
 
-```
+```text
 ag_sound_calc/
 ├── backend/
 │   ├── prisma/
@@ -195,28 +211,25 @@ ag_sound_calc/
 │   │   ├── routes/
 │   │   │   ├── auth.js
 │   │   │   ├── users.js
-│   │   │   └── kp.js
+│   │   │   └── offers.js
 │   │   ├── middleware/
 │   │   │   └── requireAuth.js
-│   │   └── index.js          ← Express сервер + static dist/
+│   │   └── index.js
 │   ├── Dockerfile
 │   ├── .env
 │   └── package.json
-├── src/                      ← существующий фронтенд
-│   ├── context/
-│   │   └── AuthContext.jsx   (новый)
-│   ├── components/
-│   │   ├── LoginModal.jsx    (новый)
-│   │   ├── KpList.jsx        (новый)
-│   │   ├── KpView.jsx        (новый)
-│   │   ├── RegisterPage.jsx  (новый)
-│   │   └── KpPage.jsx        (изменён)
-│   ├── services/
-│   │   └── authApi.js        (новый)
-│   ├── utils/
-│   │   └── kpQueryParams.js   (новый: encode/decode `p` для `/kp`)
-│   └── App.jsx               (изменён)
-├── docker-compose.yml        ← postgres + backend
+├── src/
+│   ├── context/AuthContext.jsx
+│   ├── components/LoginModal.jsx
+│   ├── components/KpList.jsx
+│   ├── components/RegisterPage.jsx
+│   ├── components/KpPage.jsx
+│   ├── services/authApi.js
+│   ├── services/offersApi.js
+│   ├── utils/offerMapper.ts
+│   ├── App.jsx
+│   └── types.ts
+├── docker-compose.yml
 ├── PROJECT_PLAN.md
 └── DB_SCHEMA.html
 ```
@@ -225,79 +238,52 @@ ag_sound_calc/
 
 ## Пошаговые этапы реализации
 
-### Этап 0: Docker Compose и инфраструктура
+### Этап 0: Инфраструктура
 
-- `docker-compose.yml` — сервисы: `postgres`, `backend`
-- `backend/Dockerfile` — Node.js + Puppeteer + сборка фронта (`npm run build`) → `dist/`
-- Express раздаёт `dist/` как статику + SPA fallback
-- Vite proxy `/api/*` используется только в dev-режиме
+- `docker-compose.yml`: `postgres`, `backend`.
+- Базовый Express + подключение Prisma + env.
 
-### Этап 1: Настройка бэкенда
+### Этап 1: Модель данных
 
-- Создать `backend/`, инициализировать `npm`
-- Установить: `express`, `prisma`, `@prisma/client`, `bcrypt`, `jsonwebtoken`, `cors`, `dotenv`, `cookie-parser`
-- `prisma/schema.prisma` — модели `User`, `Kp`
-- `prisma migrate dev` — создать БД и таблицы
-- Базовый Express сервер с CORS и middleware
+- Prisma-модели `User`, `Offer`, `OfferConstruction`.
+- Миграции и индексы.
 
-### Этап 2: Auth endpoints
+### Этап 2: Auth
 
-- `POST /api/auth/register` — bcrypt.hash(password), создать user
-- `POST /api/auth/login` — bcrypt.compare, выдать access JWT + refresh в httpOnly cookie
-- `POST /api/auth/refresh` — проверить cookie, выдать новый access token
-- Middleware `requireAuth` — валидация JWT из заголовка `Authorization: Bearer <token>`
-- `GET /api/users/me`, `PUT /api/users/me`
+- `/api/auth/*`, `/api/users/me`, middleware `requireAuth`.
 
-### Этап 3: КП endpoints
+### Этап 3: Offer API
 
-- `POST /api/kp` — сохранить КП для `req.user.id`
-- `GET /api/kp` — список КП пользователя (без тяжёлых JSONB-полей)
-- `GET /api/kp/:id` — полные данные (проверить `user_id === req.user.id`)
-- `GET /api/kp/:id/pdf` — Puppeteer рендерит страницу, возвращает PDF
+- `POST/GET/PATCH /api/offers`, `GET /api/offers/:id/pdf`.
+- `POST /api/offers/:id/clone` для сценария "Создать на основе".
+- Серверный пересчёт + merge override.
 
-### Этап 4: Frontend — Auth
+### Этап 4: Frontend auth
 
-- `AuthContext.jsx` — хранить `user`, `accessToken`, `login()`, `logout()`
-- `authApi.js` — fetch-хелперы с `Authorization: Bearer <token>`
-- `LoginModal.jsx` — форма входа
-- `RegisterPage.jsx` — страница `/register`
-- Обновить `App.jsx` — `AuthProvider` + новые маршруты
+- `AuthContext`, `LoginModal`, `RegisterPage`.
 
-### Этап 5: Интеграция `/kp`
+### Этап 5: Интеграция калькулятора
 
-- Проверка авторизации при загрузке → `LoginModal`
-- Подстановка данных пользователя в форму после входа
-- Получение `calc_params` из query `p` (urlencoded JSON) и пересчёт через `/api/v1/calcIsolation/byProduct`
-- Кнопка "Сформировать КП" → `POST /api/kp` (сохраняем `calc_params` + overrides/монтаж/услуги/итог) → redirect `/kp/list`
+- Формирование `offerDraft`.
+- `POST /api/offers` и redirect на `/kp/:id`.
 
-### Этап 6: Страница `/kp/list`
+### Этап 6: Страницы оффера
 
-- `KpList.jsx` — список карточек КП
-- Клик → `/kp/:id`, "Создать на основе" → redirect `/kp?p=<urlencoded(JSON(calc_params))>`
-- "Новое КП" → `/kp`
-
-### Этап 7: Страница `/kp/:id`
-
-- `KpView.jsx` — read-only отображение данных КП
-- При открытии: берём `calc_params` из КП и пересчитываем материалы через `/api/v1/calcIsolation/byProduct`
-- Кнопка "Создать на основе" → redirect `/kp?p=<urlencoded(JSON(calc_params))>`
-- Кнопка "Скачать PDF" → `GET /api/kp/:id/pdf`
+- `/kp/:id`: загрузка, редактирование, сохранение.
+- `/kp/list`: список, создание на основе.
 
 ---
 
 ## Верификация
 
-1. `curl -X POST /api/auth/register` → 201, получен токен
-2. `curl -X POST /api/auth/login` → токен + cookie
-3. `curl /api/users/me -H "Authorization: Bearer <token>"` → данные пользователя
-4. Открыть `/kp` без авторизации → модалка входа
-5. Войти → данные пользователя подставились в форму
-6. Открыть `/kp?p=...` (параметры пришли из калькулятора) → расчёт подтянулся через `/api/v1/calcIsolation/byProduct`
-7. "Сформировать КП" → redirect на `/kp/list` → КП в списке
-8. Клик на КП → read-only просмотр (расчёт выполняется заново)
-9. "Создать на основе" → переход на `/kp?p=...` и создание нового КП без `sessionStorage` (через `p` как urlencoded JSON)
-10. Войти как другой пользователь → его КП недоступны первому
+1. Регистрация/логин работают, токены выдаются.
+2. Создание оффера из калькулятора ведёт на `/kp/:id`.
+3. На `/kp/:id` материалы приходят с серверного расчёта.
+4. `PATCH /api/offers/:id` сохраняет правки в `services`, `constructions[].materials`, `constructions[].montage`.
+5. После reload пересчёт актуализируется, override применяются.
+6. Пользователь видит только свои офферы.
+7. `POST /api/offers/:id/clone` создаёт новый оффер и возвращает новый `id`; переход на новый `/kp/:id` успешен.
 
 ---
 
-*Схема БД и флоучарт приложения: [DB_SCHEMA.html](./DB_SCHEMA.html)*
+_Схема БД и флоучарт приложения: [DB_SCHEMA.html](./DB_SCHEMA.html)_
