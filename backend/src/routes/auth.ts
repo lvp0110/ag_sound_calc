@@ -24,7 +24,6 @@ const issueTokens = (userId: string) => {
     refreshToken: signRefreshToken(payload),
   };
 };
-
 router.post(
   "/register",
   asyncHandler(async (req, res) => {
@@ -58,7 +57,6 @@ router.post(
     });
   })
 );
-
 router.post(
   "/login",
   asyncHandler(async (req, res) => {
@@ -86,7 +84,6 @@ router.post(
     });
   })
 );
-
 router.post(
   "/refresh",
   asyncHandler(async (req, res) => {
@@ -113,7 +110,6 @@ router.post(
     }
   })
 );
-
 router.post("/logout", (_req, res) => {
   res.clearCookie(REFRESH_COOKIE_NAME, getRefreshCookieOptions());
   return res.status(204).send();

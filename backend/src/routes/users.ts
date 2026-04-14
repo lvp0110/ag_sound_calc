@@ -8,7 +8,6 @@ const router = Router();
 type AsyncRouteHandler = (req: Request, res: Response, next: NextFunction) => Promise<Response | void>;
 const asyncHandler = (handler: AsyncRouteHandler) => (req: Request, res: Response, next: NextFunction) =>
   Promise.resolve(handler(req, res, next)).catch(next);
-
 router.get(
   "/me",
   requireAuth,
@@ -25,7 +24,6 @@ router.get(
     return res.json(toUserDto(user));
   })
 );
-
 router.put(
   "/me",
   requireAuth,
