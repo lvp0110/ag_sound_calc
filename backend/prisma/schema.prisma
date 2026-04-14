@@ -1,0 +1,62 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String   @id @default(uuid()) @db.Uuid
+  fullName      String   @map("full_name") @db.VarChar(255)
+  phone         String?  @db.VarChar(50)
+  email         String   @unique @db.VarChar(255)
+  officeAddress String?  @map("office_address")
+  passwordHash  String   @map("password_hash") @db.VarChar(255)
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  offers        Offer[]
+
+  @@map("users")
+}
+
+model Offer {
+  id              String              @id @default(uuid()) @db.Uuid
+  userId          String              @map("user_id") @db.Uuid
+  title           String?             @db.VarChar(255)
+  managerName     String?             @map("manager_name") @db.VarChar(255)
+  phone           String?             @db.VarChar(50)
+  email           String?             @db.VarChar(255)
+  officeAddress   String?             @map("office_address")
+  kpDate          String?             @map("kp_date") @db.VarChar(50)
+  objectName      String?             @map("object_name")
+  logoUrl         String?             @map("logo_url")
+  region          String?             @db.VarChar(120)
+  markupPercent   Decimal?            @map("markup_percent") @db.Decimal(6, 2)
+  discountPercent Decimal?            @map("discount_percent") @db.Decimal(6, 2)
+  services        Json?
+  createdAt       DateTime            @default(now()) @map("created_at")
+  updatedAt       DateTime            @updatedAt @map("updated_at")
+  user            User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  constructions   OfferConstruction[]
+
+  @@index([userId], map: "offers_user_id_idx")
+  @@map("offers")
+}
+
+model OfferConstruction {
+  id         String   @id @default(uuid()) @db.Uuid
+  offerId    String   @map("offer_id") @db.Uuid
+  position   Int
+  calcParams Json     @map("calc_params")
+  materials  Json?
+  montage    Json?
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+  offer      Offer    @relation(fields: [offerId], references: [id], onDelete: Cascade)
+
+  @@unique([offerId, position], map: "offer_constructions_offer_id_position_key")
+  @@index([offerId], map: "offer_constructions_offer_id_idx")
+  @@map("offer_constructions")
+}
