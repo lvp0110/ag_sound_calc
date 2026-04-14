@@ -2,7 +2,7 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const toInt = (value, fallback) => {
+const toInt = (value: string | undefined, fallback: number): number => {
   const parsed = Number.parseInt(value ?? "", 10);
   return Number.isNaN(parsed) ? fallback : parsed;
 };
@@ -19,6 +19,5 @@ export const env = {
 };
 
 if (!env.databaseUrl) {
-  // Explicit error early helps fail fast on startup.
   throw new Error("DATABASE_URL is required");
 }

@@ -1,4 +1,6 @@
-export const toUserDto = (user) => ({
+import { type User } from "@prisma/client";
+
+export const toUserDto = (user: User) => ({
   id: user.id,
   full_name: user.fullName,
   phone: user.phone,

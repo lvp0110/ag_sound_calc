@@ -14,7 +14,7 @@
 | Слой            | Технология                                                   | Обоснование                                     |
 | --------------- | ------------------------------------------------------------ | ----------------------------------------------- |
 | Frontend        | React 19 + React Router 7 (существующий)                     | Без смены фреймворка                            |
-| Backend         | **Node.js + Express**                                        | Единый язык с фронтом, быстрый старт            |
+| Backend         | **Node.js + Express + TypeScript**                           | Единый язык с фронтом, быстрый старт + типобезопасность |
 | База данных     | **PostgreSQL**                                               | Реляционная модель + JSONB для вложенных данных |
 | ORM             | **Prisma**                                                   | Type-safe миграции, удобный DX                  |
 | Авторизация     | **JWT** (access token) + **httpOnly Cookie** (refresh token) | Безопасный и стандартный поток auth             |
@@ -227,12 +227,12 @@ ag_sound_calc/
 │   │   └── migrations/
 │   ├── src/
 │   │   ├── routes/
-│   │   │   ├── auth.js
-│   │   │   ├── users.js
-│   │   │   └── offers.js
+│   │   │   ├── auth.ts
+│   │   │   ├── users.ts
+│   │   │   └── offers.ts
 │   │   ├── middleware/
-│   │   │   └── requireAuth.js
-│   │   └── index.js
+│   │   │   └── requireAuth.ts
+│   │   └── index.ts
 │   ├── Dockerfile
 │   ├── .env
 │   └── package.json
@@ -260,6 +260,7 @@ ag_sound_calc/
 
 - `docker-compose.yml`: `postgres`, `backend`.
 - Базовый Express + подключение Prisma + env.
+- Настройка TypeScript для backend (`tsconfig`, scripts `dev/build/start`).
 
 ### Этап 1: Модель данных
 
@@ -268,7 +269,7 @@ ag_sound_calc/
 
 ### Этап 2: Auth
 
-- `/api/auth/*`, `/api/users/me`, middleware `requireAuth`.
+- `/api/auth/*`, `/api/users/me`, middleware `requireAuth` (TypeScript).
 
 ### Этап 3: Offer API
 
