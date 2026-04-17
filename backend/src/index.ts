@@ -7,6 +7,7 @@ import { openApiSpec } from "./docs/swagger.js";
 import { prisma } from "./lib/prisma.js";
 import authRouter from "./routes/auth.js";
 import calcRouter from "./routes/calc.js";
+import offersRouter from "./routes/offers.js";
 import usersRouter from "./routes/users.js";
 
 const app = express();
@@ -31,6 +32,7 @@ app.get("/api/openapi.json", (_req: Request, res: Response) => {
 
 app.use("/api/auth", authRouter);
 app.use("/api/users", usersRouter);
+app.use("/api/offers", offersRouter);
 app.use(calcRouter);
 
 app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {

@@ -6,13 +6,18 @@ import {
   AuthSuccessSchema,
   CalcByProductRequestSchema,
   CalcByProductResponseSchema,
+  CloneOfferResponseSchema,
   ConstructionPropsResponseSchema,
+  CreateOfferRequestSchema,
   ErrorResponseSchema,
   HealthResponseSchema,
   IsolationConstrMaterialsResponseSchema,
   LoginRequestSchema,
+  OfferSchema,
+  OfferSummarySchema,
   RegisterRequestSchema,
   UpdateMeRequestSchema,
+  UpdateOfferRequestSchema,
   UserSchema,
 } from "./schemas.js";
 
@@ -186,6 +191,145 @@ registry.registerPath({
     },
     409: {
       description: "Duplicate email",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+  },
+});
+
+registry.registerPath({
+  method: "post",
+  path: "/api/offers",
+  tags: ["Offers"],
+  summary: "Создать оффер (с первичным расчётом материалов)",
+  security: [{ bearerAuth: [] }],
+  request: {
+    body: {
+      content: {
+        "application/json": { schema: CreateOfferRequestSchema },
+      },
+    },
+  },
+  responses: {
+    201: {
+      description: "Созданный оффер c пересчитанными материалами",
+      content: { "application/json": { schema: OfferSchema } },
+    },
+    400: {
+      description: "Ошибка валидации",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    401: {
+      description: "Unauthorized",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    502: {
+      description: "Внешний calcService недоступен",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+  },
+});
+
+registry.registerPath({
+  method: "get",
+  path: "/api/offers",
+  tags: ["Offers"],
+  summary: "Список офферов текущего пользователя",
+  security: [{ bearerAuth: [] }],
+  responses: {
+    200: {
+      description: "Метаданные офферов (без конструкций)",
+      content: { "application/json": { schema: z.array(OfferSummarySchema) } },
+    },
+    401: {
+      description: "Unauthorized",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+  },
+});
+
+registry.registerPath({
+  method: "get",
+  path: "/api/offers/{id}",
+  tags: ["Offers"],
+  summary: "Получить оффер (с серверным пересчётом + override)",
+  security: [{ bearerAuth: [] }],
+  request: {
+    params: z.object({ id: z.string().uuid() }),
+  },
+  responses: {
+    200: {
+      description: "Оффер с пересчитанными материалами",
+      content: { "application/json": { schema: OfferSchema } },
+    },
+    401: {
+      description: "Unauthorized",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    404: {
+      description: "Оффер не найден или принадлежит другому пользователю",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    502: {
+      description: "Внешний calcService недоступен",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+  },
+});
+
+registry.registerPath({
+  method: "patch",
+  path: "/api/offers/{id}",
+  tags: ["Offers"],
+  summary: "Сохранить правки оффера",
+  security: [{ bearerAuth: [] }],
+  request: {
+    params: z.object({ id: z.string().uuid() }),
+    body: {
+      content: {
+        "application/json": { schema: UpdateOfferRequestSchema },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: "Обновлённый оффер",
+      content: { "application/json": { schema: OfferSchema } },
+    },
+    400: {
+      description: "Ошибка валидации",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    401: {
+      description: "Unauthorized",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    404: {
+      description: "Оффер не найден",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+  },
+});
+
+registry.registerPath({
+  method: "post",
+  path: "/api/offers/{id}/clone",
+  tags: ["Offers"],
+  summary: "Создать новый оффер на основе существующего",
+  security: [{ bearerAuth: [] }],
+  request: {
+    params: z.object({ id: z.string().uuid() }),
+  },
+  responses: {
+    201: {
+      description: "ID созданного оффера",
+      content: { "application/json": { schema: CloneOfferResponseSchema } },
+    },
+    401: {
+      description: "Unauthorized",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+    404: {
+      description: "Исходный оффер не найден",
       content: { "application/json": { schema: ErrorResponseSchema } },
     },
   },
