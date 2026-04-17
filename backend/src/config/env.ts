@@ -12,12 +12,14 @@ export const env = {
   port: toInt(process.env.PORT, 3006),
   databaseUrl:
     process.env.DATABASE_URL ??
-    "postgresql://postgres:postgres@localhost:5432/ag_sound_calc?schema=public",
+    "postgresql://postgres:postgres@localhost:5433/ag_sound_calc?schema=public",
   corsOrigin: process.env.CORS_ORIGIN ?? "http://localhost:5173",
   accessTokenSecret: process.env.JWT_ACCESS_SECRET ?? "dev_access_secret_change_me",
   refreshTokenSecret: process.env.JWT_REFRESH_SECRET ?? "dev_refresh_secret_change_me",
   accessTokenExpiresIn: process.env.ACCESS_TOKEN_EXPIRES_IN ?? "15m",
   refreshTokenExpiresIn: process.env.REFRESH_TOKEN_EXPIRES_IN ?? "30d",
+  calcServiceUrl: process.env.CALC_SERVICE_URL ?? "https://dev3.constrtodo.ru:3005",
+  calcServiceTimeoutMs: toInt(process.env.CALC_SERVICE_TIMEOUT_MS, 15000),
 };
 
 if (env.nodeEnv === "production" && !process.env.DATABASE_URL) {

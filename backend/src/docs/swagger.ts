@@ -1,9 +1,15 @@
 import { OpenApiGeneratorV3, OpenAPIRegistry } from "@asteasolutions/zod-to-openapi";
+import { z } from "zod";
 import { env } from "../config/env.js";
 import {
+  AllIsolationConstrResponseSchema,
   AuthSuccessSchema,
+  CalcByProductRequestSchema,
+  CalcByProductResponseSchema,
+  ConstructionPropsResponseSchema,
   ErrorResponseSchema,
   HealthResponseSchema,
+  IsolationConstrMaterialsResponseSchema,
   LoginRequestSchema,
   RegisterRequestSchema,
   UpdateMeRequestSchema,
@@ -180,6 +186,144 @@ registry.registerPath({
     },
     409: {
       description: "Duplicate email",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+  },
+});
+
+const calcProxyDescription =
+  "Прокси на внешний сервис расчёта. Backend форвардит запрос на CALC_SERVICE_URL без модификации тела. На сетевую ошибку/таймаут возвращает 502.";
+
+registry.registerPath({
+  method: "post",
+  path: "/api/v1/calcIsolation/byProduct",
+  tags: ["Calc (proxy)"],
+  summary: "Расчёт материалов по конструкциям (прокси)",
+  description: calcProxyDescription,
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: CalcByProductRequestSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: "Результат расчёта от внешнего сервиса",
+      content: { "application/json": { schema: CalcByProductResponseSchema } },
+    },
+    502: {
+      description: "Внешний сервис недоступен или таймаут",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+  },
+});
+
+registry.registerPath({
+  method: "get",
+  path: "/api/v1/AllIsolationConstr",
+  tags: ["Calc (proxy)"],
+  summary: "Список всех конструкций (прокси)",
+  description: calcProxyDescription,
+  responses: {
+    200: {
+      description: "Список конструкций",
+      content: { "application/json": { schema: AllIsolationConstrResponseSchema } },
+    },
+    502: {
+      description: "Внешний сервис недоступен",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+  },
+});
+
+registry.registerPath({
+  method: "get",
+  path: "/api/v1/IsolationConstrMaterials/{code}",
+  tags: ["Calc (proxy)"],
+  summary: "Материалы конструкции по шифру (прокси)",
+  description: calcProxyDescription,
+  request: {
+    params: z.object({
+      code: z.string().openapi({ example: "AG.W101" }),
+    }),
+  },
+  responses: {
+    200: {
+      description: "Материалы конструкции",
+      content: {
+        "application/json": { schema: IsolationConstrMaterialsResponseSchema },
+      },
+    },
+    404: {
+      description: "Конструкция не найдена во внешнем сервисе",
+    },
+    502: {
+      description: "Внешний сервис недоступен",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+  },
+});
+
+registry.registerPath({
+  method: "get",
+  path: "/api/v1/constr/{filename}",
+  tags: ["Calc (proxy)"],
+  summary: "Превью конструкции (картинка, прокси)",
+  description:
+    `${calcProxyDescription} Тело ответа — бинарный поток (обычно image/jpeg).`,
+  request: {
+    params: z.object({
+      filename: z.string().openapi({ example: "partition_50.jpg" }),
+    }),
+  },
+  responses: {
+    200: {
+      description: "Бинарный поток картинки",
+      content: {
+        "image/jpeg": {
+          schema: { type: "string", format: "binary" } as unknown as z.ZodTypeAny,
+        },
+        "image/png": {
+          schema: { type: "string", format: "binary" } as unknown as z.ZodTypeAny,
+        },
+      },
+    },
+    404: {
+      description: "Файл не найден во внешнем сервисе",
+    },
+    502: {
+      description: "Внешний сервис недоступен",
+      content: { "application/json": { schema: ErrorResponseSchema } },
+    },
+  },
+});
+
+registry.registerPath({
+  method: "get",
+  path: "/api/v2/isolationConstructions/props/{code}",
+  tags: ["Calc (proxy)"],
+  summary: "Свойства конструкции v2 (прокси)",
+  description: calcProxyDescription,
+  request: {
+    params: z.object({
+      code: z.string().openapi({ example: "AG.W101" }),
+    }),
+  },
+  responses: {
+    200: {
+      description: "Свойства конструкции",
+      content: {
+        "application/json": { schema: ConstructionPropsResponseSchema },
+      },
+    },
+    404: {
+      description: "Свойства не найдены",
+    },
+    502: {
+      description: "Внешний сервис недоступен",
       content: { "application/json": { schema: ErrorResponseSchema } },
     },
   },
