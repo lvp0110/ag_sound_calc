@@ -6,6 +6,7 @@ type JwtPayload = {
   userId: string;
 };
 
+export const ACCESS_COOKIE_NAME = "accessToken";
 export const REFRESH_COOKIE_NAME = "refreshToken";
 
 export const signAccessToken = (payload: JwtPayload): string => {
@@ -40,4 +41,21 @@ export const getRefreshCookieOptions = (): CookieOptions => ({
   sameSite: "lax",
   path: "/api/auth",
   maxAge: 1000 * 60 * 60 * 24 * 30,
+});
+
+/**
+ * Access token живёт в httpOnly cookie на path=/api — его автоматически отправляет
+ * браузер со всеми запросами к API. Никакого access_token в JSON — защита от XSS.
+ *
+ * SameSite=Lax ок для одного сайта (localhost:5173 + localhost:3006 — same-site
+ * по правилам браузера, порт на site-equality не влияет). CSRF для cross-site
+ * POST отсекается Lax-политикой.
+ */
+export const getAccessCookieOptions = (): CookieOptions => ({
+  httpOnly: true,
+  secure: env.nodeEnv === "production",
+  sameSite: "lax",
+  path: "/api",
+  // 15 минут по умолчанию — совпадает с accessTokenExpiresIn
+  maxAge: 1000 * 60 * 15,
 });

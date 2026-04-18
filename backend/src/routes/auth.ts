@@ -2,6 +2,8 @@ import bcrypt from "bcrypt";
 import { Router, type NextFunction, type Request, type Response } from "express";
 import { prisma } from "../lib/prisma.js";
 import {
+  ACCESS_COOKIE_NAME,
+  getAccessCookieOptions,
   getRefreshCookieOptions,
   REFRESH_COOKIE_NAME,
   signAccessToken,
@@ -23,6 +25,19 @@ const issueTokens = (userId: string) => {
     accessToken: signAccessToken(payload),
     refreshToken: signRefreshToken(payload),
   };
+};
+
+const setAuthCookies = (
+  res: Response,
+  tokens: { accessToken: string; refreshToken: string }
+) => {
+  res.cookie(ACCESS_COOKIE_NAME, tokens.accessToken, getAccessCookieOptions());
+  res.cookie(REFRESH_COOKIE_NAME, tokens.refreshToken, getRefreshCookieOptions());
+};
+
+const clearAuthCookies = (res: Response) => {
+  res.clearCookie(ACCESS_COOKIE_NAME, getAccessCookieOptions());
+  res.clearCookie(REFRESH_COOKIE_NAME, getRefreshCookieOptions());
 };
 router.post(
   "/register",
@@ -50,11 +65,8 @@ router.post(
     });
 
     const tokens = issueTokens(user.id);
-    res.cookie(REFRESH_COOKIE_NAME, tokens.refreshToken, getRefreshCookieOptions());
-    return res.status(201).json({
-      access_token: tokens.accessToken,
-      user: toUserDto(user),
-    });
+    setAuthCookies(res, tokens);
+    return res.status(201).json({ user: toUserDto(user) });
   })
 );
 router.post(
@@ -77,11 +89,8 @@ router.post(
     }
 
     const tokens = issueTokens(user.id);
-    res.cookie(REFRESH_COOKIE_NAME, tokens.refreshToken, getRefreshCookieOptions());
-    return res.json({
-      access_token: tokens.accessToken,
-      user: toUserDto(user),
-    });
+    setAuthCookies(res, tokens);
+    return res.json({ user: toUserDto(user) });
   })
 );
 router.post(
@@ -100,18 +109,15 @@ router.post(
       }
 
       const tokens = issueTokens(user.id);
-      res.cookie(REFRESH_COOKIE_NAME, tokens.refreshToken, getRefreshCookieOptions());
-      return res.json({
-        access_token: tokens.accessToken,
-        user: toUserDto(user),
-      });
+      setAuthCookies(res, tokens);
+      return res.json({ user: toUserDto(user) });
     } catch {
       return res.status(401).json({ error: "Invalid refresh token" });
     }
   })
 );
 router.post("/logout", (_req, res) => {
-  res.clearCookie(REFRESH_COOKIE_NAME, getRefreshCookieOptions());
+  clearAuthCookies(res);
   return res.status(204).send();
 });
 

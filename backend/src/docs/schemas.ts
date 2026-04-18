@@ -23,7 +23,6 @@ export const UserSchema = z
 
 export const AuthSuccessSchema = z
   .object({
-    access_token: z.string(),
     user: UserSchema,
   })
   .openapi("AuthSuccess");

@@ -23,10 +23,10 @@ import {
 
 const registry = new OpenAPIRegistry();
 
-registry.registerComponent("securitySchemes", "bearerAuth", {
-  type: "http",
-  scheme: "bearer",
-  bearerFormat: "JWT",
+registry.registerComponent("securitySchemes", "cookieAuth", {
+  type: "apiKey",
+  in: "cookie",
+  name: "accessToken",
 });
 
 registry.registerPath({
@@ -144,7 +144,7 @@ registry.registerPath({
   path: "/api/users/me",
   tags: ["Users"],
   summary: "Get current user",
-  security: [{ bearerAuth: [] }],
+  security: [{ cookieAuth: [] }],
   responses: {
     200: {
       description: "Current user profile",
@@ -166,7 +166,7 @@ registry.registerPath({
   path: "/api/users/me",
   tags: ["Users"],
   summary: "Update current user",
-  security: [{ bearerAuth: [] }],
+  security: [{ cookieAuth: [] }],
   request: {
     body: {
       content: {
@@ -201,7 +201,7 @@ registry.registerPath({
   path: "/api/offers",
   tags: ["Offers"],
   summary: "Создать оффер (с первичным расчётом материалов)",
-  security: [{ bearerAuth: [] }],
+  security: [{ cookieAuth: [] }],
   request: {
     body: {
       content: {
@@ -234,7 +234,7 @@ registry.registerPath({
   path: "/api/offers",
   tags: ["Offers"],
   summary: "Список офферов текущего пользователя",
-  security: [{ bearerAuth: [] }],
+  security: [{ cookieAuth: [] }],
   responses: {
     200: {
       description: "Метаданные офферов (без конструкций)",
@@ -252,7 +252,7 @@ registry.registerPath({
   path: "/api/offers/{id}",
   tags: ["Offers"],
   summary: "Получить оффер (с серверным пересчётом + override)",
-  security: [{ bearerAuth: [] }],
+  security: [{ cookieAuth: [] }],
   request: {
     params: z.object({ id: z.string().uuid() }),
   },
@@ -281,7 +281,7 @@ registry.registerPath({
   path: "/api/offers/{id}",
   tags: ["Offers"],
   summary: "Сохранить правки оффера",
-  security: [{ bearerAuth: [] }],
+  security: [{ cookieAuth: [] }],
   request: {
     params: z.object({ id: z.string().uuid() }),
     body: {
@@ -315,7 +315,7 @@ registry.registerPath({
   path: "/api/offers/{id}/clone",
   tags: ["Offers"],
   summary: "Создать новый оффер на основе существующего",
-  security: [{ bearerAuth: [] }],
+  security: [{ cookieAuth: [] }],
   request: {
     params: z.object({ id: z.string().uuid() }),
   },

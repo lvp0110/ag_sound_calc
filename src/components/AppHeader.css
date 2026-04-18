@@ -9,7 +9,6 @@
 }
 
 .app-header__inner {
-  max-width: 1200px;
   /* margin: 0 auto; */
   padding: 10px 16px;
   display: flex;
@@ -53,7 +52,9 @@
   font-weight: 600;
   color: #3d7a96;
   text-decoration: none;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
 }
 
 .app-header__link:hover {
@@ -71,9 +72,61 @@
   color: #fff;
 }
 
+.app-header__auth {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+}
+
+.app-header__user {
+  /* Override global `span { display: flex; color: #878181; pointer-events: none; }` from Calculator.css */
+  display: inline-block;
+  pointer-events: auto;
+  font-size: 13px;
+  color: #2a5f78;
+  font-weight: 500;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-header__auth-btn {
+  /* Reset global `button { width: 100%; height: 120px; ... }` leaking from Calculator.css */
+  width: auto;
+  height: auto;
+  margin: 0;
+  box-shadow: none;
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 14px;
+  border: 1px solid #6cabc8;
+  background: transparent;
+  color: #2a5f78;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.app-header__auth-btn:hover {
+  background: #6cabc8;
+  color: #fff;
+}
+
 @media (max-width: 640px) {
   .app-header__link {
     padding: 8px 10px;
     font-size: 13px;
+  }
+
+  .app-header__user {
+    max-width: 120px;
+    font-size: 12px;
   }
 }

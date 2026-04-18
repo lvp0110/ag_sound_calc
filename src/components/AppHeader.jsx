@@ -1,4 +1,5 @@
 import { NavLink } from "react-router-dom";
+import { useAuth } from "../context/AuthContext.jsx";
 import "./AppHeader.css";
 
 const navLinkClass = ({ isActive }) =>
@@ -6,6 +7,7 @@ const navLinkClass = ({ isActive }) =>
 
 export default function AppHeader() {
   const logoSrc = `${import.meta.env.BASE_URL}logo1.png`;
+  const { user, status, openLoginModal, logout } = useAuth();
 
   return (
     <header className="app-header">
@@ -36,6 +38,22 @@ export default function AppHeader() {
             Прайс
           </NavLink>
         </nav>
+        <div className="app-header__auth">
+          {status === "loading" ? null : user ? (
+            <>
+              <span className="app-header__user" title={user.email}>
+                {user.full_name || user.email}
+              </span>
+              <button type="button" className="app-header__auth-btn" onClick={logout}>
+                Выйти
+              </button>
+            </>
+          ) : (
+            <button type="button" className="app-header__auth-btn" onClick={openLoginModal}>
+              Войти
+            </button>
+          )}
+        </div>
       </div>
     </header>
   );
