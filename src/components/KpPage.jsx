@@ -127,9 +127,11 @@ const KpPage = () => {
   const [montageByKeyId, setMontageByKeyId] = useState(() => ({}));
   /** Раскрыт блок «Монтаж» в карточке (по key_id); по умолчанию свёрнут */
   const [montageSectionOpenByKeyId, setMontageSectionOpenByKeyId] = useState(
-    () => ({})
+    () => ({}),
   );
-  const [materialRows, setMaterialRows] = useState(() => [newCustomMaterialRow()]);
+  const [materialRows, setMaterialRows] = useState(() => [
+    newCustomMaterialRow(),
+  ]);
   const [serviceRows, setServiceRows] = useState(INITIAL_SERVICE_ROWS);
 
   const [loadStatus, setLoadStatus] = useState("idle"); // 'idle'|'loading'|'loaded'|'error'|'forbidden'
@@ -161,7 +163,11 @@ const KpPage = () => {
 
         const titleByCode = new Map();
         for (const row of constrList || []) {
-          if (row?.Code) titleByCode.set(row.Code, { Name: row.Name, Description: row.Description });
+          if (row?.Code)
+            titleByCode.set(row.Code, {
+              Name: row.Name,
+              Description: row.Description,
+            });
         }
 
         const view = mapOfferResponseToKpView(offer, { titleByCode });
@@ -175,12 +181,14 @@ const KpPage = () => {
         });
         setMontageByKeyId(view.montageByKeyId);
         setServiceRows(
-          view.serviceRows.length > 0 ? view.serviceRows : INITIAL_SERVICE_ROWS
+          view.serviceRows.length > 0 ? view.serviceRows : INITIAL_SERVICE_ROWS,
         );
         // Доп. материалы хранятся независимо (offer.additional_materials).
         // Если пустой список — показываем одну пустую строку для удобства добавления.
         setMaterialRows(
-          view.materialRows.length > 0 ? view.materialRows : [newCustomMaterialRow()]
+          view.materialRows.length > 0
+            ? view.materialRows
+            : [newCustomMaterialRow()],
         );
         setLoadStatus("loaded");
       } catch (err) {
@@ -231,13 +239,13 @@ const KpPage = () => {
         materialsByConstruction: prev.materialsByConstruction.map((entry) => {
           if (entry.key_id !== key_id) return entry;
           const nextData = entry.data.map((row, i) =>
-            i === indexInFullMaterialsData ? { ...row, [field]: value } : row
+            i === indexInFullMaterialsData ? { ...row, [field]: value } : row,
           );
           return { ...entry, data: nextData };
         }),
       }));
     },
-    []
+    [],
   );
 
   const onFieldChange = (key) => (e) => {
@@ -247,7 +255,7 @@ const KpPage = () => {
   const updateServiceRow = (id, field) => (e) => {
     const value = e.target.value;
     setServiceRows((rows) =>
-      rows.map((r) => (r.id === id ? { ...r, [field]: value } : r))
+      rows.map((r) => (r.id === id ? { ...r, [field]: value } : r)),
     );
   };
 
@@ -262,7 +270,7 @@ const KpPage = () => {
   const updateMaterialRow = (id, field) => (e) => {
     const value = e.target.value;
     setMaterialRows((rows) =>
-      rows.map((r) => (r.id === id ? { ...r, [field]: value } : r))
+      rows.map((r) => (r.id === id ? { ...r, [field]: value } : r)),
     );
   };
 
@@ -288,19 +296,22 @@ const KpPage = () => {
     setMaterialRows((rows) => rows.filter((r) => r.id !== id));
   };
 
-  const updateMontageRow = useCallback((key_id, field) => (e) => {
-    const value = e.target.value;
-    setMontageByKeyId((prev) => ({
-      ...prev,
-      [key_id]: {
-        price: "",
-        quantity: "",
-        unit: "",
-        ...prev[key_id],
-        [field]: value,
-      },
-    }));
-  }, []);
+  const updateMontageRow = useCallback(
+    (key_id, field) => (e) => {
+      const value = e.target.value;
+      setMontageByKeyId((prev) => ({
+        ...prev,
+        [key_id]: {
+          price: "",
+          quantity: "",
+          unit: "",
+          ...prev[key_id],
+          [field]: value,
+        },
+      }));
+    },
+    [],
+  );
 
   const toggleMontageSection = useCallback((key_id) => {
     setMontageSectionOpenByKeyId((prev) => ({
@@ -416,7 +427,7 @@ const KpPage = () => {
       montageSectionOpenByKeyId,
       toggleMontageSection,
       updateMontageRow,
-    ]
+    ],
   );
 
   if (loadStatus === "loading" || authStatus === "loading") {
@@ -560,33 +571,21 @@ const KpPage = () => {
           aria-label="Данные расчёта из калькулятора"
         >
           {calcTables.tableConstrToCalc != null &&
-          calcTables.ConstrToCalc.length > 0 ? (
-            <>
-              <ConstructionList
-                constructions={calcTables.ConstrToCalc}
-                readOnly
-                materialsByConstruction={calcTables.materialsByConstruction}
-                renderKpMontageSlot={renderKpMontageSlot}
-                montageByKeyId={montageByKeyId}
-                showGrandTotalInline={false}
-                onGeneralMaterialKpPriceChange={
-                  onGeneralMaterialKpPriceChange
-                }
-              />
-            </>
-          ) : (
-            <p className="kp-page__tables-empty">
-              В этом КП пока нет конструкций. Перейдите в{" "}
-              <button
-                type="button"
-                className="kp-page__link-btn"
-                onClick={() => navigate("/calc")}
-              >
-                калькулятор
-              </button>
-              , чтобы добавить.
-            </p>
-          )}
+            calcTables.ConstrToCalc.length > 0 && (
+              <>
+                <ConstructionList
+                  constructions={calcTables.ConstrToCalc}
+                  readOnly
+                  materialsByConstruction={calcTables.materialsByConstruction}
+                  renderKpMontageSlot={renderKpMontageSlot}
+                  montageByKeyId={montageByKeyId}
+                  showGrandTotalInline={false}
+                  onGeneralMaterialKpPriceChange={
+                    onGeneralMaterialKpPriceChange
+                  }
+                />
+              </>
+            )}
         </div>
 
         <div className="kp-page__services">
@@ -757,7 +756,9 @@ const KpPage = () => {
                       <td>
                         <input
                           id={
-                            row.preset ? `kp-service-${row.id}-price` : undefined
+                            row.preset
+                              ? `kp-service-${row.id}-price`
+                              : undefined
                           }
                           type="text"
                           className="kp-page__services-input"
@@ -829,14 +830,14 @@ const KpPage = () => {
               readOnly
               grandTotalRub={computeGrandTotalRubForConstructions(
                 calcTables.ConstrToCalc,
-                calcTables.materialsByConstruction
+                calcTables.materialsByConstruction,
               )}
               montageGrandTotalRub={montageGrandTotalRubForKp(
                 calcTables.ConstrToCalc,
-                montageByKeyId
+                montageByKeyId,
               )}
               additionalServicesGrandTotalRub={additionalServicesGrandTotalRubForKp(
-                serviceRows
+                serviceRows,
               )}
               wrapClassName="kp-page__construction-grand-total"
             />
@@ -844,7 +845,9 @@ const KpPage = () => {
 
         <div className="kp-page__save-bar">
           {saveError && (
-            <div className="kp-page__save-error" role="alert">{saveError}</div>
+            <div className="kp-page__save-error" role="alert">
+              {saveError}
+            </div>
           )}
           <button
             type="button"

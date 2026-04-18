@@ -21,3 +21,7 @@ export const updateOffer = (id, patch) =>
 /** POST /api/offers/:id/clone — дубликат, возвращает { id } нового оффера. */
 export const cloneOffer = (id) =>
   request(`/api/offers/${encodeURIComponent(id)}/clone`, { method: "POST" });
+
+/** DELETE /api/offers/:id — удалить оффер. 204 без тела. */
+export const deleteOffer = (id) =>
+  request(`/api/offers/${encodeURIComponent(id)}`, { method: "DELETE" });

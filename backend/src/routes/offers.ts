@@ -315,6 +315,27 @@ router.patch(
 );
 
 /**
+ * DELETE /api/offers/:id — удаляет оффер пользователя. Конструкции удаляются
+ * каскадно (FK `onDelete: Cascade`). Возвращает 204 без тела.
+ */
+router.delete(
+  "/:id",
+  asyncHandler(async (req, res) => {
+    const userId = req.auth?.userId;
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+    const existing = await prisma.offer.findFirst({
+      where: { id: req.params.id, userId },
+      select: { id: true },
+    });
+    if (!existing) return res.status(404).json({ error: "Offer not found" });
+
+    await prisma.offer.delete({ where: { id: existing.id } });
+    return res.status(204).send();
+  })
+);
+
+/**
  * POST /api/offers/:id/clone — глубокое копирование, возвращает { id } нового оффера.
  */
 router.post(

@@ -81,7 +81,7 @@
 }
 
 .kp-list__actions-col {
-  width: 200px;
+  width: 290px;
 }
 
 .kp-list__link {
@@ -107,6 +107,9 @@
 
 .kp-list__actions {
   text-align: right;
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
 }
 
 .kp-list__action-btn {
@@ -133,4 +136,14 @@
 .kp-list__action-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.kp-list__action-btn--danger {
+  border-color: #dc2626;
+  color: #b91c1c;
+}
+
+.kp-list__action-btn--danger:hover:not(:disabled) {
+  background: #dc2626;
+  color: #fff;
 }

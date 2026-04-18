@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
-import { cloneOffer, createOffer, listOffers } from "../services/offersApi";
+import {
+  cloneOffer,
+  createOffer,
+  deleteOffer,
+  listOffers,
+} from "../services/offersApi";
 import "./KpList.css";
 
 function formatDate(iso) {
@@ -25,6 +30,7 @@ export default function KpList() {
   const [loadStatus, setLoadStatus] = useState("idle");
   const [error, setError] = useState(null);
   const [cloningId, setCloningId] = useState(null);
+  const [deletingId, setDeletingId] = useState(null);
   const [creatingNew, setCreatingNew] = useState(false);
 
   const load = useCallback(async () => {
@@ -64,6 +70,24 @@ export default function KpList() {
       setError(err?.message || "Не удалось скопировать оффер.");
     } finally {
       setCloningId(null);
+    }
+  };
+
+  const handleDelete = async (offer) => {
+    const label = offer.object_name || "без названия";
+    if (!window.confirm(`Удалить КП «${label}»? Действие нельзя отменить.`)) {
+      return;
+    }
+    setDeletingId(offer.id);
+    setError(null);
+    try {
+      await deleteOffer(offer.id);
+      // удаляем из локального списка, чтобы не перезагружать
+      setOffers((prev) => prev.filter((o) => o.id !== offer.id));
+    } catch (err) {
+      setError(err?.message || "Не удалось удалить КП.");
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -152,9 +176,18 @@ export default function KpList() {
                     type="button"
                     className="kp-list__action-btn"
                     onClick={() => handleClone(o.id)}
-                    disabled={cloningId === o.id}
+                    disabled={cloningId === o.id || deletingId === o.id}
                   >
                     {cloningId === o.id ? "Копирование..." : "Создать на основе"}
+                  </button>
+                  <button
+                    type="button"
+                    className="kp-list__action-btn kp-list__action-btn--danger"
+                    onClick={() => handleDelete(o)}
+                    disabled={deletingId === o.id || cloningId === o.id}
+                    aria-label="Удалить КП"
+                  >
+                    {deletingId === o.id ? "Удаление..." : "Удалить"}
                   </button>
                 </td>
               </tr>
