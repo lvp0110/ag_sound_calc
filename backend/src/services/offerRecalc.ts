@@ -17,18 +17,35 @@ interface RecalcResult {
   materials: CalcMaterial[];
 }
 
-const materialKey = (m: CalcMaterial): string => {
-  const articul = m.articul ? String(m.articul).trim() : "";
-  return articul || m.name;
+/** Извлекает ключ для матчинга по материалам. Покрывает оба контракта:
+ *  внешний сервис (PascalCase: `Code`/`Name`) и тип из `types.ts` (lowercase: `articul`/`name`). */
+type MaterialLike = Record<string, unknown>;
+const materialKey = (m: MaterialLike): string => {
+  const pick = (k: string) => {
+    const v = m[k];
+    return typeof v === "string" || typeof v === "number" ? String(v).trim() : "";
+  };
+  return pick("Code") || pick("articul") || pick("Name") || pick("name");
 };
+
+/**
+ * Поля, которые считаем пользовательскими правками цен. Покрываем оба формата:
+ * `KpPricePerM2`/`KpPricePerUnit` — как их пишет фронт (KpPage);
+ * `pricePerSquareMeter`/`pricePerUnit` — legacy-имена из types.ts.
+ */
+const OVERRIDE_FIELDS = [
+  "KpPricePerM2",
+  "KpPricePerUnit",
+  "pricePerSquareMeter",
+  "pricePerUnit",
+] as const;
 
 /**
  * Накладывает сохранённые правки цен поверх свежего расчёта.
  *
- * Правило: если у сохранённой позиции (матчинг по articul, fallback — name)
- * цена отличается от свежей — считаем это пользовательским override и
- * возвращаем сохранённое значение цены. Остальные поля (count/name/unit)
- * всегда берутся из свежего расчёта.
+ * Правило: для каждой свежей позиции ищем сохранённую по ключу (Code → articul →
+ * Name → name). Если нашли — копируем все известные "override"-поля цен из
+ * сохранённой. Остальные поля всегда берутся из свежего расчёта.
  */
 export const mergeMaterialOverrides = (
   fresh: CalcMaterial[],
@@ -36,27 +53,24 @@ export const mergeMaterialOverrides = (
 ): CalcMaterial[] => {
   if (!saved || saved.length === 0) return fresh;
 
-  const savedByKey = new Map<string, CalcMaterial>();
-  for (const m of saved) savedByKey.set(materialKey(m), m);
+  const savedByKey = new Map<string, MaterialLike>();
+  for (const m of saved) {
+    const key = materialKey(m as unknown as MaterialLike);
+    if (key) savedByKey.set(key, m as unknown as MaterialLike);
+  }
 
   return fresh.map((freshItem) => {
-    const savedItem = savedByKey.get(materialKey(freshItem));
+    const savedItem = savedByKey.get(materialKey(freshItem as unknown as MaterialLike));
     if (!savedItem) return freshItem;
 
-    const result: CalcMaterial = { ...freshItem };
-    if (
-      savedItem.pricePerUnit !== undefined &&
-      savedItem.pricePerUnit !== freshItem.pricePerUnit
-    ) {
-      result.pricePerUnit = savedItem.pricePerUnit;
+    const result = { ...(freshItem as unknown as MaterialLike) };
+    for (const field of OVERRIDE_FIELDS) {
+      const v = savedItem[field];
+      if (v !== undefined && v !== null && v !== "") {
+        result[field] = v;
+      }
     }
-    if (
-      savedItem.pricePerSquareMeter !== undefined &&
-      savedItem.pricePerSquareMeter !== freshItem.pricePerSquareMeter
-    ) {
-      result.pricePerSquareMeter = savedItem.pricePerSquareMeter;
-    }
-    return result;
+    return result as unknown as CalcMaterial;
   });
 };
 

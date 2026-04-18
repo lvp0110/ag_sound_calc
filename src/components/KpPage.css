@@ -620,3 +620,30 @@
   transform: rotate(45deg);
   transform-origin: 50% 50%;
 }
+
+.kp-page__save-bar {
+  margin-top: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  width: 100%;
+}
+
+.kp-page__save-error {
+  color: #b91c1c;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 14px;
+  align-self: stretch;
+}
+
+.kp-page__save-btn {
+  width: auto !important;
+  height: auto !important;
+  padding: 10px 24px !important;
+  margin: 0 !important;
+  box-shadow: none !important;
+}

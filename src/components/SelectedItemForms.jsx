@@ -42,8 +42,6 @@ const SelectedItemForms = ({
   };
 
   const handleInfoClick = () => {
-    // Сохраняем c_id в sessionStorage для передачи в ItemInfo
-    sessionStorage.setItem('itemInfo_c_id', selectedItem.c_id);
     navigate(`/info/${selectedItem.ag_id}`, { state: { c_id: selectedItem.c_id } });
   };
 

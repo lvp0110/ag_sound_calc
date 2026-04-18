@@ -16,11 +16,10 @@ import { validateInput, validateFloorInput, validateFloorMaxInput, getMaxLenZInM
 import { calculateAreaAndPerimeter, getConstructionCode } from "../utils/calculations";
 import { getOpeningType } from "../utils/formatters";
 import { exportTablesToExcel, copyMaterialsToClipboard } from "../utils/excelExport";
-import {
-  CALCULATOR_STATE_STORAGE_KEY,
-  migrateMaterialsFromSavedState,
-} from "../constants/calculatorSession";
 import { calculateConstruction } from "../services/constructionApi";
+import { createOffer } from "../services/offersApi";
+import { buildCreateOfferPayload } from "../utils/offerMapper";
+import { useAuth } from "../context/AuthContext.jsx";
 import ItemsList from "./ItemsList";
 import SelectedItemForms from "./SelectedItemForms";
 import ConstructionList from "./tables/ConstructionList";
@@ -28,59 +27,31 @@ import ConstructionList from "./tables/ConstructionList";
 const Calculator = () => {
   const navigate = useNavigate();
   const { id } = useParams();
+  const { isAuthed, openLoginModal } = useAuth();
 
-  // Функция для загрузки состояния из sessionStorage
-  const loadStateFromStorage = () => {
-    try {
-      const savedState = sessionStorage.getItem(CALCULATOR_STATE_STORAGE_KEY);
-      if (savedState) {
-        return JSON.parse(savedState);
-      }
-    } catch (error) {
-      // Игнорируем ошибки парсинга
-    }
-    return null;
-  };
-
-  // Функция для сохранения состояния в sessionStorage
-  const saveStateToStorage = (state) => {
-    try {
-      sessionStorage.setItem(
-        CALCULATOR_STATE_STORAGE_KEY,
-        JSON.stringify(state)
-      );
-    } catch (error) {
-      // Игнорируем ошибки сохранения
-    }
-  };
-
-  // Загружаем сохраненное состояние
-  const savedState = loadStateFromStorage();
-
-  // State
-  const [currentGkla, setCurrentGkla] = useState(savedState?.currentGkla || "default");
-  const [currentWool, setCurrentWool] = useState(savedState?.currentWool || "default");
-  const [unvisible, setUnvisible] = useState(savedState?.unvisible || false);
-  const [tableConstrToCalc, setTableConstrToCalc] = useState(savedState?.tableConstrToCalc || null);
-  const [currentSubCategory, setCurrentSubCategory] = useState(savedState?.currentSubCategory || 0);
-  const [currentItems, setCurrentItems] = useState(savedState?.currentItems || 0);
+  // State (чистое in-memory состояние; при перезагрузке калькулятор начинает с нуля)
+  const [currentGkla, setCurrentGkla] = useState("default");
+  const [currentWool, setCurrentWool] = useState("default");
+  const [unvisible, setUnvisible] = useState(false);
+  const [tableConstrToCalc, setTableConstrToCalc] = useState(null);
+  const [currentSubCategory, setCurrentSubCategory] = useState(0);
+  const [currentItems, setCurrentItems] = useState(0);
   // Состояние для отслеживания открытых подкатегорий в каждой секции
-  const [openedSubCategories, setOpenedSubCategories] = useState(savedState?.openedSubCategories || {
+  const [openedSubCategories, setOpenedSubCategories] = useState({
     F: null, // null или id подкатегории
     C: null,
     L: null,
     W: null,
   });
-  const [template, setTemplate] = useState(savedState?.template || null);
-  const [profileStep, setProfileStep] = useState(savedState?.profileStep || 600);
-  const [dFrame, setDFrame] = useState(savedState?.dFrame || false);
-  const [currentConstr, setCurrentConstr] = useState(savedState?.currentConstr || "");
-  const [ConstrToCalcToSent, setConstrToCalcToSent] = useState(savedState?.ConstrToCalcToSent || []);
-  const [ConstrToCalc, setConstrToCalc] = useState(savedState?.ConstrToCalc || []);
-  const [materialsByConstruction, setMaterialsByConstruction] = useState(() =>
-    migrateMaterialsFromSavedState(savedState)
-  );
+  const [template, setTemplate] = useState(null);
+  const [profileStep, setProfileStep] = useState(600);
+  const [dFrame, setDFrame] = useState(false);
+  const [currentConstr, setCurrentConstr] = useState("");
+  const [ConstrToCalcToSent, setConstrToCalcToSent] = useState([]);
+  const [ConstrToCalc, setConstrToCalc] = useState([]);
+  const [materialsByConstruction, setMaterialsByConstruction] = useState([]);
   const [itemsWithImages, setItemsWithImages] = useState(Items); // Начальное значение - базовые items
+  const [isSubmittingKp, setIsSubmittingKp] = useState(false);
 
   // Состояние для модального окна
   const [modal, setModal] = useState({
@@ -101,45 +72,6 @@ const Calculator = () => {
       try {
         const enrichedItems = await getItemsWithApiImages();
         setItemsWithImages(enrichedItems);
-        
-        // Если есть сохраненное состояние с открытой секцией, предзагружаем первое изображение
-        const savedState = loadStateFromStorage();
-        if (savedState?.openedSubCategories) {
-          const firstOpenedSection = mainSections.find(section => {
-            const openedSubCategory = savedState.openedSubCategories[section.id];
-            if (!openedSubCategory) return false;
-            const sectionItems = enrichedItems.filter((el) => el.c_id == openedSubCategory);
-            return sectionItems.length > 0;
-          });
-          
-          if (firstOpenedSection) {
-            const openedSubCategory = savedState.openedSubCategories[firstOpenedSection.id];
-            const sectionItems = enrichedItems.filter((el) => el.c_id == openedSubCategory);
-            
-            if (sectionItems.length > 0) {
-              const firstItem = sectionItems[0];
-              const firstImageSrc = firstItem.Img || firstItem.img;
-              
-              if (firstImageSrc) {
-                const firstImageUrl = getImageUrl(firstImageSrc);
-                
-                // Добавляем preload link для максимального приоритета
-                const link = document.createElement('link');
-                link.rel = 'preload';
-                link.as = 'image';
-                link.href = firstImageUrl;
-                link.setAttribute('fetchpriority', 'high');
-                link.setAttribute('data-lcp-candidate', 'true');
-                document.head.appendChild(link);
-                
-                // Также предзагружаем через Image API
-                const img = new Image();
-                img.fetchPriority = 'high';
-                img.src = firstImageUrl;
-              }
-            }
-          }
-        }
       } catch (error) {
         // В случае ошибки используем базовые items
         setItemsWithImages(Items);
@@ -148,42 +80,6 @@ const Calculator = () => {
 
     loadItemsWithImages();
   }, []);
-
-  // Сохраняем состояние в sessionStorage при изменении критических данных
-  useEffect(() => {
-    const stateToSave = {
-      currentGkla,
-      currentWool,
-      unvisible,
-      tableConstrToCalc,
-      currentSubCategory,
-      currentItems,
-      openedSubCategories,
-      template,
-      profileStep,
-      dFrame,
-      currentConstr,
-      ConstrToCalcToSent,
-      ConstrToCalc,
-      materialsByConstruction,
-    };
-    saveStateToStorage(stateToSave);
-  }, [
-    currentGkla,
-    currentWool,
-    unvisible,
-    tableConstrToCalc,
-    currentSubCategory,
-    currentItems,
-    openedSubCategories,
-    template,
-    profileStep,
-    dFrame,
-    currentConstr,
-    ConstrToCalcToSent,
-    ConstrToCalc,
-    materialsByConstruction,
-  ]);
 
   // Получить items для конкретной секции и подкатегории
   const getItemsForSection = useCallback(
@@ -424,65 +320,6 @@ const Calculator = () => {
     );
   };
 
-  // Восстанавливаем расчёт по каждой конструкции отдельно (без суммирования материалов)
-  useEffect(() => {
-    if (ConstrToCalcToSent.length === 0 || ConstrToCalc.length === 0) return;
-
-    const aligned =
-      materialsByConstruction.length === ConstrToCalc.length &&
-      ConstrToCalcToSent.length === ConstrToCalc.length &&
-      ConstrToCalc.every(
-        (c, i) => materialsByConstruction[i]?.key_id === c.key_id
-      );
-    const hasAnyMaterials = materialsByConstruction.some(
-      (m) => Array.isArray(m.data) && m.data.length > 0
-    );
-    if (aligned && hasAnyMaterials) return;
-
-    let cancelled = false;
-
-    (async () => {
-      try {
-        const results = [];
-        for (let i = 0; i < ConstrToCalcToSent.length; i++) {
-          const r = await calculateConstruction([ConstrToCalcToSent[i]]);
-          if (cancelled) return;
-          results.push({
-            key_id: ConstrToCalc[i].key_id,
-            data: r?.data ?? [],
-          });
-        }
-        if (!cancelled) setMaterialsByConstruction(results);
-      } catch (error) {
-        let errorMessage = error.message;
-        if (error.message.includes("invalid construction size")) {
-          errorMessage =
-            "Неверный размер конструкции. Пожалуйста, проверьте введенные размеры. Для ЗИПС потолка минимальный размер составляет 200 мм.";
-        } else if (error.message.includes("404")) {
-          errorMessage =
-            "Сервер API недоступен. Проверьте подключение к интернету или обратитесь к администратору.";
-        }
-
-        setModal({
-          isOpen: true,
-          title: "Ошибка",
-          html: `Не удалось рассчитать материалы.<br><br>${errorMessage}<br><br>Проверьте консоль для деталей.`,
-          icon: "error",
-          imageUrl: null,
-          imageWidth: null,
-          imageHeight: null,
-          confirmButtonText: "OK",
-          confirmButtonColor: "#6cabc8",
-        });
-        if (!cancelled) setMaterialsByConstruction([]);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- восстановление из sessionStorage один раз при монтировании
-
   // Обработчики экспорта
   const handleExportToExcel = async () => {
     await exportTablesToExcel();
@@ -492,8 +329,49 @@ const Calculator = () => {
     copyMaterialsToClipboard();
   };
 
-  const handleMakeKP = () => {
-    navigate("/kp");
+  /**
+   * «Сделать КП»: создаёт оффер на бэке (POST /api/offers) и редиректит на /kp/:id.
+   * Если пользователь не авторизован — открываем LoginModal; сохранять state
+   * калькулятора между попытками не нужно: кнопка остаётся доступной, данные в памяти.
+   */
+  const handleMakeKP = async () => {
+    if (ConstrToCalcToSent.length === 0) {
+      setModal({
+        isOpen: true,
+        title: null,
+        html: "Сначала добавьте хотя бы одну конструкцию в калькулятор.",
+        icon: "warning",
+        imageUrl: null,
+        confirmButtonText: "OK",
+        confirmButtonColor: "#6cabc8",
+      });
+      return;
+    }
+    if (!isAuthed) {
+      openLoginModal();
+      return;
+    }
+    setIsSubmittingKp(true);
+    try {
+      const payload = buildCreateOfferPayload({
+        constrToCalcToSent: ConstrToCalcToSent,
+        constrToCalc: ConstrToCalc,
+      });
+      const offer = await createOffer(payload);
+      navigate(`/kp/${offer.id}`);
+    } catch (err) {
+      setModal({
+        isOpen: true,
+        title: "Ошибка",
+        html: `Не удалось создать КП.<br><br>${err?.message || ""}`,
+        icon: "error",
+        imageUrl: null,
+        confirmButtonText: "OK",
+        confirmButtonColor: "#6cabc8",
+      });
+    } finally {
+      setIsSubmittingKp(false);
+    }
   };
 
   const handleOpenPrice = () => {
@@ -946,7 +824,6 @@ const Calculator = () => {
                             type="button"
                             className="selected-item-header"
                             onClick={() => {
-                              sessionStorage.setItem('itemInfo_c_id', selectedItem.c_id);
                               navigate(`/info/${selectedItem.ag_id}`, { state: { c_id: selectedItem.c_id } });
                             }}
                             aria-label={`Информация: ${selectedItem.title}`}
@@ -1722,8 +1599,9 @@ const Calculator = () => {
                                   type="button"
                                   onClick={handleMakeKP}
                                   className="add_design_button"
+                                  disabled={isSubmittingKp}
                                 >
-                                  Сделать КП
+                                  {isSubmittingKp ? "Создание КП..." : "Сделать КП"}
                                 </button>
                                 <button
                                   type="button"

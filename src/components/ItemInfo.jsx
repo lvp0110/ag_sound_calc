@@ -39,6 +39,7 @@ const ItemInfo = () => {
   const [currentImageIndex, setCurrentImageIndex] = useState(0); // Индекс текущего изображения в слайдере
   const [currentCadIndex, setCurrentCadIndex] = useState(0); // Индекс текущего чертежа в слайдере
   const initialIndexSet = useRef(false); // Флаг для отслеживания, были ли установлены начальные индексы
+  const selectedCIdRef = useRef(null);   // c_id из location.state, запоминаем до настройки индексов слайдера
   const materialsSectionRef = useRef(null);
 
   // Загружаем данные элемента и конструкции из API
@@ -58,26 +59,20 @@ const ItemInfo = () => {
         // Сбрасываем флаг при загрузке нового элемента
         initialIndexSet.current = false;
         
-        // Определяем секцию из state навигации, sessionStorage или выбираем элемент
-        const navigationCId = location.state?.c_id || sessionStorage.getItem('itemInfo_c_id');
+        // Определяем секцию из location.state (приходит из navigate(..., { state: { c_id } }))
+        const navigationCId = location.state?.c_id || null;
 
-        // Если есть navigationCId, используем его для выбора элемента
-        // Иначе выбираем по умолчанию (сначала облицовку, потом потолок)
+        // Если есть navigationCId, используем его для выбора элемента.
+        // Иначе выбираем по умолчанию (сначала облицовку, потом потолок).
         let foundItem;
         if (navigationCId) {
           foundItem = sameAgItems.find((item) => item.c_id === navigationCId) || sameAgItems[0] || null;
-          // Сохраняем navigationCId для использования в установке индексов
-          sessionStorage.setItem('itemInfo_selected_c_id', navigationCId);
+          selectedCIdRef.current = navigationCId;
         } else {
           foundItem = sameAgItems.find((item) => item.c_id === "L") ||
             sameAgItems.find((item) => item.c_id === "C") ||
             sameAgItems[0] ||
             null;
-        }
-
-        // Очищаем sessionStorage после использования
-        if (navigationCId) {
-          sessionStorage.removeItem('itemInfo_c_id');
         }
         
         if (foundItem) {
@@ -166,8 +161,8 @@ const ItemInfo = () => {
       const hasCeilingCad = zipsItems.ceiling && zipsItems.ceiling.id && zipsCeilingCadImages[zipsItems.ceiling.id];
       const hasLiningCad = zipsItems.lining && (zipsItems.liningConstruction?.CadImg);
       
-      // Получаем c_id из sessionStorage, если он был сохранен
-      const selectedCId = sessionStorage.getItem('itemInfo_selected_c_id') || item.c_id;
+      // Используем c_id, который мы запомнили в ref при первом рендере (пришёл из location.state).
+      const selectedCId = selectedCIdRef.current || item.c_id;
 
       if ((hasCeilingImage || hasLiningImage) && (hasCeilingCad || hasLiningCad)) {
         // Если перешли из секции потолок (c_id === "C"), показываем потолок первым (индекс 0)
@@ -184,8 +179,7 @@ const ItemInfo = () => {
           setCurrentCadIndex(cadIndex);
         }
         initialIndexSet.current = true;
-        // Очищаем sessionStorage после использования
-        sessionStorage.removeItem('itemInfo_selected_c_id');
+        selectedCIdRef.current = null;
       }
     }
   }, [item, zipsItems]);

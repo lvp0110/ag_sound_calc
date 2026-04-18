@@ -80,17 +80,18 @@ export const CalcParamsSchema = z
     Perimeter: z.number(),
     Openings: z.array(CalcOpeningSchema),
   })
+  .passthrough()
   .openapi("CalcParams");
 
+/**
+ * Материал — пробрасываем как есть: внешний сервис возвращает PascalCase ключи
+ * (`Code`, `Name`, `Quantity`, `Units`, `Order`, `InfoPack`), фронт добавляет
+ * свои override-поля (`KpPricePerM2`, `KpPricePerUnit`). Не навязываем форму —
+ * backend только хранит и вычисляет свежие материалы через internal calcService.
+ */
 export const CalcMaterialSchema = z
-  .object({
-    articul: z.string().optional(),
-    name: z.string(),
-    count: z.number(),
-    unit: z.string(),
-    pricePerSquareMeter: z.number().optional(),
-    pricePerUnit: z.number().optional(),
-  })
+  .object({})
+  .passthrough()
   .openapi("CalcMaterial");
 
 export const CalcByProductRequestSchema = z
@@ -141,11 +142,12 @@ export const ConstructionPropsResponseSchema = z
 
 export const ServiceSchema = z
   .object({
-    name: z.string(),
-    price: z.number(),
-    count: z.number(),
-    unit: z.string(),
+    name: z.string().optional().default(""),
+    price: z.number().optional().default(0),
+    count: z.number().optional().default(0),
+    unit: z.string().optional().default(""),
   })
+  .passthrough()
   .openapi("Service");
 
 export const OfferFormSchema = z
@@ -172,10 +174,19 @@ export const OfferConstructionInputSchema = z
   })
   .openapi("OfferConstructionInput");
 
+/**
+ * Дополнительные материалы — хранятся независимо от расчётов конструкций.
+ * Пользователь добавляет произвольные позиции на KpPage. Backend не
+ * пересчитывает и не валидирует их — просто хранит и возвращает.
+ * Формат совпадает с Service (name/price/count/unit), но поле отдельное.
+ */
+export const AdditionalMaterialSchema = ServiceSchema.openapi("AdditionalMaterial");
+
 export const OfferDraftSchema = z
   .object({
     constructions: z.array(OfferConstructionInputSchema).min(1),
     services: z.array(ServiceSchema).optional(),
+    additional_materials: z.array(AdditionalMaterialSchema).optional(),
   })
   .openapi("OfferDraft");
 
@@ -190,6 +201,7 @@ export const UpdateOfferRequestSchema = z
   .object({
     form: OfferFormSchema.optional(),
     services: z.array(ServiceSchema).optional(),
+    additional_materials: z.array(AdditionalMaterialSchema).optional(),
     constructions: z.array(OfferConstructionInputSchema).optional(),
     total_cost: z.number().optional(),
   })
@@ -233,6 +245,7 @@ export const OfferSchema = z
     markup_percent: z.number().nullable(),
     discount_percent: z.number().nullable(),
     services: z.array(ServiceSchema).nullable(),
+    additional_materials: z.array(AdditionalMaterialSchema).nullable(),
     constructions: z.array(OfferConstructionSchema),
     created_at: z.string().datetime(),
     updated_at: z.string().datetime(),

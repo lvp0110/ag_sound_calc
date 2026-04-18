@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import AppLayout from './components/AppLayout';
 import Calculator from './components/Calculator';
 import ItemInfo from './components/ItemInfo';
+import KpList from './components/KpList';
 import KpPage from './components/KpPage';
 import LoginModal from './components/LoginModal';
 import PricePage from './components/PricePage';
@@ -21,7 +22,8 @@ function App() {
           <Route path="/register" element={<RegisterPage />} />
           <Route element={<AppLayout />}>
             <Route path="/calc/:id?" element={<Calculator />} />
-            <Route path="/kp" element={<KpPage />} />
+            <Route path="/kp/list" element={<KpList />} />
+            <Route path="/kp/:id" element={<KpPage />} />
             <Route path="/price" element={<PricePage />} />
             <Route path="/info/:id" element={<ItemInfo />} />
           </Route>

@@ -51,6 +51,30 @@ const toForm = (parsed: z.infer<typeof CreateOfferRequestSchema>["form"]) => {
   };
 };
 
+const todayIsoDate = (): string => {
+  const d = new Date();
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  return `${dd}.${mm}.${d.getFullYear()}`;
+};
+
+/**
+ * На создании — snapshot профиля пользователя во все незаполненные поля формы.
+ * Плюс kp_date по умолчанию = сегодня. Это чтобы у пользователя сразу были
+ * заполнены ФИО/Телефон/Email/Адрес/Дата в КП — без ручного заполнения.
+ */
+const applyProfileDefaults = (
+  form: ReturnType<typeof toForm>,
+  user: { fullName: string; phone: string | null; email: string; officeAddress: string | null }
+) => ({
+  ...form,
+  managerName: form.managerName ?? user.fullName ?? null,
+  phone: form.phone ?? user.phone ?? null,
+  email: form.email ?? user.email ?? null,
+  officeAddress: form.officeAddress ?? user.officeAddress ?? null,
+  kpDate: form.kpDate ?? todayIsoDate(),
+});
+
 const toOfferSummary = (offer: Offer) => ({
   id: offer.id,
   title: offer.title,
@@ -84,6 +108,7 @@ const toOfferDto = (offer: Offer, constructions: ConstructionForDto[]) => ({
   markup_percent: decimalToNumber(offer.markupPercent),
   discount_percent: decimalToNumber(offer.discountPercent),
   services: offer.services ?? null,
+  additional_materials: offer.additionalMaterials ?? null,
   constructions: constructions
     .slice()
     .sort((a, b) => a.position - b.position)
@@ -111,10 +136,13 @@ router.post(
     if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
     const parsed = CreateOfferRequestSchema.parse(req.body ?? {});
-    const form = toForm(parsed.form);
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) return res.status(401).json({ error: "Unauthorized" });
+
+    const form = applyProfileDefaults(toForm(parsed.form), user);
     const constructionInputs = parsed.offerDraft.constructions;
 
-    // Свежий расчёт материалов по всем конструкциям одним запросом.
+    // Свежий расчёт материалов по всем конструкциям.
     const calcParamsList = constructionInputs.map((c) => c.calc_params);
     const freshMaterials = await calculateByProduct(calcParamsList);
 
@@ -124,6 +152,8 @@ router.post(
           userId,
           ...form,
           services: (parsed.offerDraft.services ?? []) as unknown as Prisma.InputJsonValue,
+          additionalMaterials:
+            (parsed.offerDraft.additional_materials ?? []) as unknown as Prisma.InputJsonValue,
         },
       });
 
@@ -219,7 +249,24 @@ router.patch(
     });
     if (!existing) return res.status(404).json({ error: "Offer not found" });
 
-    const formData = parsed.form ? toForm(parsed.form) : undefined;
+    // Частичное обновление формы: в `data` попадают только те поля, которые
+    // пользователь явно передал (отличие от create — там клобберим всё).
+    // Благодаря этому редактирование одного поля не стирает остальные.
+    const formData: Record<string, unknown> = {};
+    if (parsed.form) {
+      const f = parsed.form;
+      if (f.title !== undefined) formData.title = f.title;
+      if (f.manager_name !== undefined) formData.managerName = f.manager_name;
+      if (f.phone !== undefined) formData.phone = f.phone;
+      if (f.email !== undefined) formData.email = f.email;
+      if (f.office_address !== undefined) formData.officeAddress = f.office_address;
+      if (f.kp_date !== undefined) formData.kpDate = f.kp_date;
+      if (f.object_name !== undefined) formData.objectName = f.object_name;
+      if (f.logo_url !== undefined) formData.logoUrl = f.logo_url;
+      if (f.region !== undefined) formData.region = f.region;
+      if (f.markup_percent !== undefined) formData.markupPercent = f.markup_percent;
+      if (f.discount_percent !== undefined) formData.discountPercent = f.discount_percent;
+    }
 
     const updated = await prisma.$transaction(async (tx) => {
       const offer = await tx.offer.update({
@@ -228,6 +275,12 @@ router.patch(
           ...formData,
           ...(parsed.services !== undefined
             ? { services: parsed.services as unknown as Prisma.InputJsonValue }
+            : {}),
+          ...(parsed.additional_materials !== undefined
+            ? {
+                additionalMaterials:
+                  parsed.additional_materials as unknown as Prisma.InputJsonValue,
+              }
             : {}),
         },
       });
@@ -292,6 +345,8 @@ router.post(
           markupPercent: source.markupPercent,
           discountPercent: source.discountPercent,
           services: (source.services ?? []) as unknown as Prisma.InputJsonValue,
+          additionalMaterials:
+            (source.additionalMaterials ?? []) as unknown as Prisma.InputJsonValue,
         },
       });
 
@@ -325,7 +380,13 @@ router.use((err: unknown, _req: Request, res: Response, next: NextFunction) => {
   if (err instanceof z.ZodError) {
     return res.status(400).json({
       error: "Validation failed",
-      details: err.flatten(),
+      // issues с путями — в отличие от flatten(), сохраняет позицию ошибки
+      // (например `constructions.0.calc_params.Code`) — это сильно помогает отладке.
+      issues: err.issues.map((i) => ({
+        path: i.path.join("."),
+        code: i.code,
+        message: i.message,
+      })),
     });
   }
   if (err instanceof CalcServiceError) {

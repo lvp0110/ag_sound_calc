@@ -1,10 +1,6 @@
 import { useMemo, useState } from "react";
 import { pricePerM2List } from "../data/moscowPricePerM2ByArticle";
 import { formatRub } from "./tables/MaterialsList";
-import {
-  CALCULATOR_STATE_STORAGE_KEY,
-  migrateAdditionalMaterialsFromSavedState,
-} from "../constants/calculatorSession";
 import "./PricePage.css";
 
 function formatPriceCell(value) {
@@ -15,40 +11,15 @@ function formatPriceCell(value) {
 const PricePage = () => {
   const [query, setQuery] = useState("");
 
+  // TODO: раньше добавляло строку в sessionStorage.calculator_state.additionalMaterials.
+  // После перехода на backend-flow такой передачи нет — строка попадает только
+  // в локальный клипборд (скопировать артикул). Интеграцию в текущий оффер нужно
+  // сделать отдельным этапом (потребует знать offerId контекстно).
   const addRowToAdditionalMaterials = (row) => {
-    const primaryPrice = Number(row.pricePerM2);
-    const unitPrice = Number(row.pricePerUnit);
-    const hasPrimaryPrice = Number.isFinite(primaryPrice);
-    const hasUnitPrice = Number.isFinite(unitPrice);
-    const nextRow = {
-      id:
-        typeof crypto !== "undefined" && crypto.randomUUID
-          ? crypto.randomUUID()
-          : `mat-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-      name: row.name?.trim() || String(row.article ?? ""),
-      price: hasPrimaryPrice
-        ? String(row.pricePerM2)
-        : hasUnitPrice
-          ? String(row.pricePerUnit)
-          : "",
-      quantity: "",
-      unit: hasPrimaryPrice ? "м²" : hasUnitPrice ? "ед." : "",
-    };
-
     try {
-      const raw = sessionStorage.getItem(CALCULATOR_STATE_STORAGE_KEY);
-      const saved = raw ? JSON.parse(raw) : {};
-      const currentRows = migrateAdditionalMaterialsFromSavedState(saved);
-      const nextRows = [...currentRows, nextRow];
-      sessionStorage.setItem(
-        CALCULATOR_STATE_STORAGE_KEY,
-        JSON.stringify({
-          ...saved,
-          additionalMaterials: nextRows,
-        })
-      );
+      navigator.clipboard?.writeText(String(row.article ?? row.name ?? ""));
     } catch {
-      // ignore storage errors
+      // ignore
     }
   };
 

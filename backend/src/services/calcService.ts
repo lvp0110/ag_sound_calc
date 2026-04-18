@@ -32,23 +32,13 @@ export class CalcServiceError extends Error {
 const CALC_PATH = "/api/v1/calcIsolation/byProduct";
 
 /**
- * Вызывает внешний сервис расчёта материалов.
- *
- * Контракт совпадает с вызовом из фронта (см. src/services/constructionApi.js):
- * POST {CALC_SERVICE_URL}/api/v1/calcIsolation/byProduct с телом — массивом CalcParams.
- *
- * Ответ нормализуется к форме `Material[][]`: индекс i — материалы конструкции i.
+ * Вызывает внешний сервис расчёта для ОДНОЙ конструкции.
+ * Возвращает плоский массив материалов этой конструкции.
  */
-export const calculateByProduct = async (
-  calcParams: CalcParams[]
-): Promise<CalcMaterial[][]> => {
-  if (!calcParams || calcParams.length === 0) {
-    return [];
-  }
-
+const calculateOne = async (params: CalcParams): Promise<CalcMaterial[]> => {
   const url = `${env.calcServiceUrl.replace(/\/$/, "")}${CALC_PATH}`;
 
-  let response: Response;
+  let response: globalThis.Response;
   try {
     response = await fetch(url, {
       method: "POST",
@@ -56,7 +46,7 @@ export const calculateByProduct = async (
         "Content-Type": "application/json",
         Accept: "application/json",
       },
-      body: JSON.stringify(calcParams),
+      body: JSON.stringify([params]),
       signal: AbortSignal.timeout(env.calcServiceTimeoutMs),
     });
   } catch (err) {
@@ -81,36 +71,26 @@ export const calculateByProduct = async (
   }
 
   const payload: unknown = await response.json();
-  return normalizeResponse(payload, calcParams.length);
-};
-
-/**
- * Внешний сервис может возвращать:
- *  - { data: Material[][] }
- *  - Material[][]
- *  - Material[]  (одна конструкция)
- * Приводим всё к Material[][] длиной = количеству запрошенных конструкций.
- */
-const normalizeResponse = (
-  payload: unknown,
-  expectedLength: number
-): CalcMaterial[][] => {
   const raw =
     payload && typeof payload === "object" && "data" in payload
       ? (payload as { data: unknown }).data
       : payload;
+  return Array.isArray(raw) ? (raw as CalcMaterial[]) : [];
+};
 
-  if (!Array.isArray(raw)) {
-    return Array.from({ length: expectedLength }, () => []);
-  }
-
-  if (raw.length > 0 && Array.isArray(raw[0])) {
-    return raw as CalcMaterial[][];
-  }
-
-  if (expectedLength === 1) {
-    return [raw as CalcMaterial[]];
-  }
-
-  return Array.from({ length: expectedLength }, () => []);
+/**
+ * Расчёт материалов для нескольких конструкций.
+ *
+ * Внешний сервис при получении массива из нескольких конструкций возвращает
+ * плоский список материалов, потеряв разбивку по конструкциям. Поэтому вызываем
+ * его отдельно на каждую конструкцию (так же делает фронтовый Calculator,
+ * см. `src/services/constructionApi.js:calculateConstruction([one])`).
+ *
+ * Возвращает `Material[][]`: индекс i — материалы конструкции i.
+ */
+export const calculateByProduct = async (
+  calcParams: CalcParams[]
+): Promise<CalcMaterial[][]> => {
+  if (!calcParams || calcParams.length === 0) return [];
+  return Promise.all(calcParams.map((p) => calculateOne(p)));
 };

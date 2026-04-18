@@ -36,6 +36,7 @@ model Offer {
   markupPercent   Decimal?            @map("markup_percent") @db.Decimal(6, 2)
   discountPercent Decimal?            @map("discount_percent") @db.Decimal(6, 2)
   services        Json?
+  additionalMaterials Json?           @map("additional_materials")
   createdAt       DateTime            @default(now()) @map("created_at")
   updatedAt       DateTime            @updatedAt @map("updated_at")
   user            User                @relation(fields: [userId], references: [id], onDelete: Cascade)

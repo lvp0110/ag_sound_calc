@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import ConstructionList, {
   ConstructionGrandTotalBlock,
 } from "./tables/ConstructionList";
@@ -8,49 +9,15 @@ import {
   montageLineProductRub,
   parseKpDecimal,
 } from "./tables/MaterialsList";
+import { getOffer, updateOffer } from "../services/offersApi";
 import {
-  CALCULATOR_STATE_STORAGE_KEY,
-  migrateAdditionalMaterialsFromSavedState,
-  migrateMaterialsFromSavedState,
-} from "../constants/calculatorSession";
+  buildUpdateOfferPayload,
+  mapOfferResponseToKpView,
+} from "../utils/offerMapper";
+import { getAllIsolationConstr } from "../services/api";
+import { useAuth } from "../context/AuthContext.jsx";
 import "./Calculator.css";
 import "./KpPage.css";
-
-function loadCalculatorTablesState() {
-  try {
-    const raw = sessionStorage.getItem(CALCULATOR_STATE_STORAGE_KEY);
-    if (!raw) {
-      return {
-        tableConstrToCalc: null,
-        ConstrToCalc: [],
-        materialsByConstruction: [],
-      };
-    }
-    const s = JSON.parse(raw);
-    return {
-      tableConstrToCalc: s.tableConstrToCalc ?? null,
-      ConstrToCalc: Array.isArray(s.ConstrToCalc) ? s.ConstrToCalc : [],
-      materialsByConstruction: migrateMaterialsFromSavedState(s),
-    };
-  } catch {
-    return {
-      tableConstrToCalc: null,
-      ConstrToCalc: [],
-      materialsByConstruction: [],
-    };
-  }
-}
-
-function loadAdditionalMaterialsState() {
-  try {
-    const raw = sessionStorage.getItem(CALCULATOR_STATE_STORAGE_KEY);
-    if (!raw) return [];
-    const saved = JSON.parse(raw);
-    return migrateAdditionalMaterialsFromSavedState(saved);
-  } catch {
-    return [];
-  }
-}
 
 const initialForm = {
   manager: "",
@@ -146,37 +113,116 @@ const INITIAL_SERVICE_ROWS = [
 ];
 
 const KpPage = () => {
+  const { id } = useParams();
+  const navigate = useNavigate();
+  const { isAuthed, status: authStatus, openLoginModal } = useAuth();
+
   const [form, setForm] = useState(initialForm);
-  const [calcTables, setCalcTables] = useState(loadCalculatorTablesState);
+  const [calcTables, setCalcTables] = useState({
+    tableConstrToCalc: null,
+    ConstrToCalc: [],
+    materialsByConstruction: [],
+  });
   /** Монтаж по карточкам: key_id конструкции → { price, quantity, unit } */
   const [montageByKeyId, setMontageByKeyId] = useState(() => ({}));
   /** Раскрыт блок «Монтаж» в карточке (по key_id); по умолчанию свёрнут */
   const [montageSectionOpenByKeyId, setMontageSectionOpenByKeyId] = useState(
     () => ({})
   );
-  const [materialRows, setMaterialRows] = useState(() => {
-    const savedRows = loadAdditionalMaterialsState();
-    return savedRows.length > 0 ? savedRows : [newCustomMaterialRow()];
-  });
+  const [materialRows, setMaterialRows] = useState(() => [newCustomMaterialRow()]);
   const [serviceRows, setServiceRows] = useState(INITIAL_SERVICE_ROWS);
 
+  const [loadStatus, setLoadStatus] = useState("idle"); // 'idle'|'loading'|'loaded'|'error'|'forbidden'
+  const [loadError, setLoadError] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState(null);
+  const originalConstructionsRef = useRef([]); // сырой Offer.constructions с calc_params — для PATCH
+
+  // Загрузка оффера по :id (+ мапа Code→Name из AllIsolationConstr для карточек).
   useEffect(() => {
-    try {
-      const raw = sessionStorage.getItem(CALCULATOR_STATE_STORAGE_KEY);
-      if (!raw) return;
-      const s = JSON.parse(raw);
-      sessionStorage.setItem(
-        CALCULATOR_STATE_STORAGE_KEY,
-        JSON.stringify({
-          ...s,
-          materialsByConstruction: calcTables.materialsByConstruction,
-          additionalMaterials: materialRows,
-        })
-      );
-    } catch {
-      /* ignore */
+    if (!id) return undefined;
+    if (authStatus === "loading") return undefined;
+    if (!isAuthed) {
+      openLoginModal();
+      return undefined;
     }
-  }, [calcTables.materialsByConstruction, materialRows]);
+
+    let cancelled = false;
+    setLoadStatus("loading");
+    setLoadError(null);
+
+    (async () => {
+      try {
+        const [offer, constrList] = await Promise.all([
+          getOffer(id),
+          getAllIsolationConstr().catch(() => []),
+        ]);
+        if (cancelled) return;
+
+        const titleByCode = new Map();
+        for (const row of constrList || []) {
+          if (row?.Code) titleByCode.set(row.Code, { Name: row.Name, Description: row.Description });
+        }
+
+        const view = mapOfferResponseToKpView(offer, { titleByCode });
+        originalConstructionsRef.current = offer.constructions || [];
+
+        setForm(view.form);
+        setCalcTables({
+          tableConstrToCalc: view.constructions.length > 0 ? {} : null,
+          ConstrToCalc: view.constructions,
+          materialsByConstruction: view.materialsByConstruction,
+        });
+        setMontageByKeyId(view.montageByKeyId);
+        setServiceRows(
+          view.serviceRows.length > 0 ? view.serviceRows : INITIAL_SERVICE_ROWS
+        );
+        // Доп. материалы хранятся независимо (offer.additional_materials).
+        // Если пустой список — показываем одну пустую строку для удобства добавления.
+        setMaterialRows(
+          view.materialRows.length > 0 ? view.materialRows : [newCustomMaterialRow()]
+        );
+        setLoadStatus("loaded");
+      } catch (err) {
+        if (cancelled) return;
+        if (err?.status === 404) {
+          setLoadStatus("error");
+          setLoadError("Оффер не найден или принадлежит другому пользователю.");
+        } else if (err?.status === 401) {
+          setLoadStatus("forbidden");
+        } else {
+          setLoadStatus("error");
+          setLoadError(err?.message || "Не удалось загрузить оффер.");
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [id, isAuthed, authStatus, openLoginModal]);
+
+  const handleSave = async () => {
+    if (!id || isSaving) return;
+    setIsSaving(true);
+    setSaveError(null);
+    try {
+      const payload = buildUpdateOfferPayload({
+        form,
+        constructions: calcTables.ConstrToCalc,
+        materialsByConstruction: calcTables.materialsByConstruction,
+        montageByKeyId,
+        serviceRows,
+        materialRows,
+        originalConstructionsFromOffer: originalConstructionsRef.current,
+      });
+      await updateOffer(id, payload);
+    } catch (err) {
+      setSaveError(err?.message || "Не удалось сохранить.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   const onGeneralMaterialKpPriceChange = useCallback(
     (key_id, indexInFullMaterialsData, field, value) => {
@@ -372,6 +418,45 @@ const KpPage = () => {
       updateMontageRow,
     ]
   );
+
+  if (loadStatus === "loading" || authStatus === "loading") {
+    return (
+      <div className="kp-page">
+        <main className="kp-page__main">
+          <p className="kp-page__tables-empty">Загрузка оффера...</p>
+        </main>
+      </div>
+    );
+  }
+
+  if (loadStatus === "forbidden" || (!isAuthed && loadStatus !== "idle")) {
+    return (
+      <div className="kp-page">
+        <main className="kp-page__main">
+          <p className="kp-page__tables-empty">
+            Войдите, чтобы открыть этот оффер.
+          </p>
+        </main>
+      </div>
+    );
+  }
+
+  if (loadStatus === "error") {
+    return (
+      <div className="kp-page">
+        <main className="kp-page__main">
+          <p className="kp-page__tables-empty">{loadError}</p>
+          <button
+            type="button"
+            onClick={() => navigate("/kp/list")}
+            className="add_design_button"
+          >
+            К списку КП
+          </button>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="kp-page">
@@ -749,6 +834,20 @@ const KpPage = () => {
               wrapClassName="kp-page__construction-grand-total"
             />
           )}
+
+        <div className="kp-page__save-bar">
+          {saveError && (
+            <div className="kp-page__save-error" role="alert">{saveError}</div>
+          )}
+          <button
+            type="button"
+            className="add_design_button kp-page__save-btn"
+            onClick={handleSave}
+            disabled={isSaving || loadStatus !== "loaded"}
+          >
+            {isSaving ? "Сохранение..." : "Сохранить"}
+          </button>
+        </div>
       </main>
     </div>
   );
