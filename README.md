@@ -1,108 +1,272 @@
-# Калькулятор конструкций (calc-react)
+# ag_sound_calc
 
-React-приложение для расчета акустических конструкций изоляции.
+Калькулятор акустических конструкций с генерацией коммерческих предложений (КП). Включает React-фронт, Node/Express-бэк с Prisma + PostgreSQL и интеграцию с внешним сервисом расчёта.
 
-## Технологии
+---
 
-- **React 19** - UI библиотека
-- **Vite** - сборщик и dev-сервер
-- **React Router** - маршрутизация
-- **ExcelJS** - экспорт в Excel
+## Стек
 
-## Установка
+| Слой | Технологии |
+|------|------------|
+| Frontend | React 19, Vite, React Router 7 |
+| Backend | Node.js, Express, TypeScript, Prisma |
+| Auth | JWT в httpOnly cookies (access + refresh) |
+| DB | PostgreSQL 16 (в Docker) |
+| API-документация | OpenAPI + Swagger UI (`@asteasolutions/zod-to-openapi`) |
+| Внешний сервис | `dev3.constrtodo.ru:3005` — расчёт материалов |
+| DB UI | Prisma Studio, Adminer |
 
-```bash
-npm install
-```
+---
 
-## Разработка
+## Требования
 
-Запуск dev-сервера:
+- **Node.js** ≥ 20
+- **npm** ≥ 10
+- **Docker Desktop** (для PostgreSQL + Adminer)
+- **make** (предустановлен на macOS/Linux)
 
-```bash
-npm run dev
-```
+---
 
-Приложение будет доступно по адресу `http://localhost:5173`
-
-## Сборка
-
-Создание production сборки:
-
-```bash
-npm run build
-```
-
-Результат будет в папке `dist/`
-
-## Предпросмотр production сборки
+## Быстрый старт
 
 ```bash
-npm run preview
+# 1) Первая инициализация: зависимости, .env, БД, миграции
+make setup
+
+# 2) Запустить стек (postgres уже поднят, backend + frontend в фоне того же терминала)
+make dev
 ```
+
+После `make dev`:
+
+| Сервис | URL |
+|--------|-----|
+| Frontend | [http://localhost:5173](http://localhost:5173) |
+| Backend API | [http://localhost:3006](http://localhost:3006) |
+| Swagger UI | [http://localhost:3006/api/docs](http://localhost:3006/api/docs) |
+| Adminer (SQL) | [http://localhost:8080](http://localhost:8080) |
+| PostgreSQL | `localhost:5433` (в контейнере `ag_sound_calc_postgres`) |
+| Prisma Studio | [http://localhost:5555](http://localhost:5555) (после `make db-ui`) |
+
+`Ctrl-C` в терминале `make dev` останавливает backend и frontend. PostgreSQL в Docker продолжит работать — отключить его можно `make db-down`.
+
+---
+
+## Команды (Makefile)
+
+| Команда | Описание |
+|---------|----------|
+| `make help` | Список всех команд |
+| `make setup` | Первая инициализация: install + env + БД + миграции |
+| `make install` | Установить зависимости (backend + frontend) |
+| `make env` | Создать `backend/.env` из `.env.example`, если отсутствует |
+| `make db-up` | Поднять `postgres` и `adminer` в Docker и дождаться healthcheck |
+| `make db-down` | Остановить контейнеры docker compose |
+| `make db-migrate` | Применить миграции Prisma к локальной БД |
+| `make db-reset` | ⚠️ Полностью пересоздать БД (все данные будут стёрты) |
+| `make db-ui` | Запустить Prisma Studio на :5555 |
+| `make backend` | Запустить только backend (tsx watch) |
+| `make frontend` | Запустить только frontend (vite dev) |
+| `make dev` | Запустить всё: postgres + backend + frontend |
+| `make stop` | Убить зависшие backend/frontend процессы |
+| `make build` | Production-сборка: `tsc` (backend) + `vite build` (frontend) |
+| `make clean` | Удалить `node_modules` и `dist` в backend и frontend |
+| `make status` | Контейнеры + занятость портов 3006/5173/5433/5555/8080 |
+
+---
+
+## Работа с БД
+
+### Миграции
+
+```bash
+# Применить существующие миграции
+make db-migrate
+
+# Создать новую миграцию (после правки backend/prisma/schema.prisma)
+cd backend && npx prisma migrate dev --name <name>
+
+# Полный сброс (⚠️ удаляет все данные)
+make db-reset
+```
+
+### Просмотр данных
+
+**Prisma Studio** — удобно для повседневной работы, знает схему, рендерит JSONB деревом:
+```bash
+make db-ui
+# → http://localhost:5555
+```
+
+**Adminer** — произвольный SQL, EXPLAIN, импорт/экспорт:
+```bash
+# уже поднят после `make db-up`
+# → http://localhost:8080
+# System: PostgreSQL, Server: postgres, User: postgres, Password: postgres, Database: ag_sound_calc
+```
+
+---
+
+## API
+
+- Swagger UI: [http://localhost:3006/api/docs](http://localhost:3006/api/docs)
+- OpenAPI JSON: [http://localhost:3006/api/openapi.json](http://localhost:3006/api/openapi.json)
+
+Основные группы ручек:
+
+| Группа | Пути |
+|--------|------|
+| **Auth** | `POST /api/auth/{register,login,refresh,logout}` |
+| **Users** | `GET/PUT /api/users/me` |
+| **Offers** | `POST/GET /api/offers`, `GET/PATCH/DELETE /api/offers/:id`, `POST /api/offers/:id/clone` |
+| **Calc (proxy)** | Прозрачно проксируют на внешний `dev3.constrtodo.ru:3005`: `POST /api/v1/calcIsolation/byProduct`, `GET /api/v1/AllIsolationConstr`, `GET /api/v1/IsolationConstrMaterials/{code}`, `GET /api/v1/constr/{filename}`, `GET /api/v2/isolationConstructions/props/{code}` |
+| **Health** | `GET /health` |
+
+Аутентификация — через httpOnly cookies `accessToken` (15 min) и `refreshToken` (30 days). Все запросы с фронта идут с `credentials: 'include'`; refresh при 401 выполняется автоматически клиентом.
+
+---
 
 ## Структура проекта
 
 ```
-calc-react/
-├── public/          # Статические файлы
-├── src/
-│   ├── components/  # React компоненты
-│   ├── data/        # Данные (категории, элементы)
-│   ├── services/    # API сервисы
-│   └── constants/   # Константы
-├── vite.config.js   # Конфигурация Vite
-└── package.json     # Зависимости проекта
+ag_sound_calc/
+├── backend/                        ← Node/Express + Prisma
+│   ├── prisma/
+│   │   ├── schema.prisma
+│   │   └── migrations/
+│   ├── src/
+│   │   ├── config/env.ts
+│   │   ├── docs/                   ← Zod + Swagger
+│   │   ├── lib/prisma.ts
+│   │   ├── middleware/requireAuth.ts
+│   │   ├── routes/                 ← auth, users, offers, calc (proxy)
+│   │   ├── services/               ← calcService, offerRecalc
+│   │   ├── utils/                  ← tokens, userDto
+│   │   └── index.ts
+│   ├── .env.example
+│   └── package.json
+├── frontend/                       ← React + Vite
+│   ├── src/
+│   │   ├── components/             ← Calculator, KpPage, KpList, LoginModal, RegisterPage, AppHeader, …
+│   │   ├── context/AuthContext.jsx
+│   │   ├── services/               ← apiClient, authApi, offersApi, constructionApi
+│   │   ├── utils/offerMapper.js
+│   │   └── ...
+│   ├── public/
+│   ├── index.html
+│   ├── vite.config.js
+│   └── package.json
+├── docker-compose.yml              ← postgres + adminer
+├── Makefile                        ← все команды разработки
+├── PROJECT_PLAN.md                 ← архитектурный план
+├── DB_SCHEMA.html                  ← схема данных (визуал)
+└── .github/workflows/deploy.yml    ← GitHub Pages для фронта
 ```
 
-## API
+---
 
-Приложение получает каталог конструкций и превью через **GET** `/api/v1/AllIsolationConstr` (заголовок `Accept: application/json`).
+## Переменные окружения
 
-- **Dev:** запросы идут на относительный путь `/api/v1/...`; Vite проксирует `/api` на бэкенд (см. `vite.config.js`). По умолчанию цель прокси — `https://dev3.constrtodo.ru:3005`. Для локального API на порту 3005 добавьте в `.env.local` строку `VITE_API_ORIGIN=http://localhost:3005` и перезапустите `npm run dev`.
-- **Превью конструкций** (`/api/v1/constr/…`): в dev этот путь проксируется отдельно — на `VITE_CONSTR_IMAGES_ORIGIN`, если задан, иначе на тот же хост, что и `VITE_API_ORIGIN` / dev3. Эндпоинт часто отсутствует на публичных стендах (404): тогда положите файлы с именами из поля `Img` в каталог `public/api/v1/constr/` (см. подсказку там) или укажите в `.env.local` бэкенд, который реально отдаёт эти файлы: `VITE_CONSTR_IMAGES_ORIGIN=https://хост:порт`.
-- **Production:** прямой запрос к `https://dev3.constrtodo.ru:3005/api/v1`; для превью можно переопределить хост через `VITE_CONSTR_IMAGES_ORIGIN`.
+Backend — `backend/.env` (создаётся из `.env.example` через `make env`):
 
-## Публикация на GitHub Pages
+| Переменная | Дефолт | Описание |
+|------------|--------|----------|
+| `NODE_ENV` | `development` | — |
+| `PORT` | `3006` | Порт backend-API |
+| `CORS_ORIGIN` | `http://localhost:5173` | Origin фронта для CORS (с `credentials: true`) |
+| `DATABASE_URL` | `postgresql://postgres:postgres@localhost:5433/ag_sound_calc?schema=public` | Соединение с PostgreSQL |
+| `JWT_ACCESS_SECRET` | `dev_access_secret_change_me` | Секрет для access токена — **в проде обязательно заменить** |
+| `JWT_REFRESH_SECRET` | `dev_refresh_secret_change_me` | Аналогично — **в проде заменить** |
+| `ACCESS_TOKEN_EXPIRES_IN` | `15m` | TTL access cookie |
+| `REFRESH_TOKEN_EXPIRES_IN` | `30d` | TTL refresh cookie |
+| `CALC_SERVICE_URL` | `https://dev3.constrtodo.ru:3005` | База внешнего сервиса расчёта |
+| `CALC_SERVICE_TIMEOUT_MS` | `15000` | Таймаут запроса к calc-сервису |
 
-Проект настроен для автоматического деплоя на GitHub Pages через GitHub Actions.
+Frontend (опционально — через `frontend/.env.local`):
 
-### Автоматический деплой (рекомендуется)
+| Переменная | Дефолт | Описание |
+|------------|--------|----------|
+| `VITE_API_URL` | `http://localhost:3006` | URL backend-API |
 
-1. **Включите GitHub Pages в настройках репозитория:**
-   - Перейдите в `Settings` → `Pages`
-   - В разделе `Source` выберите `GitHub Actions`
+---
 
-2. **Настройка base path:**
-   - Если репозиторий называется `username.github.io`, измените в `.github/workflows/deploy.yml` строку:
-     ```yaml
-     BASE_PATH: /
-     ```
-   - Для остальных репозиториев путь будет автоматически `/repository-name/`
+## Запуск без Make
 
-3. **Публикация:**
-   - Просто запушьте изменения в ветку `main`
-   - GitHub Actions автоматически соберет и опубликует проект
-   - Ссылка будет доступна в `Settings` → `Pages` после первого деплоя
-
-### Ручной деплой
-
-Если хотите опубликовать вручную:
+На случай если `make` недоступен:
 
 ```bash
-# Установите зависимости (включая gh-pages)
-npm install
+# 1) Poднять БД и Adminer
+docker compose up -d postgres adminer
 
-# Опубликуйте
-BASE_PATH=/ag_sound_calc/ npm run build
-npx gh-pages -d dist
+# 2) Установить зависимости
+cd backend && npm install && cd ..
+cd frontend && npm install && cd ..
+
+# 3) Создать backend/.env
+cp backend/.env.example backend/.env
+
+# 4) Применить миграции
+cd backend && npx prisma migrate deploy && cd ..
+
+# 5) Запустить backend и frontend в отдельных терминалах
+cd backend && npm run dev          # терминал 1
+cd frontend && npm run dev         # терминал 2
 ```
 
-**Важно:** Проект настроен для репозитория `ag_sound_calc`. Сайт будет доступен по адресу: https://lvp0110.github.io/ag_sound_calc/
+---
 
-**Примечание:** Для работы в production на сервере `dev3.constrtodo.ru:3005` должен быть настроен CORS для домена `https://lvp0110.github.io`.
+## Production-сборка
+
+```bash
+make build
+```
+
+Генерирует:
+- `backend/dist/` — скомпилированный TypeScript (запуск: `cd backend && npm start`).
+- `frontend/dist/` — статический фронт (раздаётся любым CDN/nginx или GitHub Pages).
+
+---
+
+## Деплой фронта на GitHub Pages
+
+Фронт автоматически собирается и публикуется через [.github/workflows/deploy.yml](.github/workflows/deploy.yml) на каждый push в `main`.
+
+Настройка один раз:
+1. В `Settings` → `Pages` → `Source` = **GitHub Actions**.
+2. После первого успешного деплоя ссылка: https://lvp0110.github.io/ag_sound_calc/
+
+**Важно:** фронт для прода общается напрямую с `dev3.constrtodo.ru:3005`, так что на backend должен быть CORS для `https://lvp0110.github.io`. Если нужно чтобы прод-фронт смотрел на ваш задеплоенный backend — соберите с `VITE_API_URL=https://your-api.example.com npm run build`.
+
+---
+
+## Частые проблемы
+
+**Docker не запущен**
+`make db-up` выдаст:
+```
+✗ Docker не запущен. Запустите Docker Desktop.
+```
+→ Запустите Docker Desktop и повторите.
+
+**Порт 5432 занят локальным Postgres**
+Контейнер замаплен на **5433**, так что конфликта с локальным Postgres нет. Если в `.env` остался `localhost:5432` от старой установки — замените на `5433`.
+
+**401 Unauthorized после логина при запросах с фронта**
+Проверьте, что:
+- backend `.env` имеет `CORS_ORIGIN=http://localhost:5173` (порт фронта совпадает);
+- браузер не блокирует cookies третьей стороны (для localhost обычно ок).
+
+**Ошибка валидации при сохранении КП**
+Обычно означает, что payload не совпадает со схемой. Ответ backend теперь содержит `issues[]` с путями — по ним видно, какое именно поле не прошло.
+
+**Зависшие dev-процессы после Ctrl-C**
+```bash
+make stop      # убивает tsx watch и vite
+make status    # показывает что ещё крутится
+```
+
+---
 
 ## Лицензия
 
-Private project
-
+Private project.
