@@ -43,9 +43,18 @@ const OVERRIDE_FIELDS = [
 /**
  * Накладывает сохранённые правки цен поверх свежего расчёта.
  *
- * Правило: для каждой свежей позиции ищем сохранённую по ключу (Code → articul →
- * Name → name). Если нашли — копируем все известные "override"-поля цен из
- * сохранённой. Остальные поля всегда берутся из свежего расчёта.
+ * Порядок результата = порядок сохранённого массива (это важно: внешний calc-сервис
+ * не всегда возвращает материалы в одинаковом порядке — особенно материалы без
+ * артикула «Общестроительные», у которых Order = 99 одинаковый, и их порядок может
+ * отличаться между вызовами. Пользовательский порядок критично сохранить.)
+ *
+ * Правила:
+ *  - Для каждой позиции в saved ищем совпадение в fresh по ключу (Code / articul /
+ *    Name / name). Если нашли — берём свежую позицию как базу и накладываем
+ *    override-поля цен (KpPricePerM2/KpPricePerUnit и legacy-имена).
+ *  - Если saved-позиции нет в fresh — она считается устаревшей и отбрасывается.
+ *  - Материалы из fresh, которые не встречались в saved (новые позиции),
+ *    добавляются в конец в порядке fresh.
  */
 export const mergeMaterialOverrides = (
   fresh: CalcMaterial[],
@@ -53,25 +62,43 @@ export const mergeMaterialOverrides = (
 ): CalcMaterial[] => {
   if (!saved || saved.length === 0) return fresh;
 
-  const savedByKey = new Map<string, MaterialLike>();
-  for (const m of saved) {
-    const key = materialKey(m as unknown as MaterialLike);
-    if (key) savedByKey.set(key, m as unknown as MaterialLike);
+  const freshByKey = new Map<string, MaterialLike>();
+  for (const f of fresh) {
+    const key = materialKey(f as unknown as MaterialLike);
+    if (key) freshByKey.set(key, f as unknown as MaterialLike);
   }
 
-  return fresh.map((freshItem) => {
-    const savedItem = savedByKey.get(materialKey(freshItem as unknown as MaterialLike));
-    if (!savedItem) return freshItem;
+  const usedKeys = new Set<string>();
+  const result: MaterialLike[] = [];
 
-    const result = { ...(freshItem as unknown as MaterialLike) };
+  // 1) идём по saved, сохраняя пользовательский порядок
+  for (const s of saved) {
+    const sLike = s as unknown as MaterialLike;
+    const key = materialKey(sLike);
+    if (!key) continue;
+    const freshItem = freshByKey.get(key);
+    if (!freshItem) continue; // устаревшая позиция — отбрасываем
+    usedKeys.add(key);
+
+    const merged = { ...freshItem };
     for (const field of OVERRIDE_FIELDS) {
-      const v = savedItem[field];
+      const v = sLike[field];
       if (v !== undefined && v !== null && v !== "") {
-        result[field] = v;
+        merged[field] = v;
       }
     }
-    return result as unknown as CalcMaterial;
-  });
+    result.push(merged);
+  }
+
+  // 2) добавляем fresh-новинки (которых не было в saved), в натуральном порядке
+  for (const f of fresh) {
+    const fLike = f as unknown as MaterialLike;
+    const key = materialKey(fLike);
+    if (!key || usedKeys.has(key)) continue;
+    result.push(fLike);
+  }
+
+  return result as unknown as CalcMaterial[];
 };
 
 /**
