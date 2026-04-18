@@ -31,9 +31,11 @@ export default function AppHeader() {
           <NavLink to="/calc" className={navLinkClass} end={false}>
             Калькулятор
           </NavLink>
-          <NavLink to="/kp/list" className={navLinkClass}>
-            Мои КП
-          </NavLink>
+          {user && (
+            <NavLink to="/kp/list" className={navLinkClass}>
+              Мои КП
+            </NavLink>
+          )}
           <NavLink to="/price" className={navLinkClass}>
             Прайс
           </NavLink>

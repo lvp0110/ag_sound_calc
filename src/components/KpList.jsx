@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
-import { cloneOffer, listOffers } from "../services/offersApi";
+import { cloneOffer, createOffer, listOffers } from "../services/offersApi";
 import "./KpList.css";
 
 function formatDate(iso) {
@@ -20,11 +20,12 @@ function formatDate(iso) {
 
 export default function KpList() {
   const navigate = useNavigate();
-  const { isAuthed, status, openLoginModal } = useAuth();
+  const { isAuthed, status } = useAuth();
   const [offers, setOffers] = useState([]);
   const [loadStatus, setLoadStatus] = useState("idle");
   const [error, setError] = useState(null);
   const [cloningId, setCloningId] = useState(null);
+  const [creatingNew, setCreatingNew] = useState(false);
 
   const load = useCallback(async () => {
     setLoadStatus("loading");
@@ -46,12 +47,13 @@ export default function KpList() {
   useEffect(() => {
     if (status === "loading") return;
     if (!isAuthed) {
-      openLoginModal();
+      // LoginModal не открываем — просто показываем подсказку «войдите».
+      // Пользователь сам решит, логиниться или уйти.
       setLoadStatus("forbidden");
       return;
     }
     load();
-  }, [isAuthed, status, openLoginModal, load]);
+  }, [isAuthed, status, load]);
 
   const handleClone = async (id) => {
     setCloningId(id);
@@ -62,6 +64,26 @@ export default function KpList() {
       setError(err?.message || "Не удалось скопировать оффер.");
     } finally {
       setCloningId(null);
+    }
+  };
+
+  /**
+   * «Новое КП»: создаёт пустой оффер (без конструкций) и редиректит на /kp/:id.
+   * Пользователь заполнит форму и добавит конструкции через калькулятор позже.
+   */
+  const handleNew = async () => {
+    if (creatingNew) return;
+    setCreatingNew(true);
+    setError(null);
+    try {
+      const offer = await createOffer({
+        offerDraft: { constructions: [] },
+      });
+      if (offer?.id) navigate(`/kp/${offer.id}`);
+    } catch (err) {
+      setError(err?.message || "Не удалось создать новое КП.");
+    } finally {
+      setCreatingNew(false);
     }
   };
 
@@ -88,9 +110,10 @@ export default function KpList() {
         <button
           type="button"
           className="kp-list__new-btn"
-          onClick={() => navigate("/calc")}
+          onClick={handleNew}
+          disabled={creatingNew}
         >
-          Новое КП
+          {creatingNew ? "Создание..." : "Новое КП"}
         </button>
       </div>
 
@@ -102,7 +125,7 @@ export default function KpList() {
         <table className="kp-list__table">
           <thead>
             <tr>
-              <th>Заголовок / Объект</th>
+              <th>Объект</th>
               <th>Регион</th>
               <th>Дата КП</th>
               <th>Обновлено</th>
@@ -118,7 +141,7 @@ export default function KpList() {
                     className="kp-list__link"
                     onClick={() => navigate(`/kp/${o.id}`)}
                   >
-                    {o.title || o.object_name || "(без названия)"}
+                    {o.object_name || "(без названия)"}
                   </button>
                 </td>
                 <td>{o.region || "—"}</td>

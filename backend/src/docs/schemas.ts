@@ -184,7 +184,9 @@ export const AdditionalMaterialSchema = ServiceSchema.openapi("AdditionalMateria
 
 export const OfferDraftSchema = z
   .object({
-    constructions: z.array(OfferConstructionInputSchema).min(1),
+    // Пустой массив допустим — сценарий «создать пустое КП» (кнопка «Новое КП»
+    // на /kp/list). Пользователь добавит конструкции позже через калькулятор.
+    constructions: z.array(OfferConstructionInputSchema),
     services: z.array(ServiceSchema).optional(),
     additional_materials: z.array(AdditionalMaterialSchema).optional(),
   })
