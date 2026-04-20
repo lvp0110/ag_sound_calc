@@ -173,7 +173,7 @@ Backend — `backend/.env` (создаётся из `.env.example` через `m
 |------------|--------|----------|
 | `NODE_ENV` | `development` | — |
 | `PORT` | `3006` | Порт backend-API |
-| `CORS_ORIGIN` | `http://localhost:5173` | Origin фронта для CORS (с `credentials: true`) |
+| `CORS_ORIGIN` | `http://localhost:5173,http://localhost:5174` | Список origin'ов через запятую (для `credentials: true`). По умолчанию разрешены оба стандартных порта Vite |
 | `DATABASE_URL` | `postgresql://postgres:postgres@localhost:5433/ag_sound_calc?schema=public` | Соединение с PostgreSQL |
 | `JWT_ACCESS_SECRET` | `dev_access_secret_change_me` | Секрет для access токена — **в проде обязательно заменить** |
 | `JWT_REFRESH_SECRET` | `dev_refresh_secret_change_me` | Аналогично — **в проде заменить** |
@@ -251,9 +251,15 @@ make build
 **Порт 5432 занят локальным Postgres**
 Контейнер замаплен на **5433**, так что конфликта с локальным Postgres нет. Если в `.env` остался `localhost:5432` от старой установки — замените на `5433`.
 
+**CORS-ошибка `Access-Control-Allow-Origin has a value 'http://localhost:5173' that is not equal to the supplied origin`**
+Vite при занятом 5173 автоинкрементит порт до 5174+, а backend CORS пропускает только указанные origin'ы.
+- По умолчанию разрешены оба: `http://localhost:5173,http://localhost:5174`.
+- Если Vite поднялся ещё выше (5175+) — добавьте порт в `backend/.env`: `CORS_ORIGIN=http://localhost:5173,http://localhost:5174,http://localhost:5175` и перезапустите backend.
+- Альтернатива — освободить 5173 (`make stop`) и перезапустить фронт.
+
 **401 Unauthorized после логина при запросах с фронта**
 Проверьте, что:
-- backend `.env` имеет `CORS_ORIGIN=http://localhost:5173` (порт фронта совпадает);
+- backend `.env` имеет `CORS_ORIGIN` с правильным origin'ом фронта (см. выше);
 - браузер не блокирует cookies третьей стороны (для localhost обычно ок).
 
 **Ошибка валидации при сохранении КП**
@@ -263,6 +269,19 @@ make build
 ```bash
 make stop      # убивает tsx watch и vite
 make status    # показывает что ещё крутится
+```
+
+**`The table public.users does not exist in the current database` (Prisma code `P2021`)**
+База поднялась, но миграции не применены. Запустите:
+```bash
+make db-migrate
+```
+(в текущем `Makefile` это уже происходит автоматически при `make dev`; ошибка вылезает только если backend стартовал без предварительного `db-migrate`).
+
+**`npm error ENOTEMPTY` при `make install` / `make setup`**
+Полусломанный `node_modules` после прерванного предыдущего install. Чистая переустановка:
+```bash
+make reinstall    # rm -rf node_modules + package-lock.json в backend/ и frontend/, затем npm install заново
 ```
 
 ---

@@ -39,6 +39,12 @@ install: ## Установить зависимости (backend + frontend)
 	@echo "→ frontend deps"
 	cd $(FRONTEND_DIR) && npm install
 
+reinstall: ## Чистая переустановка зависимостей (на случай сбоев npm / ENOTEMPTY)
+	@echo "→ удаляю node_modules и package-lock.json"
+	rm -rf $(BACKEND_DIR)/node_modules $(BACKEND_DIR)/package-lock.json \
+	       $(FRONTEND_DIR)/node_modules $(FRONTEND_DIR)/package-lock.json
+	@$(MAKE) --no-print-directory install
+
 env: ## Создать backend/.env из .env.example, если отсутствует
 	@if [ ! -f $(BACKEND_DIR)/.env ]; then \
 	  echo "→ создаю $(BACKEND_DIR)/.env"; \
@@ -80,8 +86,9 @@ backend: ## Запустить backend (tsx watch) на :3006
 frontend: ## Запустить frontend (vite) на :5173
 	cd $(FRONTEND_DIR) && npm run dev
 
-dev: ## Запустить postgres + backend + frontend (Ctrl-C остановит всё)
+dev: ## Запустить postgres + миграции + backend + frontend (Ctrl-C остановит всё)
 	@$(MAKE) --no-print-directory db-up
+	@$(MAKE) --no-print-directory db-migrate
 	@echo ""
 	@echo "→ backend: http://localhost:3006  |  frontend: http://localhost:5173"
 	@echo "→ Ctrl-C остановит backend и frontend (postgres продолжит работать)"
