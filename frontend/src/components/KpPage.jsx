@@ -225,6 +225,7 @@ const KpPage = () => {
         originalConstructionsFromOffer: originalConstructionsRef.current,
       });
       await updateOffer(id, payload);
+      navigate("/kp/list");
     } catch (err) {
       setSaveError(err?.message || "Не удалось сохранить.");
     } finally {
