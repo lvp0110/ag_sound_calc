@@ -647,7 +647,7 @@ const KpPage = () => {
               <table
                 className="data"
                 id="kp-table-services"
-                aria-label="Дополнительне услуги"
+                aria-label="Дополнительные услуги"
               >
                 <colgroup>
                   <col style={{ width: "60%" }} />
@@ -658,7 +658,7 @@ const KpPage = () => {
                 </colgroup>
                 <thead>
                   <tr>
-                    <th colSpan={5}>Дополнительне услуги</th>
+                    <th colSpan={5}>Дополнительные услуги</th>
                   </tr>
                   <tr>
                     <th>Название</th>
