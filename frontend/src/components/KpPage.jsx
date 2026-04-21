@@ -115,7 +115,7 @@ const INITIAL_SERVICE_ROWS = [
 const KpPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { isAuthed, status: authStatus, openLoginModal } = useAuth();
+  const { isAuthed, status: authStatus } = useAuth();
 
   const [form, setForm] = useState(initialForm);
   const [calcTables, setCalcTables] = useState({
@@ -145,7 +145,9 @@ const KpPage = () => {
     if (!id) return undefined;
     if (authStatus === "loading") return undefined;
     if (!isAuthed) {
-      openLoginModal();
+      // LoginModal не открываем автоматически (иначе всплывает после logout).
+      // Просто рисуем экран-подсказку «войдите».
+      setLoadStatus("forbidden");
       return undefined;
     }
 
@@ -208,7 +210,7 @@ const KpPage = () => {
     return () => {
       cancelled = true;
     };
-  }, [id, isAuthed, authStatus, openLoginModal]);
+  }, [id, isAuthed, authStatus]);
 
   const handleSave = async () => {
     if (!id || isSaving) return;
