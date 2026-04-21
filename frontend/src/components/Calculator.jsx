@@ -52,6 +52,9 @@ const Calculator = () => {
   const [materialsByConstruction, setMaterialsByConstruction] = useState([]);
   const [itemsWithImages, setItemsWithImages] = useState(Items); // Начальное значение - базовые items
   const [isSubmittingKp, setIsSubmittingKp] = useState(false);
+  // Если юзер нажал «Сделать КП» будучи анонимом — запоминаем намерение и
+  // продолжаем автоматически после успешного логина.
+  const [pendingCreateKp, setPendingCreateKp] = useState(false);
 
   // Состояние для модального окна
   const [modal, setModal] = useState({
@@ -330,27 +333,12 @@ const Calculator = () => {
   };
 
   /**
-   * «Сделать КП»: создаёт оффер на бэке (POST /api/offers) и редиректит на /kp/:id.
-   * Если пользователь не авторизован — открываем LoginModal; сохранять state
-   * калькулятора между попытками не нужно: кнопка остаётся доступной, данные в памяти.
+   * Сам запрос POST /api/offers и редирект на /kp/:id.
+   * Вынесен отдельно, чтобы одинаково вызываться и из handleMakeKP, и из
+   * useEffect'а «продолжение после логина».
    */
-  const handleMakeKP = async () => {
-    if (ConstrToCalcToSent.length === 0) {
-      setModal({
-        isOpen: true,
-        title: null,
-        html: "Сначала добавьте хотя бы одну конструкцию в калькулятор.",
-        icon: "warning",
-        imageUrl: null,
-        confirmButtonText: "OK",
-        confirmButtonColor: "#6cabc8",
-      });
-      return;
-    }
-    if (!isAuthed) {
-      openLoginModal();
-      return;
-    }
+  const submitKp = useCallback(async () => {
+    if (ConstrToCalcToSent.length === 0) return;
     setIsSubmittingKp(true);
     try {
       const payload = buildCreateOfferPayload({
@@ -372,7 +360,42 @@ const Calculator = () => {
     } finally {
       setIsSubmittingKp(false);
     }
+  }, [ConstrToCalcToSent, ConstrToCalc, navigate]);
+
+  /**
+   * «Сделать КП»: либо сразу создаёт оффер (если авторизован), либо открывает
+   * LoginModal и ставит флаг pendingCreateKp — после успешного логина useEffect
+   * ниже автоматически доведёт до конца (POST + переход на /kp/:id).
+   */
+  const handleMakeKP = async () => {
+    if (ConstrToCalcToSent.length === 0) {
+      setModal({
+        isOpen: true,
+        title: null,
+        html: "Сначала добавьте хотя бы одну конструкцию в калькулятор.",
+        icon: "warning",
+        imageUrl: null,
+        confirmButtonText: "OK",
+        confirmButtonColor: "#6cabc8",
+      });
+      return;
+    }
+    if (!isAuthed) {
+      setPendingCreateKp(true);
+      openLoginModal();
+      return;
+    }
+    await submitKp();
   };
+
+  // Продолжение после логина: когда статус стал authed и флаг pendingCreateKp
+  // взведён — создаём оффер и уходим на /kp/:id.
+  useEffect(() => {
+    if (!pendingCreateKp) return;
+    if (!isAuthed) return;
+    setPendingCreateKp(false);
+    submitKp();
+  }, [pendingCreateKp, isAuthed, submitKp]);
 
   const handleOpenPrice = () => {
     navigate("/price");
