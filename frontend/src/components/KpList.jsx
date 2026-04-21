@@ -149,6 +149,7 @@ export default function KpList() {
         <table className="kp-list__table">
           <thead>
             <tr>
+              <th className="kp-list__num-col">№</th>
               <th>Объект</th>
               <th>Регион</th>
               <th>Дата КП</th>
@@ -157,8 +158,9 @@ export default function KpList() {
             </tr>
           </thead>
           <tbody>
-            {offers.map((o) => (
+            {offers.map((o, i) => (
               <tr key={o.id}>
+                <td className="kp-list__num-cell">{i + 1}</td>
                 <td>
                   <button
                     type="button"
