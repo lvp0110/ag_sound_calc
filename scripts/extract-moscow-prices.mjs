@@ -51,7 +51,7 @@ function normalizeArticle(raw) {
 }
 
 const UNIT_RE =
-  /^(шт\.?|лист|рулон|упак\.?|м²|м2|кв\.?\s*м|п\.?\s*м|м\.?\s*п|м\.пог\.?|пог\.?\s*м|компл\.?|упаковка|ед\.?)$/i;
+  /^(шт\.?|лист|рулон\.?|упак\.?|м²|м2|кв\.?\s*м|п\.?\s*м|м\.?\s*п|м\.пог\.?|пог\.?\s*м|компл\.?|упаковка|ед\.?|мат|мат\.?|ведро|рулон\.-по\s*запросу)$/i;
 
 function isUnit(s) {
   return typeof s === "string" && UNIT_RE.test(s.trim());
@@ -142,6 +142,36 @@ function rowPrices(artRaw, m2, perUnit, nameRaw) {
   return o;
 }
 
+function extractAreaFromName(name) {
+  if (!name) return null;
+  const s = String(name).toLowerCase();
+  const m = s.match(/(\d+(?:[.,]\d+)?)\s*м2\s*\/\s*(шт|лист)/i);
+  if (!m) return null;
+  const area = Number(String(m[1]).replace(",", "."));
+  if (!Number.isFinite(area) || area <= 0 || area > 20) return null;
+  return area;
+}
+
+function normalizeSuspiciousM2(entry) {
+  if (!entry || entry.perUnit == null) return entry;
+  const area = extractAreaFromName(entry.name);
+  if (!area) return entry;
+  const perUnit = Number(entry.perUnit);
+  if (!Number.isFinite(perUnit) || perUnit <= 0) return entry;
+
+  const m2 = entry.m2 == null ? null : Number(entry.m2);
+  const looksBroken =
+    m2 == null ||
+    !Number.isFinite(m2) ||
+    m2 <= 10 ||
+    Math.abs(m2 - perUnit) < 0.01;
+
+  if (!looksBroken) return entry;
+
+  const fixedM2 = Number((perUnit / area).toFixed(2));
+  return { ...entry, m2: fixedM2 };
+}
+
 function tryParsePriceRow(row) {
   const c = [];
   for (let i = 1; i <= 12; i++) c.push(cellToString(val(row, i)));
@@ -226,7 +256,53 @@ function tryParsePriceRow(row) {
     }
   }
 
+  // Универсальный fallback: ищем артикул, затем рядом единицу измерения и цены справа.
+  for (let artCol = 1; artCol <= 10; artCol++) {
+    const artRaw = val(row, artCol);
+    const artStr = c[artCol - 1] || "";
+    if (!isArticleRaw(artRaw, artStr)) continue;
+
+    const unit1 = c[artCol] || "";
+    const unit2 = c[artCol + 1] || "";
+    const hasUnitNear = isUnit(unit1) || isUnit(unit2);
+    if (!hasUnitNear) continue;
+
+    const priceCandidates = [];
+    const start = Math.min(12, artCol + 1);
+    for (let j = start; j <= 12; j++) {
+      const num = parseMoney(c[j - 1]);
+      if (num != null) priceCandidates.push(num);
+    }
+    if (!priceCandidates.length) continue;
+
+    let m2 = null;
+    let perUnit = null;
+    if (priceCandidates.length >= 2) {
+      m2 = priceCandidates[0];
+      perUnit = priceCandidates[1];
+    } else {
+      perUnit = priceCandidates[0];
+    }
+
+    const nameBlob = combineNameParts(c[0], c[1], c[2]);
+    const got = rowPrices(artStr || artRaw, m2, perUnit, nameBlob || c[0]);
+    if (got) return got;
+  }
+
   return null;
+}
+
+function isLikelyMetaSheetName(name) {
+  if (!name) return false;
+  const n = String(name).trim().toLowerCase();
+  return (
+    n === "readme" ||
+    n === "notes" ||
+    n === "инфо" ||
+    n === "содержание" ||
+    n.startsWith("pivot") ||
+    n.includes("свод")
+  );
 }
 
 async function main() {
@@ -244,13 +320,13 @@ async function main() {
   const byArticle = {};
   const duplicates = [];
 
+  const perSheetStats = [];
+
   for (const ws of wb.worksheets) {
     const sheetName = String(ws.name || "").trim();
-    const looksLikePriceSheet =
-      /^Table\s*\d+$/i.test(sheetName) ||
-      /^Table\b/i.test(sheetName) ||
-      /^Sheet\d*$/i.test(sheetName);
-    if (!looksLikePriceSheet) continue;
+    if (isLikelyMetaSheetName(sheetName)) continue;
+    if (!ws.rowCount || ws.rowCount < 2) continue;
+    let parsedInSheet = 0;
 
     for (let r = 1; r <= ws.rowCount; r++) {
       const row = ws.getRow(r);
@@ -269,51 +345,66 @@ async function main() {
       const parsed = tryParsePriceRow(row);
       if (!parsed || !parsed.article) continue;
 
-      const prev = byArticle[parsed.article] || {};
+      const parsedNormalized = normalizeSuspiciousM2(parsed);
+      const prev = byArticle[parsedNormalized.article] || {};
       const next = { ...prev };
 
-      if (parsed.m2 != null) {
-        if (prev.m2 != null && prev.m2 !== parsed.m2) {
+      if (parsedNormalized.m2 != null) {
+        if (prev.m2 != null && prev.m2 !== parsedNormalized.m2) {
           duplicates.push({
-            article: parsed.article,
+            article: parsedNormalized.article,
             field: "m2",
             was: prev.m2,
-            now: parsed.m2,
+            now: parsedNormalized.m2,
             sheet: ws.name,
             row: r,
           });
         }
-        next.m2 = parsed.m2;
+        next.m2 = parsedNormalized.m2;
       }
-      if (parsed.perUnit != null) {
-        if (prev.perUnit != null && prev.perUnit !== parsed.perUnit) {
+      if (parsedNormalized.perUnit != null) {
+        if (prev.perUnit != null && prev.perUnit !== parsedNormalized.perUnit) {
           duplicates.push({
-            article: parsed.article,
+            article: parsedNormalized.article,
             field: "perUnit",
             was: prev.perUnit,
-            now: parsed.perUnit,
+            now: parsedNormalized.perUnit,
             sheet: ws.name,
             row: r,
           });
         }
-        next.perUnit = parsed.perUnit;
+        next.perUnit = parsedNormalized.perUnit;
       }
 
-      if (parsed.name) {
-        if (!next.name || parsed.name.length > next.name.length) {
-          next.name = parsed.name;
+      if (parsedNormalized.name) {
+        if (!next.name || parsedNormalized.name.length > next.name.length) {
+          next.name = parsedNormalized.name;
         }
       }
 
       if (next.m2 != null || next.perUnit != null) {
-        byArticle[parsed.article] = next;
+        byArticle[parsedNormalized.article] = next;
+        parsedInSheet += 1;
       }
     }
+
+    perSheetStats.push({
+      sheet: sheetName || "(без названия)",
+      rows: ws.rowCount,
+      parsed: parsedInSheet,
+    });
   }
 
   if (duplicates.length) {
     console.warn("Перезаписи цены для одного артикула:", duplicates.length);
     duplicates.slice(0, 8).forEach((d) => console.warn(d));
+  }
+
+  if (perSheetStats.length) {
+    console.log("Статистика по листам (rows / parsed):");
+    perSheetStats.forEach((s) =>
+      console.log(`- ${s.sheet}: ${s.rows} / ${s.parsed}`)
+    );
   }
 
   const sortedKeys = Object.keys(byArticle).sort();

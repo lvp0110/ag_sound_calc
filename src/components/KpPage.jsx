@@ -103,6 +103,18 @@ function additionalServicesGrandTotalRubForKp(serviceRows) {
   return sum;
 }
 
+/** Сумма блока «Дополнительные материалы» (цена × количество по строкам). */
+function additionalMaterialsGrandTotalRubForKp(materialRows) {
+  if (!Array.isArray(materialRows)) return 0;
+  let sum = 0;
+  for (const row of materialRows) {
+    const p = parseKpDecimal(row.price);
+    const q = parseKpDecimal(row.quantity);
+    if (p !== null && q !== null) sum += p * q;
+  }
+  return sum;
+}
+
 function newCustomServiceRow() {
   const id =
     typeof crypto !== "undefined" && crypto.randomUUID
@@ -261,6 +273,30 @@ const KpPage = () => {
       ...prev,
       [key_id]: !prev[key_id],
     }));
+  }, []);
+
+  const removeConstructionFromKp = useCallback((key_id) => {
+    setCalcTables((prev) => ({
+      ...prev,
+      ConstrToCalc: prev.ConstrToCalc.filter((item) => item.key_id !== key_id),
+      materialsByConstruction: prev.materialsByConstruction.filter(
+        (entry) => entry.key_id !== key_id
+      ),
+    }));
+
+    setMontageByKeyId((prev) => {
+      if (!(key_id in prev)) return prev;
+      const next = { ...prev };
+      delete next[key_id];
+      return next;
+    });
+
+    setMontageSectionOpenByKeyId((prev) => {
+      if (!(key_id in prev)) return prev;
+      const next = { ...prev };
+      delete next[key_id];
+      return next;
+    });
   }, []);
 
   const renderKpMontageSlot = useCallback(
@@ -480,6 +516,8 @@ const KpPage = () => {
               <ConstructionList
                 constructions={calcTables.ConstrToCalc}
                 readOnly
+                showHeadingDeleteButton
+                onDelete={removeConstructionFromKp}
                 materialsByConstruction={calcTables.materialsByConstruction}
                 renderKpMontageSlot={renderKpMontageSlot}
                 montageByKeyId={montageByKeyId}
@@ -745,6 +783,9 @@ const KpPage = () => {
               )}
               additionalServicesGrandTotalRub={additionalServicesGrandTotalRubForKp(
                 serviceRows
+              )}
+              additionalMaterialsGrandTotalRub={additionalMaterialsGrandTotalRubForKp(
+                materialRows
               )}
               wrapClassName="kp-page__construction-grand-total"
             />

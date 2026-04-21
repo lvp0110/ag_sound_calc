@@ -489,6 +489,7 @@ button::-moz-focus-inner {
   gap: 10px;
   font-size: 20px;
   font-weight: 600;
+  text-transform: uppercase;
   color: #6d7277;
   margin: 0;
   padding: 10px 0;

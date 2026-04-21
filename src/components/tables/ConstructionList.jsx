@@ -13,6 +13,8 @@ export function ConstructionGrandTotalBlock({
   grandTotalRub,
   /** Итог монтажа по КП (передаётся только на странице КП). */
   montageGrandTotalRub,
+  /** Итог блока доп. материалов по КП. */
+  additionalMaterialsGrandTotalRub,
   /** Итог доп. услуг по КП (блок «Услуги»). */
   additionalServicesGrandTotalRub,
   wrapClassName = "",
@@ -20,6 +22,7 @@ export function ConstructionGrandTotalBlock({
   const titleColSpan = readOnly ? 3 : 4;
   const grandTotalCardClass = readOnly ? " kp-table-card" : "";
   const showMontageRow = montageGrandTotalRub !== undefined;
+  const showAdditionalMaterialsRow = additionalMaterialsGrandTotalRub !== undefined;
   const showServicesRow = additionalServicesGrandTotalRub !== undefined;
   const montagePart =
     typeof montageGrandTotalRub === "number" && !Number.isNaN(montageGrandTotalRub)
@@ -30,11 +33,17 @@ export function ConstructionGrandTotalBlock({
     !Number.isNaN(additionalServicesGrandTotalRub)
       ? additionalServicesGrandTotalRub
       : 0;
+  const additionalMaterialsPart =
+    typeof additionalMaterialsGrandTotalRub === "number" &&
+    !Number.isNaN(additionalMaterialsGrandTotalRub)
+      ? additionalMaterialsGrandTotalRub
+      : 0;
   const overallTotalRub =
     (typeof grandTotalRub === "number" && !Number.isNaN(grandTotalRub)
       ? grandTotalRub
       : 0) +
     (showMontageRow ? montagePart : 0) +
+    (showAdditionalMaterialsRow ? additionalMaterialsPart : 0) +
     (showServicesRow ? servicesPart : 0);
 
   const lineLabelClass = readOnly
@@ -91,6 +100,19 @@ export function ConstructionGrandTotalBlock({
               </th>
             </tr>
           )}
+          {showAdditionalMaterialsRow && (
+            <tr className="construction-grand-total__line construction-grand-total__line--next">
+              <th
+                colSpan={Math.max(1, titleColSpan - 1)}
+                className={lineLabelClass}
+              >
+                Стоимость дополнительных материалов
+              </th>
+              <th className={lineAmountClass}>
+                {formatRub(additionalMaterialsGrandTotalRub)}
+              </th>
+            </tr>
+          )}
           <tr className="construction-grand-total__total-row">
             <th
               colSpan={Math.max(1, titleColSpan - 1)}
@@ -135,9 +157,32 @@ function constructionHeightMm({ lenY, lenZ }) {
   return lenY;
 }
 
+function constructionDimensionsMm(item) {
+  const width = formatConstructionMm(item.lenX);
+  const height = formatConstructionMm(constructionHeightMm(item));
+  return `${width} x ${height}`;
+}
+
+function constructionDisplayTitle({ title, type }) {
+  const cleanTitle = title != null ? String(title).trim() : "";
+  if (cleanTitle === "") return "";
+  const sectionType = String(type ?? "").trim().toUpperCase();
+  const isCeilingSection = sectionType === "ПОТОЛОК";
+  const isCladdingSection = sectionType === "ОБЛИЦОВКА";
+  const isZipsConstruction = cleanTitle.toUpperCase().startsWith("ЗИПС");
+  if (isCeilingSection && isZipsConstruction) {
+    return `Потолок ${cleanTitle}`;
+  }
+  if (isCladdingSection && isZipsConstruction) {
+    return `Облицовка ${cleanTitle}`;
+  }
+  return cleanTitle;
+}
+
 /** Заголовок карточки: название конструкции из строки таблицы. */
-function constructionCardHeading({ title, ag_id: code }) {
-  if (title != null && String(title).trim() !== "") return String(title).trim();
+function constructionCardHeading({ title, type, ag_id: code }) {
+  const displayTitle = constructionDisplayTitle({ title, type });
+  if (displayTitle !== "") return displayTitle;
   if (code != null && String(code).trim() !== "") return String(code).trim();
   return "Конструкция";
 }
@@ -177,6 +222,7 @@ const ConstructionList = ({
   constructions,
   onDelete = () => {},
   readOnly = false,
+  showHeadingDeleteButton = false,
   materialsByConstruction,
   showGeneralConstructionMaterials = true,
   renderKpMontageSlot,
@@ -220,19 +266,31 @@ const ConstructionList = ({
                   <thead>
                     <tr>
                       <th
-                        colSpan={readOnly ? 5 : 6}
+                        colSpan={readOnly ? 3 : 4}
                         className="construction-card__heading-th"
                       >
-                        {constructionCardHeading(constRItem)}
+                        <div className="construction-card__heading-content">
+                          <div className="construction-card__heading-title">
+                            {constructionCardHeading(constRItem)}
+                          </div>
+                          {showHeadingDeleteButton && (
+                            <button
+                              type="button"
+                              className="construction-card__heading-delete-button"
+                              onClick={() => onDelete(constRItem.key_id)}
+                              aria-label={`Удалить конструкцию ${constructionCardHeading(constRItem)}`}
+                            >
+                              ×
+                            </button>
+                          )}
+                        </div>
                       </th>
                     </tr>
                     <tr>
                       {!readOnly && <th className="construction-card__delete-col" />}
                       <th>название</th>
                       <th>шифр</th>
-                      <th className="construction-card__dim-th">ширина, мм</th>
-                      <th className="construction-card__dim-th">высота, мм</th>
-                      <th>масса</th>
+                      <th className="construction-card__dim-th">размеры, мм</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -254,17 +312,11 @@ const ConstructionList = ({
                           />
                         </td>
                       )}
-                      <td>{constRItem.title}</td>
+                      <td>{constructionDisplayTitle(constRItem)}</td>
                       <td>{constRItem.ag_id}</td>
                       <td className="construction-card__dim-td">
-                        {formatConstructionMm(constRItem.lenX)}
+                        {constructionDimensionsMm(constRItem)}
                       </td>
-                      <td className="construction-card__dim-td">
-                        {formatConstructionMm(
-                          constructionHeightMm(constRItem)
-                        )}
-                      </td>
-                      <td>{constRItem.weight}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -377,9 +429,7 @@ const ConstructionList = ({
             {!readOnly && <th className="construction-card__delete-col" />}
             <th>шифр</th>
             <th>название</th>
-            <th className="construction-list-legacy__dim-th">ширина, мм</th>
-            <th className="construction-list-legacy__dim-th">высота, мм</th>
-            <th>масса</th>
+            <th className="construction-list-legacy__dim-th">размеры, мм</th>
           </tr>
         </thead>
         <tbody>
@@ -406,15 +456,11 @@ const ConstructionList = ({
                 {constRItem.ag_id}
               </td>
               <td className="construction-list-legacy__title-td">
-                {constRItem.title}
+                {constructionDisplayTitle(constRItem)}
               </td>
               <td className="construction-list-legacy__dim-td">
-                {formatConstructionMm(constRItem.lenX)}
+                {constructionDimensionsMm(constRItem)}
               </td>
-              <td className="construction-list-legacy__dim-td">
-                {formatConstructionMm(constructionHeightMm(constRItem))}
-              </td>
-              <td>{constRItem.weight}</td>
             </tr>
           ))}
         </tbody>

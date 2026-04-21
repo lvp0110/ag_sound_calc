@@ -111,7 +111,7 @@ const MaterialsList = ({
   calculatedMaterials,
   data: dataProp,
   tableId = "table2",
-  sectionTitle = "Материалы",
+  sectionTitle = "Материалы конструкции",
   collapsible = false,
   editablePriceCells = false,
   onKpMaterialPriceChange,

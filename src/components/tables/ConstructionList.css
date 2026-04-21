@@ -57,6 +57,46 @@
   text-align: left;
 }
 
+.construction-card__heading-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.construction-card__heading-title {
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+  text-align: left;
+}
+
+.construction-card__heading-delete-button {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  min-height: 0;
+  padding: 0;
+  font-size: 18px;
+  line-height: 1;
+  color: #6d7277;
+  background: #fff;
+  border: 1px solid #c9d0d6;
+  border-radius: 4px;
+  cursor: pointer;
+  box-shadow: none;
+}
+
+.construction-card__heading-delete-button:hover {
+  color: #c53030;
+  border-color: #e2a4a4;
+  background: #fff5f5;
+}
+
 .construction-card__dim-th {
   text-align: center;
 }
