@@ -20,6 +20,7 @@ import { calculateConstruction } from "../services/constructionApi";
 import { createOffer } from "../services/offersApi";
 import { buildCreateOfferPayload } from "../utils/offerMapper";
 import { useAuth } from "../context/AuthContext.jsx";
+import { useCalcField } from "../stores/calculatorStore.js";
 import ItemsList from "./ItemsList";
 import SelectedItemForms from "./SelectedItemForms";
 import ConstructionList from "./tables/ConstructionList";
@@ -29,27 +30,24 @@ const Calculator = () => {
   const { id } = useParams();
   const { isAuthed, openLoginModal } = useAuth();
 
-  // State (чистое in-memory состояние; при перезагрузке калькулятор начинает с нуля)
-  const [currentGkla, setCurrentGkla] = useState("default");
-  const [currentWool, setCurrentWool] = useState("default");
-  const [unvisible, setUnvisible] = useState(false);
-  const [tableConstrToCalc, setTableConstrToCalc] = useState(null);
-  const [currentSubCategory, setCurrentSubCategory] = useState(0);
-  const [currentItems, setCurrentItems] = useState(0);
-  // Состояние для отслеживания открытых подкатегорий в каждой секции
-  const [openedSubCategories, setOpenedSubCategories] = useState({
-    F: null, // null или id подкатегории
-    C: null,
-    L: null,
-    W: null,
-  });
-  const [template, setTemplate] = useState(null);
-  const [profileStep, setProfileStep] = useState(600);
-  const [dFrame, setDFrame] = useState(false);
-  const [currentConstr, setCurrentConstr] = useState("");
-  const [ConstrToCalcToSent, setConstrToCalcToSent] = useState([]);
-  const [ConstrToCalc, setConstrToCalc] = useState([]);
-  const [materialsByConstruction, setMaterialsByConstruction] = useState([]);
+  // Persistent-поля: живут в zustand-сторе (sessionStorage), переживают
+  // переходы по страницам в рамках сессии. См. stores/calculatorStore.js.
+  const [currentGkla, setCurrentGkla] = useCalcField("currentGkla");
+  const [currentWool, setCurrentWool] = useCalcField("currentWool");
+  const [unvisible, setUnvisible] = useCalcField("unvisible");
+  const [tableConstrToCalc, setTableConstrToCalc] = useCalcField("tableConstrToCalc");
+  const [currentSubCategory, setCurrentSubCategory] = useCalcField("currentSubCategory");
+  const [currentItems, setCurrentItems] = useCalcField("currentItems");
+  const [openedSubCategories, setOpenedSubCategories] = useCalcField("openedSubCategories");
+  const [template, setTemplate] = useCalcField("template");
+  const [profileStep, setProfileStep] = useCalcField("profileStep");
+  const [dFrame, setDFrame] = useCalcField("dFrame");
+  const [currentConstr, setCurrentConstr] = useCalcField("currentConstr");
+  const [ConstrToCalcToSent, setConstrToCalcToSent] = useCalcField("ConstrToCalcToSent");
+  const [ConstrToCalc, setConstrToCalc] = useCalcField("ConstrToCalc");
+  const [materialsByConstruction, setMaterialsByConstruction] = useCalcField(
+    "materialsByConstruction"
+  );
   const [itemsWithImages, setItemsWithImages] = useState(Items); // Начальное значение - базовые items
   const [isSubmittingKp, setIsSubmittingKp] = useState(false);
   // Если юзер нажал «Сделать КП» будучи анонимом — запоминаем намерение и
