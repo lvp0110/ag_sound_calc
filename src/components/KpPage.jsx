@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import ConstructionList, {
   ConstructionGrandTotalBlock,
+  computeTotalWeightKgForConstructions,
 } from "./tables/ConstructionList";
 import {
   computeGrandTotalRubForConstructions,
@@ -786,6 +787,9 @@ const KpPage = () => {
               )}
               additionalMaterialsGrandTotalRub={additionalMaterialsGrandTotalRubForKp(
                 materialRows
+              )}
+              totalWeightKg={computeTotalWeightKgForConstructions(
+                calcTables.ConstrToCalc
               )}
               wrapClassName="kp-page__construction-grand-total"
             />

@@ -11,6 +11,7 @@ import "./ConstructionList.css";
 export function ConstructionGrandTotalBlock({
   readOnly,
   grandTotalRub,
+  totalWeightKg,
   /** Итог монтажа по КП (передаётся только на странице КП). */
   montageGrandTotalRub,
   /** Итог блока доп. материалов по КП. */
@@ -52,6 +53,8 @@ export function ConstructionGrandTotalBlock({
   const lineAmountClass = readOnly
     ? "construction-grand-total__line-amount"
     : "construction-grand-total__line-amount construction-grand-total__line-amount--calc";
+  const showTotalWeightInfo =
+    typeof totalWeightKg === "number" && !Number.isNaN(totalWeightKg);
 
   return (
     <div
@@ -136,6 +139,11 @@ export function ConstructionGrandTotalBlock({
           </tr>
         </tbody>
       </table>
+      {showTotalWeightInfo && (
+        <div className="construction-grand-total__weight-info">
+          Общий вес всех конструкций: {totalWeightKg.toFixed(1)} кг
+        </div>
+      )}
     </div>
   );
 }
@@ -161,6 +169,51 @@ function constructionDimensionsMm(item) {
   const width = formatConstructionMm(item.lenX);
   const height = formatConstructionMm(constructionHeightMm(item));
   return `${width} x ${height}`;
+}
+
+function parseConstructionNumber(value) {
+  if (value == null || value === "") return NaN;
+  const normalized = String(value).replace(",", ".").trim();
+  const numericMatch = normalized.match(/-?\d+(?:\.\d+)?/);
+  if (!numericMatch) return NaN;
+  const parsed = Number(numericMatch[0]);
+  return Number.isNaN(parsed) ? NaN : parsed;
+}
+
+function constructionAreaM2(item) {
+  const widthMm = parseConstructionNumber(item.lenX);
+  const heightMm = parseConstructionNumber(constructionHeightMm(item));
+  if (Number.isNaN(widthMm) || Number.isNaN(heightMm)) return NaN;
+  if (widthMm <= 0 || heightMm <= 0) return NaN;
+  return (widthMm * heightMm) / 1000000;
+}
+
+function formatConstructionAreaM2(item) {
+  const area = constructionAreaM2(item);
+  if (Number.isNaN(area)) return "—";
+  return area.toFixed(1);
+}
+
+function formatConstructionWeightByArea(item) {
+  const area = constructionAreaM2(item);
+  const mass = parseConstructionNumber(item.weight);
+  if (Number.isNaN(area) || Number.isNaN(mass)) return "—";
+  return (area * mass).toFixed(1);
+}
+
+function constructionWeightKg(item) {
+  const area = constructionAreaM2(item);
+  const mass = parseConstructionNumber(item.weight);
+  if (Number.isNaN(area) || Number.isNaN(mass)) return 0;
+  return area * mass;
+}
+
+export function computeTotalWeightKgForConstructions(constructions) {
+  if (!Array.isArray(constructions)) return 0;
+  return constructions.reduce(
+    (sum, item) => sum + constructionWeightKg(item),
+    0
+  );
 }
 
 function constructionDisplayTitle({ title, type }) {
@@ -266,7 +319,7 @@ const ConstructionList = ({
                   <thead>
                     <tr>
                       <th
-                        colSpan={readOnly ? 3 : 4}
+                        colSpan={readOnly ? 4 : 5}
                         className="construction-card__heading-th"
                       >
                         <div className="construction-card__heading-content">
@@ -288,9 +341,10 @@ const ConstructionList = ({
                     </tr>
                     <tr>
                       {!readOnly && <th className="construction-card__delete-col" />}
-                      <th>название</th>
                       <th>шифр</th>
                       <th className="construction-card__dim-th">размеры, мм</th>
+                      <th>площадь, м2</th>
+                      <th>вес,кг</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -312,11 +366,12 @@ const ConstructionList = ({
                           />
                         </td>
                       )}
-                      <td>{constructionDisplayTitle(constRItem)}</td>
                       <td>{constRItem.ag_id}</td>
                       <td className="construction-card__dim-td">
                         {constructionDimensionsMm(constRItem)}
                       </td>
+                      <td>{formatConstructionAreaM2(constRItem)}</td>
+                      <td>{formatConstructionWeightByArea(constRItem)}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -409,6 +464,7 @@ const ConstructionList = ({
               constructions,
               materialsByConstruction
             )}
+            totalWeightKg={computeTotalWeightKgForConstructions(constructions)}
           />
         )}
       </div>
