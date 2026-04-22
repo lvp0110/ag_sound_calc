@@ -77,6 +77,11 @@
   outline: none;
 }
 
+.kp-page__select {
+  appearance: auto;
+  cursor: pointer;
+}
+
 .kp-page__input::placeholder {
   color: #9aa2a9;
   font-weight: 600;

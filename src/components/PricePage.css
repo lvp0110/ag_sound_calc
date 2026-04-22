@@ -56,6 +56,11 @@
   box-sizing: border-box;
 }
 
+.price-page__region-select {
+  max-width: 280px;
+  background: #fff;
+}
+
 .price-page__search:focus {
   outline: 2px solid #6cabc8;
   outline-offset: 1px;

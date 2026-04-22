@@ -14,6 +14,11 @@ import {
   migrateAdditionalMaterialsFromSavedState,
   migrateMaterialsFromSavedState,
 } from "../constants/calculatorSession";
+import {
+  getRegionLabel,
+  setPriceRegion,
+  usePriceData,
+} from "../services/priceApi";
 import "./Calculator.css";
 import "./KpPage.css";
 
@@ -159,6 +164,7 @@ const INITIAL_SERVICE_ROWS = [
 ];
 
 const KpPage = () => {
+  const { regions, selectedRegion } = usePriceData();
   const [form, setForm] = useState(initialForm);
   const [calcTables, setCalcTables] = useState(loadCalculatorTablesState);
   /** Монтаж по карточкам: key_id конструкции → { price, quantity, unit } */
@@ -210,6 +216,17 @@ const KpPage = () => {
   const onFieldChange = (key) => (e) => {
     setForm((prev) => ({ ...prev, [key]: e.target.value }));
   };
+
+  const onRegionChange = (e) => {
+    const value = e.target.value;
+    setForm((prev) => ({ ...prev, region: value }));
+    setPriceRegion(value);
+  };
+
+  useEffect(() => {
+    if (!selectedRegion) return;
+    setForm((prev) => (prev.region ? prev : { ...prev, region: selectedRegion }));
+  }, [selectedRegion]);
 
   const updateServiceRow = (id, field) => (e) => {
     const value = e.target.value;
@@ -423,7 +440,7 @@ const KpPage = () => {
             <input
               id="kp-date"
               className="kp-page__input"
-              type="text"
+              type="date"
               value={form.date}
               onChange={onFieldChange("date")}
             />
@@ -432,14 +449,24 @@ const KpPage = () => {
             <label className="kp-page__label" htmlFor="kp-region">
               Регион:
             </label>
-            <input
+            <select
               id="kp-region"
-              className="kp-page__input"
-              type="text"
-              autoComplete="address-level1"
-              value={form.region}
-              onChange={onFieldChange("region")}
-            />
+              className="kp-page__input kp-page__select"
+              value={form.region || selectedRegion}
+              onChange={onRegionChange}
+              aria-label="Регион прайса"
+              disabled={regions.length === 0}
+            >
+              {regions.length === 0 ? (
+                <option value="">Регионы не найдены</option>
+              ) : (
+                regions.map((region) => (
+                  <option key={region} value={region}>
+                    {getRegionLabel(region)}
+                  </option>
+                ))
+              )}
+            </select>
           </div>
           <div className="kp-page__field-row">
             <label className="kp-page__label" htmlFor="kp-object">
@@ -475,6 +502,8 @@ const KpPage = () => {
               className="kp-page__input"
               type="tel"
               autoComplete="tel"
+              inputMode="tel"
+              placeholder="+7 (___) ___-__-__"
               value={form.phone}
               onChange={onFieldChange("phone")}
             />
@@ -488,6 +517,7 @@ const KpPage = () => {
               className="kp-page__input kp-page__input--email"
               type="email"
               autoComplete="email"
+              placeholder="name@example.com"
               value={form.email}
               onChange={onFieldChange("email")}
             />

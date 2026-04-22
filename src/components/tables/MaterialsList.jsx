@@ -7,7 +7,8 @@ import {
 import {
   getPricePerM2,
   getPricePerUnit,
-} from "../../data/moscowPricePerM2ByArticle";
+  usePriceData,
+} from "../../services/priceApi";
 import "./MaterialsList.css";
 
 export const formatRub = (value) => {
@@ -118,6 +119,7 @@ const MaterialsList = ({
 }) => {
   const [isNarrowScreen, setIsNarrowScreen] = useState(false);
   const [sectionOpen, setSectionOpen] = useState(false);
+  usePriceData();
 
   useEffect(() => {
     const mediaQuery = window.matchMedia("(max-width: 768px)");
