@@ -12,6 +12,14 @@ import usersRouter from "./routes/users.js";
 
 const app = express();
 
+// В проде за backend стоит цепочка: host nginx → frontend-container (express
+// proxy) → этот backend. Нужно доверять X-Forwarded-* чтобы `req.ip` и
+// `req.protocol` показывали реального клиента и корректно работали ratelimit'ы
+// и логи. '1' = доверять одному прокси перед нами (frontend-container);
+// upstream nginx тоже добавляет X-Forwarded-For, так что итоговая цепочка
+// правильно сохраняется в заголовке.
+app.set("trust proxy", 1);
+
 app.use(
   cors({
     origin: env.corsOrigin,

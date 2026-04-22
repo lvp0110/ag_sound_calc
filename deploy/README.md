@@ -1,0 +1,187 @@
+# Deploy ag_sound_calc — Linux-сервер
+
+Кратко: один Linux-сервер, всё приложение в Docker (postgres + backend + frontend), TLS и маршрутизация по домену — на **хостовом системном nginx**. Деплой — SSH из локального Makefile.
+
+## Архитектура
+
+```
+Интернет  :443 / :80 (redirect)
+   ↓
+[host nginx]  /etc/nginx/sites-enabled/ag_sound_calc.conf
+   └─ server_name ag.example.com
+      ssl_certificate /etc/letsencrypt/live/ag.example.com/*
+      proxy_pass → 127.0.0.1:3004
+   ↓
+[frontend container]  bind: 127.0.0.1:3004 (loopback only)
+   ├─ express.static('/app/dist')       ← статика (rsync сюда)
+   └─ /api/*  →  http://backend:3006     ← proxy в docker network
+   ↓
+[backend container]  ports: ∅  (only internal docker network)
+   └─ Node/Express + Prisma
+   ↓
+[postgres container]  ports: ∅  (only internal docker network)
+   └─ volume: ag_sound_calc_pg_data
+```
+
+Наружу виден **только** nginx на 80/443. Backend и postgres не публикуются вообще, frontend слушает только на loopback.
+
+---
+
+## Первый запуск сервера
+
+### 1. Подготовка машины (вручную, один раз)
+
+```bash
+# Docker
+sudo apt update
+sudo apt install -y docker.io docker-compose-plugin
+
+# Системный nginx
+sudo apt install -y nginx
+
+# certbot (для Let's Encrypt)
+sudo apt install -y certbot python3-certbot-nginx
+
+# Firewall — открываем только 80/443; 3004/3006/5432 остаются закрытыми.
+sudo ufw allow 80,443/tcp
+sudo ufw --force enable
+
+# Пользователь для деплоя (если ещё нет) — должен быть в группе docker
+sudo usermod -aG docker deploy
+```
+
+### 2. Получить TLS-сертификат
+
+```bash
+sudo certbot certonly --nginx -d ag.example.com
+# → /etc/letsencrypt/live/ag.example.com/{fullchain,privkey}.pem
+```
+
+certbot установит systemd-timer, который будет обновлять сертификаты сам. После обновления нужен `sudo systemctl reload nginx` (certbot ставит renewal hook автоматически).
+
+### 3. nginx server block
+
+```bash
+# На локальной машине — склонировали репо, смотрим эталон:
+cat deploy/nginx/ag_sound_calc.conf
+
+# На сервере:
+sudo cp deploy/nginx/ag_sound_calc.conf /etc/nginx/sites-available/
+
+# Внутри заменить <domain> на реальный (ag.example.com) в трёх местах:
+sudo sed -i 's|<domain>|ag.example.com|g' /etc/nginx/sites-available/ag_sound_calc.conf
+
+sudo ln -s /etc/nginx/sites-available/ag_sound_calc.conf /etc/nginx/sites-enabled/
+sudo nginx -t && sudo systemctl reload nginx
+```
+
+### 4. Положить секреты и настроить локальный `.env.deploy`
+
+**На локальной машине:**
+```bash
+cp deploy/.env.deploy.example deploy/.env.deploy
+# Заполнить DEPLOY_HOST / DEPLOY_DIR / DEPLOY_DOMAIN.
+```
+
+**На сервере** (потом положит туда `make deploy-bootstrap`, но `.env.prod` нужно подготовить заранее):
+```bash
+# На сервере после первого git clone:
+cd /srv/ag_sound_calc/ag_sound_calc
+cp deploy/.env.prod.example .env.prod
+# Заполнить POSTGRES_PASSWORD, JWT_ACCESS_SECRET, JWT_REFRESH_SECRET, CORS_ORIGIN.
+# openssl rand -hex 32  — для секретов.
+chmod 600 .env.prod
+```
+
+### 5. Первый запуск
+
+```bash
+make deploy-bootstrap   # локально
+```
+
+Скрипт:
+1. Клонирует репо в `$DEPLOY_DIR`.
+2. Проверяет, что `.env.prod`, nginx и конфиг на месте.
+3. Поднимает postgres + backend.
+4. Прогоняет `prisma migrate deploy`.
+5. Поднимает frontend (пока без статики — dist ещё не залит).
+6. Дёргает `https://<domain>/health`.
+
+Сразу после bootstrap — залить фронт:
+```bash
+make deploy-frontend
+```
+
+---
+
+## Регулярный деплой
+
+| Ситуация                              | Команда                         | Что произойдёт                                                                                                        |
+|---------------------------------------|----------------------------------|-----------------------------------------------------------------------------------------------------------------------|
+| Изменился код backend (без миграций)   | `make deploy-backend`            | git fetch + checkout backend/ → rebuild backend-образа → `up -d --no-deps backend` (postgres/frontend не трогаются).  |
+| Изменился frontend                     | `make deploy-frontend`           | Локально `vite build` → `rsync` dist на сервер. Контейнер frontend НЕ перезапускается, статика обновляется на лету.    |
+| Изменились `server.js` / frontend Dockerfile | `REBUILD=1 make deploy-frontend` | Плюсом пересобирается frontend-контейнер и перезапускается `--no-deps`.                                               |
+| Нужно применить миграции               | `make deploy-migrate`            | `docker compose run --rm backend npx prisma migrate deploy` — одноразовый контейнер, работающий backend не трогает.    |
+| Откат backend на прошлую ревизию       | `REV=<commit> make deploy-backend` | Тот же скрипт, но `git checkout $REV` вместо `origin/main`.                                                            |
+| Правка nginx конфига на сервере        | `make deploy-nginx-reload`       | `nginx -t && systemctl reload nginx`.                                                                                  |
+| Посмотреть статус прод-стека           | `make deploy-status`             | `docker compose ps` + `curl /health`.                                                                                  |
+
+### Zero-downtime миграции (expand/contract)
+
+Для additive-изменений (новая nullable-колонка, новая таблица):
+```
+1. make deploy-migrate   ← применить миграцию, БД обновилась
+2. make deploy-backend   ← выкатить новый код, использующий новую колонку
+```
+
+Для breaking (rename/drop) — 2 этапа через промежуточный совместимый билд:
+```
+1. Деплой кода, совместимого и со старой, и с новой схемой:   make deploy-backend
+2. Миграция:                                                  make deploy-migrate
+3. (в следующий релиз) Деплой кода, использующего только новую схему: make deploy-backend
+```
+
+---
+
+## Бэкапы БД
+
+Cron на сервере (под пользователем с правами на docker):
+```
+0 3 * * * cd /srv/ag_sound_calc/ag_sound_calc && docker compose -f docker-compose.prod.yml exec -T postgres pg_dump -U postgres ag_sound_calc | gzip > /var/backups/ag_sound_calc/$(date +\%F).sql.gz
+```
+
+Восстановление:
+```bash
+cd /srv/ag_sound_calc/ag_sound_calc
+gunzip -c /var/backups/ag_sound_calc/2026-04-21.sql.gz \
+  | docker compose -f docker-compose.prod.yml exec -T postgres psql -U postgres -d ag_sound_calc
+```
+
+---
+
+## Диагностика
+
+```bash
+# Статус прод-стека
+make deploy-status
+
+# Логи приложения
+ssh $DEPLOY_HOST "cd $DEPLOY_DIR && docker compose -f docker-compose.prod.yml logs --tail=200 -f backend"
+ssh $DEPLOY_HOST "cd $DEPLOY_DIR && docker compose -f docker-compose.prod.yml logs --tail=200 -f frontend"
+
+# Логи nginx
+ssh $DEPLOY_HOST "sudo tail -f /var/log/nginx/ag_sound_calc.error.log"
+ssh $DEPLOY_HOST "sudo tail -f /var/log/nginx/ag_sound_calc.access.log"
+
+# Проверка изоляции (все три должны быть "connection refused")
+nc -vz ag.example.com 3004
+nc -vz ag.example.com 3006
+nc -vz ag.example.com 5432
+```
+
+## Что НЕ делают скрипты
+
+- Не создают и не пишут TLS-сертификаты (их ставит certbot отдельно).
+- Не меняют nginx-конфиг автоматически — только перечитывают (`deploy-nginx-reload`).
+- Не перезапускают `postgres` никогда в обычном флоу.
+- Не пишут в `.env.prod` — он под контролем оператора.

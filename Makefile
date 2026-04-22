@@ -15,15 +15,17 @@ SHELL := /bin/bash
 BACKEND_DIR := backend
 FRONTEND_DIR := frontend
 
-.PHONY: help setup install env db-up db-down db-migrate db-reset db-ui \
-        backend frontend dev stop build clean status
+.PHONY: help setup install reinstall env db-up db-down db-migrate db-reset db-ui \
+        backend frontend dev stop build clean status \
+        deploy-bootstrap deploy-backend deploy-frontend deploy-migrate \
+        deploy-nginx-reload deploy-status
 
 .DEFAULT_GOAL := help
 
 help: ## Показать список команд
 	@echo "Команды:"
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort \
-	  | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-14s\033[0m %s\n", $$1, $$2}'
+	  | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-22s\033[0m %s\n", $$1, $$2}'
 
 # ─── one-shot setup ─────────────────────────────────────────────────────────
 
@@ -126,3 +128,24 @@ status: ## Проверить, что где крутится
 	    echo "  :$$port — free"; \
 	  fi; \
 	done
+
+# ─── prod deploy (SSH + Makefile) ───────────────────────────────────────────
+# Требуется deploy/.env.deploy (копия из deploy/.env.deploy.example).
+
+deploy-bootstrap: ## Первый запуск на чистом сервере (клонирует репо, проверяет nginx+.env.prod, поднимает все сервисы, мигрирует)
+	bash deploy/bootstrap.sh
+
+deploy-backend: ## Роллаут backend на прод (БД/frontend не трогает). REV=<commit> для точечной ревизии
+	bash deploy/deploy-backend.sh
+
+deploy-frontend: ## Локальный vite build + rsync dist на прод. REBUILD=1 если менялся server.js/Dockerfile
+	bash deploy/deploy-frontend.sh
+
+deploy-migrate: ## Применить prisma migrate deploy на проде (отдельный run --rm, не трогает работающий backend)
+	bash deploy/deploy-migrate.sh
+
+deploy-nginx-reload: ## nginx -t && systemctl reload nginx на сервере
+	bash deploy/deploy-nginx-reload.sh
+
+deploy-status: ## Состояние прод-стека (compose ps + curl /health)
+	bash deploy/deploy-status.sh
