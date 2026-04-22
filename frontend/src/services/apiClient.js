@@ -9,8 +9,13 @@
  *     открывает LoginModal).
  */
 
-const DEFAULT_BASE_URL = "http://localhost:3006";
-const BASE_URL = (import.meta.env.VITE_API_URL || DEFAULT_BASE_URL).replace(/\/$/, "");
+// В dev-режиме vite (`npm run dev`) нет reverse-proxy — фронт бьёт по backend'у
+// напрямую на :3006 (CORS пропускает http://localhost:5173).
+// В production-сборке (`vite build`) фронт ходит по относительным `/api/*` —
+// запрос идёт на тот же origin, nginx + frontend-контейнер проксируют до backend.
+// VITE_API_URL оставляем как explicit override (для staging / нестандартного хоста).
+const DEFAULT_BASE_URL = import.meta.env.DEV ? "http://localhost:3006" : "";
+const BASE_URL = (import.meta.env.VITE_API_URL ?? DEFAULT_BASE_URL).replace(/\/$/, "");
 
 let refreshInFlight = null;
 
