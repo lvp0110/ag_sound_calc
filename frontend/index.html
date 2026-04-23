@@ -6,9 +6,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600&display=swap" rel="stylesheet">
-    <!-- Resource hints for API domain to improve LCP -->
-    <link rel="dns-prefetch" href="https://dev3.constrtodo.ru">
-    <link rel="preconnect" href="https://dev3.constrtodo.ru:3005" crossorigin>
+    <!-- API-запросы идут на тот же origin через /api/* — preconnect на внешний сервис не нужен. -->
     <title>SC</title>
     <!-- Suppress favicon 404 error -->
     <link rel="icon" href="data:,">

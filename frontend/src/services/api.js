@@ -2,26 +2,11 @@
  * API сервис для получения данных о конструкциях
  */
 
-// Определяем базовый URL API
-const getApiBaseUrl = () => {
-  // В dev режиме используем прокси через Vite
-  if (import.meta.env.DEV) {
-    return '/api/v1';
-  }
-  
-  // В production используем прямой URL
-  return 'https://dev3.constrtodo.ru:3005/api/v1';
-};
-
-const API_BASE_URL = getApiBaseUrl();
-
-const getConstrImagesOrigin = () => {
-  const fromEnv = import.meta.env.VITE_CONSTR_IMAGES_ORIGIN;
-  if (fromEnv && String(fromEnv).trim()) {
-    return String(fromEnv).replace(/\/$/, '');
-  }
-  return 'https://dev3.constrtodo.ru:3005';
-};
+// Все запросы к calc-сервису идут через относительные /api/v1/** и /api/v2/**:
+// — в dev Vite-proxy (см. vite.config.js) пробрасывает на dev3.constrtodo.ru:3005;
+// — в prod nginx → frontend-container → backend (calc.ts proxy) → dev3.
+// Браузер никогда не бьёт на внешний хост напрямую → нет CORS, нет смешанного origin.
+const API_BASE_URL = '/api/v1';
 
 /** Относительный путь с учётом `base` из Vite (GitHub Pages и т.д.) */
 const withAppBase = (pathStartingWithSlash) => {
@@ -32,18 +17,11 @@ const withAppBase = (pathStartingWithSlash) => {
 
 /**
  * URL превью конструкции по уже нормализованному имени файла.
- * В dev по умолчанию — тот же origin + прокси (как JSON). Если задан VITE_CONSTR_IMAGES_ORIGIN,
- * картинки грузятся с указанного хоста (удобно при VITE_API_ORIGIN=localhost без статики превью).
+ * Тот же origin, что и приложение — `/api/v1/constr/...` → backend.calc-proxy → dev3 (или
+ * public/api/v1/constr/* fallback в dev через bypass из vite.config.js).
  */
 const resolveConstrPreviewUrl = (processedImageName) => {
-  const subpath = `/api/v1/constr/${processedImageName}`;
-  const useSeparateImageOrigin =
-    Boolean(import.meta.env.VITE_CONSTR_IMAGES_ORIGIN?.trim()) ||
-    !import.meta.env.DEV;
-  if (useSeparateImageOrigin) {
-    return `${getConstrImagesOrigin()}${subpath}`;
-  }
-  return withAppBase(subpath);
+  return withAppBase(`/api/v1/constr/${processedImageName}`);
 };
 
 /** Нормализует тело ответа GET /api/v1/AllIsolationConstr к массиву записей. */
@@ -104,15 +82,10 @@ export const getImageUrl = (imageName) => {
     imageName = s;
   }
 
-  // Нормализуем полный URL от API до имени файла, чтобы можно было подменять на zipsCeilingApiImages.
-  const devBase = 'http://localhost:3005/api/v1/constr/';
-  const prodBase = 'https://dev3.constrtodo.ru:3005/api/v1/constr/';
-  if (imageName.startsWith(devBase)) {
-    imageName = imageName.slice(devBase.length);
-  } else if (imageName.startsWith(prodBase)) {
-    imageName = imageName.slice(prodBase.length);
-  } else if (imageName.startsWith('http://') || imageName.startsWith('https://')) {
-    // Для сторонних абсолютных ссылок возвращаем как есть
+  // Если после срезки по constrMarker остался сторонний абсолютный URL
+  // (картинка с какого-то CDN или стороннего origin) — отдаём его как есть.
+  // Все свои `api/v1/constr/…`-ссылки уже нормализованы выше до имени файла.
+  if (imageName.startsWith('http://') || imageName.startsWith('https://')) {
     return imageName;
   }
   
@@ -347,21 +320,11 @@ export const getIsolationConstrMaterials = async (isolationConstrCode) => {
 
 export const getConstructionProps = async (code) => {
   if (!code) return null;
-  
-  // Определяем базовый URL для v2 API
-  const getApiV2BaseUrl = () => {
-    if (import.meta.env.DEV) {
-      return '/api/v2';
-    }
-    
-    return 'https://dev3.constrtodo.ru:3005/api/v2';
-  };
-  
-  const API_V2_BASE_URL = getApiV2BaseUrl();
-  // Используем путь вместо query параметра: /props/AG.W101
-  // Убеждаемся, что код правильно закодирован
+
+  // Всегда относительный /api/v2/… — dev Vite-proxy и prod nginx+backend
+  // ведут этот путь во внешний calc-сервис без участия браузера в cross-origin.
   const encodedCode = encodeURIComponent(code);
-  const url = `${API_V2_BASE_URL}/isolationConstructions/props/${encodedCode}`;
+  const url = `/api/v2/isolationConstructions/props/${encodedCode}`;
   
   try {
     const controller = new AbortController();

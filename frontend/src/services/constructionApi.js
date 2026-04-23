@@ -6,16 +6,11 @@ export const calculateConstruction = async (constrList) => {
     return { data: [] };
   }
 
-  // Определяем URL для расчета конструкций
-  const getApiUrl = () => {
-    if (import.meta.env.DEV) {
-      return "/api/v1/calcIsolation/byProduct";
-    }
-    
-    return "https://dev3.constrtodo.ru:3005/api/v1/calcIsolation/byProduct";
-  };
-
-  const apiUrl = getApiUrl();
+  // Всегда относительный путь /api/v1/calcIsolation/byProduct:
+  // - в dev Vite-proxy из vite.config.js переправит на dev3.constrtodo.ru:3005;
+  // - в prod host nginx → frontend-container → backend (calc.ts proxy) → внешний сервис.
+  // Cross-origin не нужен — запрос на том же origin, что и страница.
+  const apiUrl = "/api/v1/calcIsolation/byProduct";
 
   const payload = JSON.stringify(constrList);
   const response = await fetch(apiUrl, {
@@ -25,7 +20,7 @@ export const calculateConstruction = async (constrList) => {
       Accept: "application/json",
     },
     body: payload,
-    mode: "cors",
+    credentials: "include",
   });
 
   if (!response.ok) {
