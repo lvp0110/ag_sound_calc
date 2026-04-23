@@ -334,6 +334,14 @@ export const getPricePerUnit = (article) => {
   return pickRegionalOrBasePrice(row, cache.selectedRegion, "pricePerUnit");
 };
 
+export const getPriceName = (article) => {
+  if (article == null || article === "") return "";
+  const key = String(article).trim();
+  const row = cache.byArticle.get(key);
+  if (!row) return "";
+  return row.name == null ? "" : String(row.name).trim();
+};
+
 export const getPriceList = () => cache.list;
 
 export const getRegionLabel = (region) => {

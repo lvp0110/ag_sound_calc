@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import ConstructionList, {
   ConstructionGrandTotalBlock,
   computeTotalWeightKgForConstructions,
@@ -164,6 +165,7 @@ const INITIAL_SERVICE_ROWS = [
 ];
 
 const KpPage = () => {
+  const navigate = useNavigate();
   const { regions, selectedRegion } = usePriceData();
   const [form, setForm] = useState(initialForm);
   const [calcTables, setCalcTables] = useState(loadCalculatorTablesState);
@@ -175,7 +177,7 @@ const KpPage = () => {
   );
   const [materialRows, setMaterialRows] = useState(() => {
     const savedRows = loadAdditionalMaterialsState();
-    return savedRows.length > 0 ? savedRows : [newCustomMaterialRow()];
+    return savedRows;
   });
   const [serviceRows, setServiceRows] = useState(INITIAL_SERVICE_ROWS);
 
@@ -270,6 +272,10 @@ const KpPage = () => {
 
   const removeMaterialRow = (id) => {
     setMaterialRows((rows) => rows.filter((r) => r.id !== id));
+  };
+
+  const openPriceForMaterialSelection = () => {
+    navigate("/price");
   };
 
   const updateMontageRow = useCallback((key_id, field) => (e) => {
@@ -656,6 +662,17 @@ const KpPage = () => {
                   ))}
                 </tbody>
                 <tfoot>
+                  <tr className="kp-page__services-add-row">
+                    <td colSpan={5} className="kp-page__services-add-cell">
+                      <button
+                        type="button"
+                        className="kp-page__services-add kp-page__services-add--secondary"
+                        onClick={openPriceForMaterialSelection}
+                      >
+                        Выбрать материал из прайса
+                      </button>
+                    </td>
+                  </tr>
                   <tr className="kp-page__services-add-row">
                     <td colSpan={5} className="kp-page__services-add-cell">
                       <button

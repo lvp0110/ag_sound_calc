@@ -5,6 +5,7 @@ import {
   isM2Units,
 } from "../../utils/formatters";
 import {
+  getPriceName,
   getPricePerM2,
   getPricePerUnit,
   usePriceData,
@@ -222,13 +223,22 @@ const MaterialsList = ({
         {showBody && (
           <tbody>
             {hasData ? (
-              rowModels.map(
-                ({ Material, pricePerM2, pricePerUnit, sumRub }, index) => (
+              rowModels.map(({ Material, pricePerM2, pricePerUnit, sumRub }, index) => {
+                const codeRaw =
+                  Material.Code != null ? String(Material.Code).trim() : "";
+                const priceName = getPriceName(codeRaw);
+                const materialName =
+                  priceName !== ""
+                    ? priceName
+                    : Material.Name != null && String(Material.Name).trim() !== ""
+                    ? String(Material.Name).trim()
+                    : "—";
+                return (
                   <tr key={index}>
                     {!isNarrowScreen && (
                       <td>{filterVariable(Material.Code)}</td>
                     )}
-                    <td>{Material.Name}</td>
+                    <td>{materialName}</td>
                     <td className="materials-list__col--hidden" />
                     <td>{convertUnits(Material)}</td>
                     <td>{Material.Units}</td>
@@ -256,7 +266,7 @@ const MaterialsList = ({
                                 ? formatRub(pricePerM2)
                                 : "—"
                             }
-                            aria-label={`Цена за м², ${Material.Name ?? ""}`}
+                            aria-label={`Цена за м², ${materialName}`}
                           />
                         </td>
                       ) : (
@@ -286,7 +296,7 @@ const MaterialsList = ({
                                 ? formatRub(pricePerUnit)
                                 : "—"
                             }
-                            aria-label={`Цена за единицу, ${Material.Name ?? ""}`}
+                            aria-label={`Цена за единицу, ${materialName}`}
                           />
                         </td>
                       ) : (
@@ -300,15 +310,15 @@ const MaterialsList = ({
                             readOnly
                             className="kp-page__services-input kp-page__services-input--computed"
                             value={formatRub(sumRub)}
-                            aria-label={`Сумма, ${Material.Name ?? ""}`}
+                            aria-label={`Сумма, ${materialName}`}
                           />
                         </td>
                       ) : (
                         <td>{formatRub(sumRub)}</td>
                       ))}
                   </tr>
-                )
-              )
+                );
+              })
             ) : (
               <tr>
                 <td

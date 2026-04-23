@@ -141,24 +141,12 @@ const PricePage = () => {
                 <th scope="col">Наименование</th>
                 <th scope="col">₽ / м²</th>
                 <th scope="col">₽ / ед.</th>
+                <th scope="col">Действие</th>
               </tr>
             </thead>
             <tbody>
               {filtered.map((row) => (
-                <tr
-                  key={`${row.article}-${selectedRegion || "default"}`}
-                  className="price-page__row-clickable"
-                  role="button"
-                  tabIndex={0}
-                  onClick={() => addRowToAdditionalMaterials(row)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      addRowToAdditionalMaterials(row);
-                    }
-                  }}
-                  aria-label={`Добавить материал ${row.name?.trim() || row.article} в дополнительные материалы`}
-                >
+                <tr key={`${row.article}-${selectedRegion || "default"}`}>
                   <td className="price-page__article">{row.article}</td>
                   <td className="price-page__name">
                     {row.name?.trim() ? row.name : "—"}
@@ -172,6 +160,16 @@ const PricePage = () => {
                     {formatPriceCell(
                       getPriceByRegion(row, selectedRegion, "pricePerUnit")
                     )}
+                  </td>
+                  <td>
+                    <button
+                      type="button"
+                      className="price-page__add-button"
+                      onClick={() => addRowToAdditionalMaterials(row)}
+                      aria-label={`Добавить материал ${row.name?.trim() || row.article} в дополнительные материалы`}
+                    >
+                      Выбрать
+                    </button>
                   </td>
                 </tr>
               ))}

@@ -1,3 +1,4 @@
+import { useCallback, useEffect, useState } from "react";
 import { filterVariable } from "../../utils/formatters";
 import MaterialsList, {
   computeGrandTotalRubForConstructions,
@@ -284,6 +285,29 @@ const ConstructionList = ({
   showGrandTotalInline = true,
   onGeneralMaterialKpPriceChange,
 }) => {
+  const [collapsedCardsByKeyId, setCollapsedCardsByKeyId] = useState({});
+
+  useEffect(() => {
+    if (!Array.isArray(constructions) || constructions.length === 0) {
+      setCollapsedCardsByKeyId({});
+      return;
+    }
+    setCollapsedCardsByKeyId((prev) => {
+      const next = {};
+      for (const item of constructions) {
+        next[item.key_id] = prev[item.key_id] ?? true;
+      }
+      return next;
+    });
+  }, [constructions]);
+
+  const toggleCardCollapsed = useCallback((key_id) => {
+    setCollapsedCardsByKeyId((prev) => ({
+      ...prev,
+      [key_id]: !(prev[key_id] ?? true),
+    }));
+  }, []);
+
   if (!constructions || constructions.length === 0) {
     return null;
   }
@@ -295,6 +319,7 @@ const ConstructionList = ({
     return (
       <div className="construction-materials-blocks">
         {constructions.map((constRItem, index) => {
+          const cardCollapsed = collapsedCardsByKeyId[constRItem.key_id] ?? true;
           const matEntry = materialsByConstruction.find(
             (m) => m.key_id === constRItem.key_id
           );
@@ -323,9 +348,24 @@ const ConstructionList = ({
                         className="construction-card__heading-th"
                       >
                         <div className="construction-card__heading-content">
-                          <div className="construction-card__heading-title">
-                            {constructionCardHeading(constRItem)}
-                          </div>
+                          <button
+                            type="button"
+                            className="construction-card__heading-toggle"
+                            aria-expanded={!cardCollapsed}
+                            onClick={() => toggleCardCollapsed(constRItem.key_id)}
+                          >
+                            <span
+                              className={`construction-card__heading-chevron${
+                                cardCollapsed
+                                  ? ""
+                                  : " construction-card__heading-chevron--expanded"
+                              }`}
+                              aria-hidden
+                            />
+                            <span className="construction-card__heading-title">
+                              {constructionCardHeading(constRItem)}
+                            </span>
+                          </button>
                           {showHeadingDeleteButton && (
                             <button
                               type="button"
@@ -339,58 +379,62 @@ const ConstructionList = ({
                         </div>
                       </th>
                     </tr>
-                    <tr>
-                      {!readOnly && <th className="construction-card__delete-col" />}
-                      <th>шифр</th>
-                      <th className="construction-card__dim-th">размеры, мм</th>
-                      <th>площадь, м2</th>
-                      <th>вес,кг</th>
-                    </tr>
+                    {!cardCollapsed && (
+                      <tr>
+                        {!readOnly && <th className="construction-card__delete-col" />}
+                        <th>шифр</th>
+                        <th className="construction-card__dim-th">размеры, мм</th>
+                        <th>площадь, м2</th>
+                        <th>вес,кг</th>
+                      </tr>
+                    )}
                   </thead>
-                  <tbody>
-                    <tr>
-                      {!readOnly && (
-                        <td className="construction-card__delete-col">
-                          <input
-                            type="button"
-                            className="counter__button_minus"
-                            onClick={() => onDelete(constRItem.key_id)}
-                          />
-                          <img
-                            src={`${import.meta.env.BASE_URL}delete-icon.jpg`}
-                            alt=""
-                            className="construction-card__delete-icon"
-                            loading="lazy"
-                            decoding="async"
-                            onClick={() => onDelete(constRItem.key_id)}
-                          />
+                  {!cardCollapsed && (
+                    <tbody>
+                      <tr>
+                        {!readOnly && (
+                          <td className="construction-card__delete-col">
+                            <input
+                              type="button"
+                              className="counter__button_minus"
+                              onClick={() => onDelete(constRItem.key_id)}
+                            />
+                            <img
+                              src={`${import.meta.env.BASE_URL}delete-icon.jpg`}
+                              alt=""
+                              className="construction-card__delete-icon"
+                              loading="lazy"
+                              decoding="async"
+                              onClick={() => onDelete(constRItem.key_id)}
+                            />
+                          </td>
+                        )}
+                        <td>{constRItem.ag_id}</td>
+                        <td className="construction-card__dim-td">
+                          {constructionDimensionsMm(constRItem)}
                         </td>
-                      )}
-                      <td>{constRItem.ag_id}</td>
-                      <td className="construction-card__dim-td">
-                        {constructionDimensionsMm(constRItem)}
-                      </td>
-                      <td>{formatConstructionAreaM2(constRItem)}</td>
-                      <td>{formatConstructionWeightByArea(constRItem)}</td>
-                    </tr>
-                  </tbody>
+                        <td>{formatConstructionAreaM2(constRItem)}</td>
+                        <td>{formatConstructionWeightByArea(constRItem)}</td>
+                      </tr>
+                    </tbody>
+                  )}
                 </table>
               </div>
-              {withArticle.length === 0 && noArticle.length === 0 && (
+              {!cardCollapsed && withArticle.length === 0 && noArticle.length === 0 && (
                 <MaterialsList
                   data={[]}
                   tableId={baseTableId}
                   collapsible={readOnly}
                 />
               )}
-              {withArticle.length > 0 && (
+              {!cardCollapsed && withArticle.length > 0 && (
                 <MaterialsList
                   data={withArticle}
                   tableId={baseTableId}
                   collapsible={readOnly}
                 />
               )}
-              {showGeneralConstructionMaterials && noArticle.length > 0 && (
+              {!cardCollapsed && showGeneralConstructionMaterials && noArticle.length > 0 && (
                 <MaterialsList
                   data={noArticle}
                   tableId={
@@ -422,7 +466,7 @@ const ConstructionList = ({
               {readOnly ? (
                 <div className="kp-table-card kp-table-card--group">
                   {groupBody}
-                  {typeof renderKpMontageSlot === "function"
+                  {!cardCollapsed && typeof renderKpMontageSlot === "function"
                     ? renderKpMontageSlot({
                         key_id: constRItem.key_id,
                         cardIndex: index,

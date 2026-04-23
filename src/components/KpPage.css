@@ -367,8 +367,9 @@
   margin-top: 16px;
 }
 
-/* Кнопка «Добавить строку» внутри таблицы услуг */
-.kp-page .kp-table-card #kp-table-services tfoot td.kp-page__services-add-cell {
+/* Кнопки в футере таблиц КП */
+.kp-page .kp-table-card #kp-table-services tfoot td.kp-page__services-add-cell,
+.kp-page .kp-table-card #kp-table-additional-materials tfoot td.kp-page__services-add-cell {
   background: #fafcfd;
   border-top: 1px solid #e2e8ee;
   font-weight: normal;
@@ -377,7 +378,8 @@
   padding: 10px 12px;
 }
 
-.kp-page .kp-table-card #kp-table-services tfoot tr.kp-page__services-add-row:hover {
+.kp-page .kp-table-card #kp-table-services tfoot tr.kp-page__services-add-row:hover,
+.kp-page .kp-table-card #kp-table-additional-materials tfoot tr.kp-page__services-add-row:hover {
   background-color: #fafcfd;
 }
 
@@ -480,6 +482,10 @@
 
 .kp-page__services-add:hover {
   background: #e2f0f7;
+}
+
+.kp-page__services-add--secondary {
+  background: #ffffff;
 }
 
 .kp-page__services-input {
