@@ -4,7 +4,13 @@ import { getMaxLenZInMeters } from "../utils/validation";
  * Компонент параметров конструкции (гипсокартон, минвата, шаг профиля, проемы)
  */
 const ConstructionParameters = ({
+  mode = "facing",
   selectedItem,
+  template,
+  currentConstr,
+  setCurrentConstr,
+  unvisible,
+  onToggleVisible,
   currentSubCategory,
   currentGkla,
   setCurrentGkla,
@@ -20,6 +26,204 @@ const ConstructionParameters = ({
   onAddOpening,
   onDeleteOpening,
 }) => {
+  if (mode === "floor") {
+    const currentTemplate = template ?? selectedItem?.template;
+    const needsToggle = [607.1, 608.1, 609.1, 610.1, 2.1, 3].includes(
+      currentTemplate
+    );
+    const isPerimeterType = [607.1, 608.1, 609.1, 610.1, 2.1].includes(
+      currentTemplate
+    );
+
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+        {needsToggle && (
+          <button
+            className="counter__button_param"
+            style={{ marginBottom: "10px" }}
+            onClick={onToggleVisible}
+          >
+            изменить параметры конструкции
+          </button>
+        )}
+
+        {unvisible && isPerimeterType && (
+          <>
+            <input
+              className="radio"
+              type="radio"
+              onChange={(e) => setCurrentConstr(e.target.value)}
+              id={`floor_default_${selectedItem.id}`}
+              name={`floor_type_${selectedItem.id}`}
+              value={selectedItem.ag_id}
+              checked={currentConstr === selectedItem.ag_id}
+            />
+            <label className="label" htmlFor={`floor_default_${selectedItem.id}`}>
+              {currentTemplate == 2.1 ? "Акуфлор S20 по периметру" : "К2 по периметру"}
+            </label>
+            <input
+              className="radio"
+              type="radio"
+              onChange={(e) => setCurrentConstr(e.target.value)}
+              id={`floor_vibro_${selectedItem.id}`}
+              name={`floor_type_${selectedItem.id}`}
+              value={`${selectedItem.ag_id}_vibrostek`}
+              checked={currentConstr === `${selectedItem.ag_id}_vibrostek`}
+            />
+            <label className="label" htmlFor={`floor_vibro_${selectedItem.id}`}>
+              Вибростек по периметру
+            </label>
+          </>
+        )}
+
+        {currentTemplate == 3 && (
+          <>
+            <h4 style={{ margin: "5px" }}>тип конструкции</h4>
+            {unvisible && (
+              <>
+                <input
+                  className="radio"
+                  type="radio"
+                  onChange={(e) => setCurrentConstr(e.target.value)}
+                  id={`lags_silomer_${selectedItem.id}`}
+                  name={`lags_type_${selectedItem.id}`}
+                  value="AG.F615"
+                  checked={currentConstr === "AG.F615"}
+                />
+                <label className="label" htmlFor={`lags_silomer_${selectedItem.id}`}>
+                  с применением материала Silomer
+                </label>
+                <input
+                  className="radio"
+                  type="radio"
+                  onChange={(e) => setCurrentConstr(e.target.value)}
+                  id={`lags_vibroflex_${selectedItem.id}`}
+                  name={`lags_type_${selectedItem.id}`}
+                  value="AG.F615_vibroflex_LD"
+                  checked={currentConstr === "AG.F615_vibroflex_LD"}
+                />
+                <label
+                  className="label"
+                  htmlFor={`lags_vibroflex_${selectedItem.id}`}
+                >
+                  с применением опор Виброфлекс LD
+                </label>
+                <input
+                  className="radio"
+                  type="radio"
+                  onChange={(e) => setProfileStep(Number(e.target.value))}
+                  id={`lags_step400_${selectedItem.id}`}
+                  name={`lags_step_${selectedItem.id}`}
+                  value="400"
+                  checked={profileStep === 400}
+                />
+                <label className="label" htmlFor={`lags_step400_${selectedItem.id}`}>
+                  шаг профиля 400 мм
+                </label>
+                <input
+                  className="radio"
+                  type="radio"
+                  onChange={(e) => setProfileStep(Number(e.target.value))}
+                  id={`lags_step300_${selectedItem.id}`}
+                  name={`lags_step_${selectedItem.id}`}
+                  value="300"
+                  checked={profileStep === 300}
+                />
+                <label className="label" htmlFor={`lags_step300_${selectedItem.id}`}>
+                  шаг профиля 300 мм
+                </label>
+              </>
+            )}
+          </>
+        )}
+
+        {currentTemplate == 9 && (
+          <>
+            <h4 style={{ margin: "5px" }}>тип конструкции</h4>
+            <input
+              className="radio"
+              type="radio"
+              onChange={(e) => setCurrentConstr(e.target.value)}
+              id={`splast_20_${selectedItem.id}`}
+              name={`splast_type_${selectedItem.id}`}
+              value="AG.F606"
+              checked={currentConstr === "AG.F606"}
+            />
+            <label className="label" htmlFor={`splast_20_${selectedItem.id}`}>
+              толщина слоя 20 мм
+            </label>
+            <input
+              className="radio"
+              type="radio"
+              onChange={(e) => setCurrentConstr(e.target.value)}
+              id={`splast_30_${selectedItem.id}`}
+              name={`splast_type_${selectedItem.id}`}
+              value="AG.F606_30"
+              checked={currentConstr === "AG.F606_30"}
+            />
+            <label className="label" htmlFor={`splast_30_${selectedItem.id}`}>
+              толщина слоя 30 мм
+            </label>
+            <input
+              className="radio"
+              type="radio"
+              onChange={(e) => setCurrentConstr(e.target.value)}
+              id={`splast_40_${selectedItem.id}`}
+              name={`splast_type_${selectedItem.id}`}
+              value="AG.F606_40"
+              checked={currentConstr === "AG.F606_40"}
+            />
+            <label className="label" htmlFor={`splast_40_${selectedItem.id}`}>
+              толщина слоя 40 мм
+            </label>
+          </>
+        )}
+
+        {currentTemplate == 9.1 && (
+          <>
+            <h4 style={{ margin: "5px" }}>тип конструкции</h4>
+            <input
+              className="radio"
+              type="radio"
+              onChange={(e) => setCurrentConstr(e.target.value)}
+              id={`tehno_350_${selectedItem.id}`}
+              name={`tehno_type_${selectedItem.id}`}
+              value="AG.F612"
+              checked={currentConstr === "AG.F612"}
+            />
+            <label className="label" htmlFor={`tehno_350_${selectedItem.id}`}>
+              Шумостоп-Техно 350
+            </label>
+            <input
+              className="radio"
+              type="radio"
+              onChange={(e) => setCurrentConstr(e.target.value)}
+              id={`tehno_600_${selectedItem.id}`}
+              name={`tehno_type_${selectedItem.id}`}
+              value="AG.F612_600"
+              checked={currentConstr === "AG.F612_600"}
+            />
+            <label className="label" htmlFor={`tehno_600_${selectedItem.id}`}>
+              Шумостоп-Техно 600
+            </label>
+            <input
+              className="radio"
+              type="radio"
+              onChange={(e) => setCurrentConstr(e.target.value)}
+              id={`tehno_1200_${selectedItem.id}`}
+              name={`tehno_type_${selectedItem.id}`}
+              value="AG.F612_1200"
+              checked={currentConstr === "AG.F612_1200"}
+            />
+            <label className="label" htmlFor={`tehno_1200_${selectedItem.id}`}>
+              Шумостоп-Техно 1200
+            </label>
+          </>
+        )}
+      </div>
+    );
+  }
+
   const isZIPSFacing =
     selectedItem?.ag_id &&
     selectedItem.ag_id.startsWith("AG.Z") &&
