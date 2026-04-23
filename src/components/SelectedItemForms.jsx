@@ -13,6 +13,8 @@ const SelectedItemForms = ({
   constR,
   setConstR,
   currentSubCategory,
+  currentConstr,
+  setCurrentConstr,
   unvisible,
   setUnvisible,
   currentGkla,
@@ -31,6 +33,7 @@ const SelectedItemForms = ({
 }) => {
   const template = selectedItem?.template;
   const isFloorTemplate = [1, 111, 3, 607.1, 608.1, 609.1, 610.1, 2.1, 9, 9.1].includes(template);
+  const hasFloorParameters = [3, 607.1, 608.1, 609.1, 610.1, 2.1, 9, 9.1].includes(template);
   const isCeilingTemplate = [4, 5].includes(template);
   const isFacingTemplate = [6, 50, 75, 100, 101, 50.1, 75.1, 100.1, 101.1, 50.2, 75.2, 100.2, 8.1].includes(template);
   const isSoundboardTemplate = [201, 202].includes(template);
@@ -72,23 +75,53 @@ const SelectedItemForms = ({
       </button>
 
       {isFloorTemplate && (
-        <FloorForm
-          constR={constR}
-          onLenXChange={(value) => setConstR({ ...constR, lenX: value })}
-          onLenYChange={(value) => setConstR({ ...constR, lenY: value })}
-        />
+        <>
+          <FloorForm
+            constR={constR}
+            onLenXChange={(value) => setConstR({ ...constR, lenX: value })}
+            onLenYChange={(value) => setConstR({ ...constR, lenY: value })}
+          />
+          {hasFloorParameters && (
+            <ConstructionParameters
+              mode="floor"
+              selectedItem={selectedItem}
+              template={template}
+              currentConstr={currentConstr}
+              setCurrentConstr={setCurrentConstr}
+              profileStep={profileStep}
+              setProfileStep={setProfileStep}
+              unvisible={unvisible}
+              onToggleVisible={getStartParam}
+            />
+          )}
+        </>
       )}
 
       {isCeilingTemplate && (
-        <CeilingForm
-          constR={constR}
-          onLenXChange={(value) => setConstR({ ...constR, lenX: value })}
-          onLenYChange={(value) => setConstR({ ...constR, lenY: value })}
-          onAddCeilShiftChange={(value) =>
-            setConstR({ ...constR, AddCeilShift: value })
-          }
-          showCeilShift={template === 5 && selectedItem.id === 503}
-        />
+        <>
+          <CeilingForm
+            constR={constR}
+            onLenXChange={(value) => setConstR({ ...constR, lenX: value })}
+            onLenYChange={(value) => setConstR({ ...constR, lenY: value })}
+            onAddCeilShiftChange={(value) =>
+              setConstR({ ...constR, AddCeilShift: value })
+            }
+            showCeilShift={false}
+          />
+          <ConstructionParameters
+            mode="ceiling"
+            selectedItem={selectedItem}
+            template={template}
+            currentGkla={currentGkla}
+            setCurrentGkla={setCurrentGkla}
+            currentWool={currentWool}
+            setCurrentWool={setCurrentWool}
+            constR={constR}
+            setConstR={setConstR}
+            unvisible={unvisible}
+            onToggleVisible={getStartParam}
+          />
+        </>
       )}
 
       {isFacingTemplate && (

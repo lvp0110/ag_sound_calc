@@ -233,6 +233,12 @@ h4 {
   cursor: pointer;
 }
 
+.radio-option {
+  display: flex;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
 /* Таблицы данных: только в калькуляторе (страница КП — см. KpPage.css) */
 .content-calc .data {
   font-size: 13px;
@@ -539,7 +545,7 @@ button::-moz-focus-inner {
 /* Левая часть - формы и кнопки */
 .selected-item-forms {
   flex: 0 0 40%;
-  max-width: 50%;
+  max-width: 100%;
   display: flex;
   flex-direction: column;
   gap: 6px;

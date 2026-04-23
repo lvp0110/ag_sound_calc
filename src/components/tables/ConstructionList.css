@@ -61,6 +61,7 @@
 .construction-card__heading-th {
   font-weight: bold;
   text-align: left;
+  background-color: #d2e2eb;
 }
 
 .construction-card__heading-content {
@@ -76,6 +77,50 @@
   font-weight: inherit;
   line-height: inherit;
   text-align: left;
+}
+
+.construction-card__heading-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: auto;
+  min-height: 0;
+  margin: 0;
+  margin-top: 0;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  position: static;
+  cursor: pointer;
+}
+
+.construction-card__heading-toggle:focus-visible {
+  outline: 2px solid #6cabc8;
+  outline-offset: 2px;
+}
+
+.construction-card__heading-chevron {
+  box-sizing: border-box;
+  display: inline-block;
+  width: 0.45em;
+  height: 0.45em;
+  border-style: solid;
+  border-color: currentColor;
+  border-width: 0 0.12em 0.12em 0;
+  transform: rotate(-45deg);
+  transform-origin: 45% 55%;
+  transition: transform 0.15s ease;
+}
+
+.construction-card__heading-chevron--expanded {
+  transform: rotate(45deg);
+  transform-origin: 50% 50%;
 }
 
 .construction-card__heading-delete-button {
