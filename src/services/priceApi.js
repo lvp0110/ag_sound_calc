@@ -104,8 +104,33 @@ const normalizeRow = (raw) => {
 
 const normalizePayload = (payload) => {
   const rows = collectRows(payload);
+  const normalizedRows = rows.map(normalizeRow).filter(Boolean);
+  const mergedByArticle = new Map();
 
-  return rows.map(normalizeRow).filter(Boolean);
+  normalizedRows.forEach((row) => {
+    const articleKey = String(row.article).trim().toLowerCase();
+    const existing = mergedByArticle.get(articleKey);
+    if (!existing) {
+      mergedByArticle.set(articleKey, row);
+      return;
+    }
+
+    mergedByArticle.set(articleKey, {
+      ...existing,
+      // Если в более поздней строке есть заполненное имя, используем его.
+      name: row.name?.trim() ? row.name : existing.name,
+      // Сохраняем первую валидную базовую цену, а при отсутствии берём из дубля.
+      pricePerM2: existing.pricePerM2 ?? row.pricePerM2,
+      pricePerUnit: existing.pricePerUnit ?? row.pricePerUnit,
+      // Объединяем региональные цены из всех дублей.
+      regionalPrices: {
+        ...(existing.regionalPrices ?? {}),
+        ...(row.regionalPrices ?? {}),
+      },
+    });
+  });
+
+  return [...mergedByArticle.values()];
 };
 
 const applyRowsToCache = (rows) => {
