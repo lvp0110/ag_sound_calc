@@ -233,6 +233,12 @@ h4 {
   cursor: pointer;
 }
 
+.radio-option {
+  display: flex;
+  align-items: center;
+  margin-bottom: 4px;
+}
+
 /* Таблицы данных: только в калькуляторе (страница КП — см. KpPage.css) */
 .content-calc .data {
   font-size: 13px;
