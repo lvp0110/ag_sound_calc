@@ -1,12 +1,25 @@
 import { useMemo, useState } from "react";
 import { formatRub } from "./tables/MaterialsList";
-import { getRegionLabel, setPriceRegion, usePriceData } from "../services/priceApi";
+import { setPriceRegion, usePriceData } from "../services/priceApi";
 import {
   CALCULATOR_STATE_STORAGE_KEY,
   migrateAdditionalMaterialsFromSavedState,
 } from "../constants/calculatorSession";
 import { filterPriceRows } from "./priceSearch";
 import "./PricePage.css";
+
+const REGION_SELECT_OPTIONS = [
+  { value: "moscow", label: "Москва", regionKey: "msk" },
+  { value: "saint-petersburg", label: "Санкт-Петербург", regionKey: "msk" },
+  { value: "yekaterinburg", label: "Екатеринбург", regionKey: "ural" },
+  { value: "ufa", label: "Уфа", regionKey: "ural" },
+  { value: "krasnodar", label: "Краснодар", regionKey: "south" },
+  { value: "kazan", label: "Казань", regionKey: "kazan" },
+];
+
+const getDefaultRegionOption = (availableRegionKeys) =>
+  REGION_SELECT_OPTIONS.find((option) => availableRegionKeys.has(option.regionKey))?.value ??
+  "";
 
 function formatPriceCell(value) {
   if (value == null || Number.isNaN(Number(value))) return "—";
@@ -40,6 +53,31 @@ const PricePage = () => {
     regions,
     selectedRegion,
   } = usePriceData();
+  const [selectedRegionOption, setSelectedRegionOption] = useState("");
+
+  const availableRegionKeys = useMemo(() => {
+    return new Set(regions.map((region) => region.toLowerCase()));
+  }, [regions]);
+
+  const visibleRegionOptions = useMemo(() => {
+    return REGION_SELECT_OPTIONS.filter((option) =>
+      availableRegionKeys.has(option.regionKey)
+    );
+  }, [availableRegionKeys]);
+
+  const effectiveSelectedRegionOption =
+    selectedRegionOption && visibleRegionOptions.some((option) => option.value === selectedRegionOption)
+      ? selectedRegionOption
+      : getDefaultRegionOption(availableRegionKeys);
+
+  const handleRegionChange = (optionValue) => {
+    setSelectedRegionOption(optionValue);
+    const selectedOption = REGION_SELECT_OPTIONS.find(
+      (option) => option.value === optionValue
+    );
+    if (!selectedOption) return;
+    setPriceRegion(selectedOption.regionKey);
+  };
 
   const addRowToAdditionalMaterials = (row) => {
     const pricePerM2 = getPriceByRegion(row, selectedRegion, "pricePerM2");
@@ -105,16 +143,16 @@ const PricePage = () => {
         <select
           id="price-region"
           className="price-page__search price-page__region-select"
-          value={selectedRegion}
-          onChange={(e) => setPriceRegion(e.target.value)}
-          disabled={regions.length === 0}
+          value={effectiveSelectedRegionOption}
+          onChange={(e) => handleRegionChange(e.target.value)}
+          disabled={visibleRegionOptions.length === 0}
         >
-          {regions.length === 0 ? (
+          {visibleRegionOptions.length === 0 ? (
             <option value="">Регионы не найдены</option>
           ) : (
-            regions.map((region) => (
-              <option key={region} value={region}>
-                {getRegionLabel(region)}
+            visibleRegionOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
               </option>
             ))
           )}

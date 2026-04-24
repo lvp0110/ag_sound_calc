@@ -97,7 +97,7 @@
   border-radius: 0;
   box-shadow: none;
   position: static;
-  cursor: pointer;
+  cursor: pointer;font-size: larger;
 }
 
 .construction-card__heading-toggle:focus-visible {

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import ConstructionList, {
   ConstructionGrandTotalBlock,
@@ -16,7 +16,6 @@ import {
   migrateMaterialsFromSavedState,
 } from "../constants/calculatorSession";
 import {
-  getRegionLabel,
   setPriceRegion,
   usePriceData,
 } from "../services/priceApi";
@@ -56,6 +55,30 @@ function loadAdditionalMaterialsState() {
     return migrateAdditionalMaterialsFromSavedState(saved);
   } catch {
     return [];
+  }
+}
+
+function loadKpSettingsState() {
+  const fallback = {
+    floor: "",
+    ceiling: "",
+    cladding: "",
+    partition: "",
+  };
+  try {
+    const raw = sessionStorage.getItem(CALCULATOR_STATE_STORAGE_KEY);
+    if (!raw) return fallback;
+    const saved = JSON.parse(raw);
+    const settings = saved?.kpSettings;
+    if (!settings || typeof settings !== "object") return fallback;
+    return {
+      floor: typeof settings.floor === "string" ? settings.floor : "",
+      ceiling: typeof settings.ceiling === "string" ? settings.ceiling : "",
+      cladding: typeof settings.cladding === "string" ? settings.cladding : "",
+      partition: typeof settings.partition === "string" ? settings.partition : "",
+    };
+  } catch {
+    return fallback;
   }
 }
 
@@ -164,6 +187,59 @@ const INITIAL_SERVICE_ROWS = [
   },
 ];
 
+const KP_SETTINGS_FIELDS = [
+  { key: "floor", label: "Монтаж пола, р/за м2" },
+  { key: "ceiling", label: "Монтаж потолка, р/за м2" },
+  { key: "cladding", label: "Монтаж облицовки, р/за м2" },
+  { key: "partition", label: "Монтаж перегородки, р/за м2" },
+];
+
+const REGION_SELECT_OPTIONS = [
+  { value: "moscow", label: "Москва", regionKey: "msk" },
+  { value: "saint-petersburg", label: "Санкт-Петербург", regionKey: "msk" },
+  { value: "yekaterinburg", label: "Екатеринбург", regionKey: "ural" },
+  { value: "ufa", label: "Уфа", regionKey: "ural" },
+  { value: "krasnodar", label: "Краснодар", regionKey: "south" },
+  { value: "kazan", label: "Казань", regionKey: "kazan" },
+];
+
+function parseConstructionNumber(value) {
+  if (value == null || value === "") return NaN;
+  const normalized = String(value).replace(",", ".").trim();
+  const numericMatch = normalized.match(/-?\d+(?:\.\d+)?/);
+  if (!numericMatch) return NaN;
+  const parsed = Number(numericMatch[0]);
+  return Number.isNaN(parsed) ? NaN : parsed;
+}
+
+function constructionHeightMm({ lenY, lenZ }) {
+  const z = lenZ != null && lenZ !== "" ? Number(lenZ) : NaN;
+  if (!Number.isNaN(z) && z > 0) return lenZ;
+  return lenY;
+}
+
+function constructionAreaM2(item) {
+  const widthMm = parseConstructionNumber(item.lenX);
+  const heightMm = parseConstructionNumber(constructionHeightMm(item));
+  if (Number.isNaN(widthMm) || Number.isNaN(heightMm)) return NaN;
+  if (widthMm <= 0 || heightMm <= 0) return NaN;
+  return (widthMm * heightMm) / 1000000;
+}
+
+function formatMontageQuantity(areaM2) {
+  if (Number.isNaN(areaM2)) return "";
+  return areaM2.toFixed(4).replace(/\.?0+$/, "");
+}
+
+function kpSettingKeyByConstructionType(type) {
+  const upperType = String(type ?? "").trim().toUpperCase();
+  if (upperType === "ПОЛ") return "floor";
+  if (upperType === "ПОТОЛОК") return "ceiling";
+  if (upperType === "ОБЛИЦОВКА") return "cladding";
+  if (upperType === "ПЕРЕГОРОДКА") return "partition";
+  return null;
+}
+
 const KpPage = () => {
   const navigate = useNavigate();
   const { regions, selectedRegion } = usePriceData();
@@ -180,6 +256,22 @@ const KpPage = () => {
     return savedRows;
   });
   const [serviceRows, setServiceRows] = useState(INITIAL_SERVICE_ROWS);
+  const [kpSettings, setKpSettings] = useState(loadKpSettingsState);
+  const [settingsSectionOpen, setSettingsSectionOpen] = useState(true);
+  const [manualMontagePriceByKeyId, setManualMontagePriceByKeyId] = useState(
+    () => ({})
+  );
+  const availableRegionKeys = useMemo(
+    () => new Set(regions.map((region) => String(region).toLowerCase())),
+    [regions]
+  );
+  const visibleRegionOptions = useMemo(
+    () =>
+      REGION_SELECT_OPTIONS.filter((option) =>
+        availableRegionKeys.has(option.regionKey)
+      ),
+    [availableRegionKeys]
+  );
 
   useEffect(() => {
     try {
@@ -192,12 +284,77 @@ const KpPage = () => {
           ...s,
           materialsByConstruction: calcTables.materialsByConstruction,
           additionalMaterials: materialRows,
+          kpSettings,
         })
       );
     } catch {
       /* ignore */
     }
-  }, [calcTables.materialsByConstruction, materialRows]);
+  }, [calcTables.materialsByConstruction, materialRows, kpSettings]);
+
+  useEffect(() => {
+    const constructions = calcTables.ConstrToCalc;
+    if (!Array.isArray(constructions) || constructions.length === 0) {
+      setMontageByKeyId({});
+      return;
+    }
+
+    setMontageByKeyId((prev) => {
+      let changed = false;
+      const next = {};
+
+      for (const item of constructions) {
+        const typeKey = kpSettingKeyByConstructionType(item.type);
+        const montageRate = typeKey ? kpSettings[typeKey] ?? "" : "";
+        const areaM2 = constructionAreaM2(item);
+        const quantity = formatMontageQuantity(areaM2);
+        const prevRow = prev[item.key_id];
+        const keepManualPrice =
+          manualMontagePriceByKeyId[item.key_id] === true &&
+          prevRow &&
+          typeof prevRow.price === "string" &&
+          prevRow.price.trim() !== "";
+        const normalizedRow = {
+          price: keepManualPrice ? prevRow.price : montageRate,
+          quantity,
+          unit: "м2",
+        };
+        next[item.key_id] = normalizedRow;
+        if (
+          !prevRow ||
+          prevRow.price !== normalizedRow.price ||
+          prevRow.quantity !== normalizedRow.quantity ||
+          prevRow.unit !== normalizedRow.unit
+        ) {
+          changed = true;
+        }
+      }
+
+      if (!changed && Object.keys(prev).length === Object.keys(next).length) {
+        return prev;
+      }
+      return next;
+    });
+  }, [calcTables.ConstrToCalc, kpSettings, manualMontagePriceByKeyId]);
+
+  const updateMontagePriceRow = useCallback((key_id) => (e) => {
+    const value = e.target.value;
+    const isManual = value.trim() !== "";
+    setManualMontagePriceByKeyId((prev) => {
+      if (!isManual && !prev[key_id]) return prev;
+      return { ...prev, [key_id]: isManual };
+    });
+    setMontageByKeyId((prev) => ({
+      ...prev,
+      [key_id]: {
+        price: "",
+        quantity: "",
+        unit: "м2",
+        ...prev[key_id],
+        price: value,
+      },
+    }));
+  }, []);
 
   const onGeneralMaterialKpPriceChange = useCallback(
     (key_id, indexInFullMaterialsData, field, value) => {
@@ -220,15 +377,24 @@ const KpPage = () => {
   };
 
   const onRegionChange = (e) => {
-    const value = e.target.value;
-    setForm((prev) => ({ ...prev, region: value }));
-    setPriceRegion(value);
+    const optionValue = e.target.value;
+    setForm((prev) => ({ ...prev, region: optionValue }));
+    const selectedOption = REGION_SELECT_OPTIONS.find(
+      (option) => option.value === optionValue
+    );
+    if (!selectedOption) return;
+    setPriceRegion(selectedOption.regionKey);
   };
 
   useEffect(() => {
-    if (!selectedRegion) return;
-    setForm((prev) => (prev.region ? prev : { ...prev, region: selectedRegion }));
-  }, [selectedRegion]);
+    if (!selectedRegion || form.region) return;
+    const selectedRegionKey = String(selectedRegion).toLowerCase();
+    const matchingOption = visibleRegionOptions.find(
+      (option) => option.regionKey === selectedRegionKey
+    );
+    if (!matchingOption) return;
+    setForm((prev) => ({ ...prev, region: matchingOption.value }));
+  }, [form.region, selectedRegion, visibleRegionOptions]);
 
   const updateServiceRow = (id, field) => (e) => {
     const value = e.target.value;
@@ -274,23 +440,17 @@ const KpPage = () => {
     setMaterialRows((rows) => rows.filter((r) => r.id !== id));
   };
 
+  const onKpSettingChange = (key) => (e) => {
+    setKpSettings((prev) => ({ ...prev, [key]: e.target.value }));
+  };
+
+  const toggleSettingsSection = () => {
+    setSettingsSectionOpen((prev) => !prev);
+  };
+
   const openPriceForMaterialSelection = () => {
     navigate("/price");
   };
-
-  const updateMontageRow = useCallback((key_id, field) => (e) => {
-    const value = e.target.value;
-    setMontageByKeyId((prev) => ({
-      ...prev,
-      [key_id]: {
-        price: "",
-        quantity: "",
-        unit: "",
-        ...prev[key_id],
-        [field]: value,
-      },
-    }));
-  }, []);
 
   const toggleMontageSection = useCallback((key_id) => {
     setMontageSectionOpenByKeyId((prev) => ({
@@ -316,6 +476,13 @@ const KpPage = () => {
     });
 
     setMontageSectionOpenByKeyId((prev) => {
+      if (!(key_id in prev)) return prev;
+      const next = { ...prev };
+      delete next[key_id];
+      return next;
+    });
+
+    setManualMontagePriceByKeyId((prev) => {
       if (!(key_id in prev)) return prev;
       const next = { ...prev };
       delete next[key_id];
@@ -384,27 +551,27 @@ const KpPage = () => {
                       type="text"
                       className="kp-page__services-input"
                       value={row.price}
-                      onChange={updateMontageRow(key_id, "price")}
-                      aria-label={`Цена, ${MONTAGE_ROW_LABEL} (карточка ${cardIndex + 1})`}
+                      onChange={updateMontagePriceRow(key_id)}
+                      aria-label={`Цена, ${MONTAGE_ROW_LABEL} (карточка ${cardIndex + 1}, из настроек КП)`}
                     />
                   </td>
                   <td>
                     <input
                       id={`kp-montage-${key_id}-quantity`}
                       type="text"
+                      readOnly
                       className="kp-page__services-input"
                       value={row.quantity}
-                      onChange={updateMontageRow(key_id, "quantity")}
-                      aria-label={`Количество, ${MONTAGE_ROW_LABEL} (карточка ${cardIndex + 1})`}
+                      aria-label={`Количество, ${MONTAGE_ROW_LABEL} (карточка ${cardIndex + 1}, площадь конструкции)`}
                     />
                   </td>
                   <td>
                     <input
                       id={`kp-montage-${key_id}-unit`}
                       type="text"
+                      readOnly
                       className="kp-page__services-input"
                       value={row.unit}
-                      onChange={updateMontageRow(key_id, "unit")}
                       aria-label={`Единица измерения, ${MONTAGE_ROW_LABEL} (карточка ${cardIndex + 1})`}
                     />
                   </td>
@@ -429,7 +596,7 @@ const KpPage = () => {
       montageByKeyId,
       montageSectionOpenByKeyId,
       toggleMontageSection,
-      updateMontageRow,
+      updateMontagePriceRow,
     ]
   );
 
@@ -458,17 +625,17 @@ const KpPage = () => {
             <select
               id="kp-region"
               className="kp-page__input kp-page__select"
-              value={form.region || selectedRegion}
+              value={form.region}
               onChange={onRegionChange}
               aria-label="Регион прайса"
-              disabled={regions.length === 0}
+              disabled={visibleRegionOptions.length === 0}
             >
-              {regions.length === 0 ? (
+              {visibleRegionOptions.length === 0 ? (
                 <option value="">Регионы не найдены</option>
               ) : (
-                regions.map((region) => (
-                  <option key={region} value={region}>
-                    {getRegionLabel(region)}
+                visibleRegionOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
                   </option>
                 ))
               )}
@@ -541,6 +708,50 @@ const KpPage = () => {
               onChange={onFieldChange("officeAddress")}
             />
           </div>
+        </section>
+
+        <section className="kp-page__settings" aria-label="Настройки КП">
+          <button
+            type="button"
+            className="kp-page__settings-toggle"
+            aria-expanded={settingsSectionOpen}
+            aria-controls="kp-settings-list"
+            onClick={toggleSettingsSection}
+          >
+            <span className="kp-page__settings-title-row">
+              <span className="kp-page__settings-title-inner">
+                <span
+                  className={`kp-collapsible-chevron${
+                    settingsSectionOpen ? " kp-collapsible-chevron--expanded" : ""
+                  }`}
+                  aria-hidden
+                />
+                <span className="kp-page__settings-title">Настройки КП</span>
+              </span>
+            </span>
+          </button>
+          {settingsSectionOpen && (
+            <ul id="kp-settings-list" className="kp-page__settings-list">
+              {KP_SETTINGS_FIELDS.map((item) => (
+                <li key={item.key} className="kp-page__settings-item">
+                  <label
+                    className="kp-page__settings-label"
+                    htmlFor={`kp-setting-${item.key}`}
+                  >
+                    {item.label}
+                  </label>
+                  <input
+                    id={`kp-setting-${item.key}`}
+                    className="kp-page__settings-input"
+                    type="number"
+                    inputMode="numeric"
+                    value={kpSettings[item.key]}
+                    onChange={onKpSettingChange(item.key)}
+                  />
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
 
         <div
