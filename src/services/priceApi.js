@@ -29,6 +29,14 @@ const REGION_LABELS = {
   kazahstan: "Казахстан",
   kazakhstan: "Казахстан",
 };
+const HIDDEN_REGION_KEYS = new Set([
+  "minsk",
+  "минск",
+  "kasahstan",
+  "kazahstan",
+  "kazakhstan",
+  "казахстан",
+]);
 
 const listeners = new Set();
 
@@ -140,7 +148,7 @@ const applyRowsToCache = (rows) => {
   rows.forEach((row) => {
     Object.keys(row.regionalPrices ?? {}).forEach((region) => {
       const normalized = normalizeRegionName(region);
-      if (normalized) regionsFromRows.add(normalized);
+      if (normalized && !shouldHideRegion(normalized)) regionsFromRows.add(normalized);
     });
   });
   cache.regions = [...regionsFromRows].sort((a, b) =>
@@ -198,6 +206,13 @@ const toRegionPricePair = (value) => {
 const normalizeRegionName = (value) => {
   if (value == null) return "";
   return String(value).trim();
+};
+
+const shouldHideRegion = (region) => {
+  const normalized = normalizeRegionName(region).toLowerCase();
+  if (!normalized) return false;
+  const mappedLabel = REGION_LABELS[normalized]?.toLowerCase();
+  return HIDDEN_REGION_KEYS.has(normalized) || HIDDEN_REGION_KEYS.has(mappedLabel);
 };
 
 const looksLikeRegionalMapKey = (key) =>
