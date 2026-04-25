@@ -131,9 +131,6 @@ const SelectedItemForms = ({
             onLenXChange={(value) => setConstR({ ...constR, lenX: value })}
             onLenZChange={(value) => setConstR({ ...constR, lenZ: value })}
             onShowParams={getStartParam}
-            className={
-              selectedItem.c_id == "W" ? "partittion50" : "frame50"
-            }
           />
           {unvisible && (
             <ConstructionParameters
