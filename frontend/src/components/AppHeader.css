@@ -1,0 +1,132 @@
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 200;
+  flex-shrink: 0;
+  background: #eef6fa;
+  border-bottom: 1px solid #c9d0d6;
+  font-family: "Montserrat", sans-serif;
+}
+
+.app-header__inner {
+  /* margin: 0 auto; */
+  padding: 10px 16px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 20px;
+}
+
+.app-header__brand {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+  border-radius: 8px;
+  outline-offset: 2px;
+}
+
+.app-header__brand:hover {
+  opacity: 0.88;
+}
+
+.app-header__logo {
+  display: block;
+  width: 65px;
+  height: 65px;
+  object-fit: contain;
+}
+
+.app-header__nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+
+.app-header__link {
+  display: inline-block;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #3d7a96;
+  text-decoration: none;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.app-header__link:hover {
+  background: rgba(108, 171, 200, 0.2);
+  color: #2a5f78;
+}
+
+.app-header__link--active {
+  background: #6cabc8;
+  color: #fff;
+}
+
+.app-header__link--active:hover {
+  background: #5a9bb8;
+  color: #fff;
+}
+
+.app-header__auth {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+}
+
+.app-header__user {
+  /* Override global `span { display: flex; color: #878181; pointer-events: none; }` from Calculator.css */
+  display: inline-block;
+  pointer-events: auto;
+  font-size: 13px;
+  color: #2a5f78;
+  font-weight: 500;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-header__auth-btn {
+  /* Reset global `button { width: 100%; height: 120px; ... }` leaking from Calculator.css */
+  width: auto;
+  height: auto;
+  margin: 0;
+  box-shadow: none;
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 14px;
+  border: 1px solid #6cabc8;
+  background: transparent;
+  color: #2a5f78;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.app-header__auth-btn:hover {
+  background: #6cabc8;
+  color: #fff;
+}
+
+@media (max-width: 640px) {
+  .app-header__link {
+    padding: 8px 10px;
+    font-size: 13px;
+  }
+
+  .app-header__user {
+    max-width: 120px;
+    font-size: 12px;
+  }
+}

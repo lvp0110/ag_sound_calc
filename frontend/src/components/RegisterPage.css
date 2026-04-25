@@ -1,0 +1,117 @@
+.register-page {
+  min-height: calc(100vh - 80px);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 40px 16px;
+  background: #f8fafc;
+}
+
+.register-page__card {
+  width: 100%;
+  max-width: 440px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(15, 23, 42, 0.08);
+  padding: 32px 28px 24px;
+  box-sizing: border-box;
+}
+
+.register-page__title {
+  margin: 0 0 20px;
+  font-size: 24px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.register-page__form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.register-page__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 14px;
+  color: #334155;
+}
+
+/* Override global `span` from Calculator.css (display:flex; justify-content:center; color:#878181; font-weight:600; pointer-events:none) */
+.register-page__field > span {
+  display: block;
+  justify-content: flex-start;
+  color: #334155;
+  font-weight: 500;
+  font-size: 14px;
+  pointer-events: auto;
+}
+
+.register-page__field input {
+  padding: 9px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 15px;
+  outline: none;
+  transition: border-color 0.15s ease;
+  font: inherit;
+}
+
+.register-page__field input:focus {
+  border-color: #6cabc8;
+  box-shadow: 0 0 0 3px rgba(108, 171, 200, 0.2);
+}
+
+.register-page__error {
+  color: #b91c1c;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 14px;
+}
+
+.register-page__submit {
+  /* Reset global `button` leaks from Calculator.css */
+  width: 100%;
+  height: auto;
+  box-shadow: none;
+  display: block;
+  margin: 6px 0 0;
+  padding: 10px 16px;
+  background: #6cabc8;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.register-page__submit:hover:not(:disabled) {
+  background: #5897b7;
+}
+
+.register-page__submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.register-page__footer {
+  margin: 18px 0 0;
+  text-align: center;
+  font-size: 14px;
+  color: #475569;
+}
+
+.register-page__footer a {
+  color: #2563eb;
+  text-decoration: none;
+}
+
+.register-page__footer a:hover {
+  text-decoration: underline;
+}

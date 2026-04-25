@@ -1,0 +1,66 @@
+# Prod-compose. Используется ТОЛЬКО на сервере через `docker compose -f docker-compose.prod.yml ...`.
+# Локальная разработка живёт в docker-compose.yml (postgres + adminer).
+#
+# TLS и маршрутизация по доменам — на хостовом системном nginx (deploy/nginx/ag_sound_calc.conf).
+# Наши контейнеры говорят только HTTP. Публично слушает ТОЛЬКО frontend на 127.0.0.1:3004.
+
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    env_file: .env.prod
+    environment:
+      POSTGRES_DB: ag_sound_calc
+      POSTGRES_USER: postgres
+      # POSTGRES_PASSWORD приходит из .env.prod
+    volumes:
+      - ag_sound_calc_pg_data:/var/lib/postgresql/data
+    # НЕТ секции ports — postgres доступен только во внутренней docker network.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ag_sound_calc"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    env_file: .env.prod
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # НЕТ секции ports — backend доступен только из frontend-контейнера через docker network.
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "--tries=1", "http://localhost:3006/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  frontend:
+    build:
+      context: ./frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      PORT: "3004"
+      BACKEND_URL: http://backend:3006
+    # Биндим ТОЛЬКО на loopback — снаружи недоступен, трафик идёт через host nginx.
+    ports:
+      - "127.0.0.1:3004:3004"
+    volumes:
+      # Статика отдельно от контейнера: rsync в эту директорию = моментальный роллаут
+      # без rebuild/restart контейнера.
+      - ./frontend/dist:/app/dist:ro
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "--tries=1", "http://localhost:3004/__front_health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+
+volumes:
+  ag_sound_calc_pg_data:
+    name: ag_sound_calc_pg_data

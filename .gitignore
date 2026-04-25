@@ -38,3 +38,8 @@ Thumbs.db
 # Build files
 build/
 *.tsbuildinfo
+
+# Prod-deploy local secrets
+deploy/.env.deploy
+backend/.env.prod
+.env.prod
