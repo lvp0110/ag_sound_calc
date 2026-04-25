@@ -899,46 +899,33 @@ const Calculator = () => {
                           )}
 
                           {template != null && (
-                            <>
-                              <div className="buttons-container">
-                                {/*
-                                <button
-                                  onClick={handleCopyToClipboard}
-                                  className="add_design_button"
-                                >
-                                  экспорт в ERP
-                                </button>
-                                <button
-                                  onClick={handleExportToExcel}
-                                  className="add_design_button"
-                                >
-                                  сохранить в Excel
-                                </button>
-                                */}
-                              </div>
-                              <div className="kp-button-row">
-                                <button
-                                  type="button"
-                                  onClick={handleMakeKP}
-                                  className="add_design_button"
-                                >
-                                  Сделать КП
-                                </button>
-                                {/*
-                                <button
-                                  type="button"
-                                  onClick={handleOpenPrice}
-                                  className="add_design_button"
-                                >
-                                  Прайс
-                                </button>
-                                */}
-                              </div>
-                            </>
+                            <div className="buttons-container">
+                              {/*
+                              <button
+                                onClick={handleCopyToClipboard}
+                                className="add_design_button"
+                              >
+                                экспорт в ERP
+                              </button>
+                              <button
+                                onClick={handleExportToExcel}
+                                className="add_design_button"
+                              >
+                                сохранить в Excel
+                              </button>
+                              */}
+                            </div>
                           )}
                         </div>
 
                         <div className="tables-and-buttons-container">
+                          {template != null && (
+                            <div className="tables-and-buttons-header">
+                              <h3 className="tables-and-buttons-title">
+                                Список конструкций
+                              </h3>
+                            </div>
+                          )}
                           {tableConstrToCalc != null &&
                             ConstrToCalc.length > 0 && (
                               <ConstructionList
@@ -946,6 +933,17 @@ const Calculator = () => {
                                 onDelete={delConstrFromList}
                               />
                             )}
+                          {template != null && (
+                            <div className="tables-and-buttons-footer">
+                              <button
+                                type="button"
+                                onClick={handleMakeKP}
+                                className="counter__button_plus"
+                              >
+                                Сделать КП
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </div>
                     );

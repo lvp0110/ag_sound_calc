@@ -33,25 +33,14 @@ const ConstructionParameters = ({
     const isSuspendedCeiling = currentTemplate == 5;
 
     return (
-      <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-        <button
-          className="counter__button_param"
-          style={{ marginBottom: "10px" }}
-          onClick={onToggleVisible}
-        >
+      <div className="selected-item-forms__stack">
+        <button type="button" className="counter__button_param selected-item-forms__param-btn" onClick={onToggleVisible}>
           изменить параметры конструкции
         </button>
 
         {unvisible && (
           <>
-            <h4
-              style={{
-                background: "lightgray",
-                padding: 4,
-              }}
-            >
-              выбрать тип гипсокартона
-            </h4>
+            <h4 className="selected-item-forms__group-heading">выбрать тип гипсокартона</h4>
             <div className="radio-option">
               <input
                 className="radio"
@@ -106,14 +95,7 @@ const ConstructionParameters = ({
 
             {isSuspendedCeiling && (
               <>
-                <h4
-                  style={{
-                    background: "lightgray",
-                    padding: 4,
-                  }}
-                >
-                  выбрать тип минваты
-                </h4>
+                <h4 className="selected-item-forms__group-heading">выбрать тип минваты</h4>
                 <div className="radio-option">
                   <input
                     className="radio"
@@ -168,12 +150,7 @@ const ConstructionParameters = ({
 
                 {selectedItem.id == 503 && (
                   <>
-                    <h4
-                      style={{
-                        background: "lightgray",
-                        padding: 4,
-                      }}
-                    >
+                    <h4 className="selected-item-forms__group-heading">
                       дополнительный отступ конструкции от перекрытия
                     </h4>
                     <input
@@ -207,13 +184,9 @@ const ConstructionParameters = ({
     );
 
     return (
-      <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+      <div className="selected-item-forms__stack">
         {needsToggle && (
-          <button
-            className="counter__button_param"
-            style={{ marginBottom: "10px" }}
-            onClick={onToggleVisible}
-          >
+          <button type="button" className="counter__button_param selected-item-forms__param-btn" onClick={onToggleVisible}>
             изменить параметры конструкции
           </button>
         )}
@@ -253,7 +226,7 @@ const ConstructionParameters = ({
 
         {currentTemplate == 3 && (
           <>
-            <h4 style={{ margin: "5px" }}>тип конструкции</h4>
+            <h4 className="selected-item-forms__title">тип конструкции</h4>
             {unvisible && (
               <>
                 <div className="radio-option">
@@ -322,7 +295,7 @@ const ConstructionParameters = ({
 
         {currentTemplate == 9 && (
           <>
-            <h4 style={{ margin: "5px" }}>тип конструкции</h4>
+            <h4 className="selected-item-forms__title">тип конструкции</h4>
             <div className="radio-option">
               <input
                 className="radio"
@@ -370,7 +343,7 @@ const ConstructionParameters = ({
 
         {currentTemplate == 9.1 && (
           <>
-            <h4 style={{ margin: "5px" }}>тип конструкции</h4>
+            <h4 className="selected-item-forms__title">тип конструкции</h4>
             <div className="radio-option">
               <input
                 className="radio"
@@ -425,30 +398,9 @@ const ConstructionParameters = ({
     selectedItem.c_id == "L";
 
   return (
-    <div
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        top: "10px",
-        marginBottom: "20px",
-        width: "100%",
-      }}
-    >
-      <h4
-        style={{
-          background: "lightgray",
-          padding: 4,
-        }}
-      >
-        выбрать тип гипсокартона
-      </h4>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          marginBottom: "4px",
-        }}
-      >
+    <div className="selected-item-forms__stack">
+      <h4 className="selected-item-forms__group-heading">выбрать тип гипсокартона</h4>
+      <div className="radio-option">
         <input
           className="radio"
           type="radio"
@@ -458,20 +410,11 @@ const ConstructionParameters = ({
           value="default"
           checked={currentGkla == "default"}
         />
-        <label
-          className="label"
-          htmlFor={`gkla_default_${selectedItem.id}`}
-        >
+        <label className="label" htmlFor={`gkla_default_${selectedItem.id}`}>
           AKU-line 2500x1200x12,5 мм
         </label>
       </div>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          marginBottom: "4px",
-        }}
-      >
+      <div className="radio-option">
         <input
           className="radio"
           type="radio"
@@ -481,20 +424,11 @@ const ConstructionParameters = ({
           value="2500P"
           checked={currentGkla == "2500P"}
         />
-        <label
-          className="label"
-          htmlFor={`gkla_2500P_${selectedItem.id}`}
-        >
+        <label className="label" htmlFor={`gkla_2500P_${selectedItem.id}`}>
           AKU-line Pro 2500x1200x12,5 мм
         </label>
       </div>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          marginBottom: "4px",
-        }}
-      >
+      <div className="radio-option">
         <input
           className="radio"
           type="radio"
@@ -504,31 +438,15 @@ const ConstructionParameters = ({
           value="2000"
           checked={currentGkla == "2000"}
         />
-        <label
-          className="label"
-          htmlFor={`gkla_2000_${selectedItem.id}`}
-        >
+        <label className="label" htmlFor={`gkla_2000_${selectedItem.id}`}>
           AKU-line 2000x1200x12,5 мм
         </label>
       </div>
 
       {!isZIPSFacing && (
         <>
-          <h4
-            style={{
-              background: "lightgray",
-              padding: 4,
-            }}
-          >
-            выбрать тип минваты
-          </h4>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              marginBottom: "4px",
-            }}
-          >
+          <h4 className="selected-item-forms__group-heading">выбрать тип минваты</h4>
+          <div className="radio-option">
             <input
               className="radio"
               type="radio"
@@ -538,20 +456,11 @@ const ConstructionParameters = ({
               value="default"
               checked={currentWool == "default"}
             />
-            <label
-              className="label"
-              htmlFor={`wool_default_${selectedItem.id}`}
-            >
+            <label className="label" htmlFor={`wool_default_${selectedItem.id}`}>
               Шуманет-Эко
             </label>
           </div>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              marginBottom: "4px",
-            }}
-          >
+          <div className="radio-option">
             <input
               className="radio"
               type="radio"
@@ -561,20 +470,11 @@ const ConstructionParameters = ({
               value="bm"
               checked={currentWool == "bm"}
             />
-            <label
-              className="label"
-              htmlFor={`wool_bm_${selectedItem.id}`}
-            >
+            <label className="label" htmlFor={`wool_bm_${selectedItem.id}`}>
               Шуманет-БМ
             </label>
           </div>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              marginBottom: "4px",
-            }}
-          >
+          <div className="radio-option">
             <input
               className="radio"
               type="radio"
@@ -584,10 +484,7 @@ const ConstructionParameters = ({
               value="skNeo"
               checked={currentWool == "skNeo"}
             />
-            <label
-              className="label"
-              htmlFor={`wool_sk_${selectedItem.id}`}
-            >
+            <label className="label" htmlFor={`wool_sk_${selectedItem.id}`}>
               Шуманет-СК Neo
             </label>
           </div>
@@ -596,30 +493,11 @@ const ConstructionParameters = ({
 
       {!isZIPSFacing && (
         <>
-          <h4
-            style={{
-              background: "lightgray",
-              padding: 4,
-            }}
-          >
-            шаг профиля
-          </h4>
-          <div
-            style={{
-              fontSize: "12px",
-              color: "#666",
-              marginBottom: "5px",
-            }}
-          >
+          <h4 className="selected-item-forms__group-heading">шаг профиля</h4>
+          <div className="selected-item-forms__hint">
             ✔ шаг профиля при облицовке керамической плиткой не более 400 мм
           </div>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              marginBottom: "4px",
-            }}
-          >
+          <div className="radio-option">
             <input
               className="radio"
               type="radio"
@@ -629,10 +507,7 @@ const ConstructionParameters = ({
               value="600"
               checked={profileStep === 600}
             />
-            <label
-              className="label"
-              htmlFor={`step600_${selectedItem.id}`}
-            >
+            <label className="label" htmlFor={`step600_${selectedItem.id}`}>
               шаг профиля 600 мм{" "}
               {(() => {
                 const maxHeight = getMaxLenZInMeters(
@@ -646,13 +521,7 @@ const ConstructionParameters = ({
               })()}
             </label>
           </div>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              marginBottom: "4px",
-            }}
-          >
+          <div className="radio-option">
             <input
               className="radio"
               type="radio"
@@ -662,10 +531,7 @@ const ConstructionParameters = ({
               value="400"
               checked={profileStep === 400}
             />
-            <label
-              className="label"
-              htmlFor={`step400_${selectedItem.id}`}
-            >
+            <label className="label" htmlFor={`step400_${selectedItem.id}`}>
               шаг профиля 400 мм{" "}
               {(() => {
                 const maxHeight = getMaxLenZInMeters(
@@ -679,13 +545,7 @@ const ConstructionParameters = ({
               })()}
             </label>
           </div>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              marginBottom: "4px",
-            }}
-          >
+          <div className="radio-option">
             <input
               className="radio"
               type="radio"
@@ -695,10 +555,7 @@ const ConstructionParameters = ({
               value="300"
               checked={profileStep === 300}
             />
-            <label
-              className="label"
-              htmlFor={`step300_${selectedItem.id}`}
-            >
+            <label className="label" htmlFor={`step300_${selectedItem.id}`}>
               шаг профиля 300 мм{" "}
               {(() => {
                 const maxHeight = getMaxLenZInMeters(
@@ -716,13 +573,7 @@ const ConstructionParameters = ({
       )}
 
       {!isZIPSFacing && (
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            marginBottom: "4px",
-          }}
-        >
+        <div className="radio-option">
           <input
             className="checkbox"
             type="checkbox"
@@ -736,14 +587,7 @@ const ConstructionParameters = ({
         </div>
       )}
 
-      <h4
-        style={{
-          background: "lightgray",
-          padding: 4,
-        }}
-      >
-        размер проема
-      </h4>
+      <h4 className="selected-item-forms__group-heading">размер проема</h4>
       <input
         type="number"
         placeholder="ширина проема,мм"
@@ -766,14 +610,8 @@ const ConstructionParameters = ({
           })
         }
       />
-      <h4 style={{ margin: "1px" }}>тип проема</h4>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          marginBottom: "4px",
-        }}
-      >
+      <h4 className="selected-item-forms__title">тип проема</h4>
+      <div className="radio-option">
         <input
           className="radio"
           type="radio"
@@ -788,20 +626,11 @@ const ConstructionParameters = ({
           value="OST_Doors"
           checked={opening.Type == "OST_Doors"}
         />
-        <label
-          className="label"
-          htmlFor={`doors_${selectedItem.id}`}
-        >
+        <label className="label" htmlFor={`doors_${selectedItem.id}`}>
           дверь
         </label>
       </div>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          marginBottom: "4px",
-        }}
-      >
+      <div className="radio-option">
         <input
           className="radio"
           type="radio"
@@ -816,16 +645,13 @@ const ConstructionParameters = ({
           value="OST_Windows"
           checked={opening.Type == "OST_Windows"}
         />
-        <label
-          className="label"
-          htmlFor={`wind_${selectedItem.id}`}
-        >
+        <label className="label" htmlFor={`wind_${selectedItem.id}`}>
           окно
         </label>
       </div>
       <button
-        className="counter__button_param"
-        style={{ right: "2px" }}
+        type="button"
+        className="counter__button_param selected-item-forms__param-btn"
         onClick={onAddOpening}
         disabled={
           !opening.lenX ||
