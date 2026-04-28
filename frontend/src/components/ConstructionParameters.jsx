@@ -182,6 +182,8 @@ const ConstructionParameters = ({
     const isPerimeterType = [607.1, 608.1, 609.1, 610.1, 2.1].includes(
       currentTemplate
     );
+    const isLagsType = currentTemplate == 3;
+    const isLagStepUnset = profileStep !== 400 && profileStep !== 300;
 
     return (
       <div className="selected-item-forms__stack">
@@ -224,7 +226,7 @@ const ConstructionParameters = ({
           </>
         )}
 
-        {currentTemplate == 3 && (
+        {isLagsType && (
           <>
             <h4 className="selected-item-forms__title">тип конструкции</h4>
             {unvisible && (
@@ -233,7 +235,12 @@ const ConstructionParameters = ({
                   <input
                     className="radio"
                     type="radio"
-                    onChange={(e) => setCurrentConstr(e.target.value)}
+                    onChange={(e) => {
+                      setCurrentConstr(e.target.value);
+                      if (isLagStepUnset) {
+                        setProfileStep(400);
+                      }
+                    }}
                     id={`lags_silomer_${selectedItem.id}`}
                     name={`lags_type_${selectedItem.id}`}
                     value="AG.F615"
@@ -247,7 +254,12 @@ const ConstructionParameters = ({
                   <input
                     className="radio"
                     type="radio"
-                    onChange={(e) => setCurrentConstr(e.target.value)}
+                    onChange={(e) => {
+                      setCurrentConstr(e.target.value);
+                      if (isLagStepUnset) {
+                        setProfileStep(400);
+                      }
+                    }}
                     id={`lags_vibroflex_${selectedItem.id}`}
                     name={`lags_type_${selectedItem.id}`}
                     value="AG.F615_vibroflex_LD"
@@ -268,7 +280,7 @@ const ConstructionParameters = ({
                     id={`lags_step400_${selectedItem.id}`}
                     name={`lags_step_${selectedItem.id}`}
                     value="400"
-                    checked={profileStep === 400}
+                    checked={profileStep === 400 || isLagStepUnset}
                   />
                   <label className="label" htmlFor={`lags_step400_${selectedItem.id}`}>
                     шаг профиля 400 мм

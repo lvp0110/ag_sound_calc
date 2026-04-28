@@ -8,6 +8,14 @@
 // Браузер никогда не бьёт на внешний хост напрямую → нет CORS, нет смешанного origin.
 const API_BASE_URL = '/api/v1';
 
+const getApiOrigin = () => {
+  const fromEnv = import.meta.env.VITE_API_ORIGIN;
+  if (fromEnv && String(fromEnv).trim()) {
+    return String(fromEnv).replace(/\/$/, '');
+  }
+  return 'https://dev3.constrtodo.ru:3005';
+};
+
 /** Относительный путь с учётом `base` из Vite (GitHub Pages и т.д.) */
 const withAppBase = (pathStartingWithSlash) => {
   const base = import.meta.env.BASE_URL || '/';
@@ -73,6 +81,23 @@ export const getImageUrl = (imageName) => {
   if (!imageName) return '';
 
   const s = String(imageName).trim();
+
+  // Новый формат API (v2 public/image): в проде нельзя оставлять localhost из ответа.
+  if (s.startsWith('/api/v2/public/image/')) {
+    return `${getApiOrigin()}${s}`;
+  }
+
+  if (s.startsWith('http://') || s.startsWith('https://')) {
+    try {
+      const parsed = new URL(s);
+      if (parsed.pathname.startsWith('/api/v2/public/image/')) {
+        return `${getApiOrigin()}${parsed.pathname}${parsed.search}`;
+      }
+    } catch {
+      // Если URL не распарсился, продолжаем старую логику.
+    }
+  }
+
   // Уже собранный URL превью (или вложенный после повторного вызова) — оставляем только имя файла
   const constrMarker = 'api/v1/constr/';
   const lastConstr = s.lastIndexOf(constrMarker);
