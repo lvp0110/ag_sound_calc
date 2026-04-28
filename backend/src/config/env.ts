@@ -1,0 +1,44 @@
+import dotenv from "dotenv";
+
+dotenv.config();
+
+const toInt = (value: string | undefined, fallback: number): number => {
+  const parsed = Number.parseInt(value ?? "", 10);
+  return Number.isNaN(parsed) ? fallback : parsed;
+};
+
+/**
+ * CORS_ORIGIN — строка или список через запятую (например: "http://localhost:5173,http://localhost:5174").
+ * В dev у Vite порт 5173 по умолчанию, но он автоинкрементит на 5174+, если занят,
+ * поэтому разрешаем сразу оба.
+ */
+const parseOrigins = (value: string | undefined, fallback: string[]): string[] => {
+  const raw = value ?? "";
+  const parts = raw
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return parts.length > 0 ? parts : fallback;
+};
+
+export const env = {
+  nodeEnv: process.env.NODE_ENV ?? "development",
+  port: toInt(process.env.PORT, 3006),
+  databaseUrl:
+    process.env.DATABASE_URL ??
+    "postgresql://postgres:postgres@localhost:5433/ag_sound_calc?schema=public",
+  corsOrigin: parseOrigins(process.env.CORS_ORIGIN, [
+    "http://localhost:5173",
+    "http://localhost:5174",
+  ]),
+  accessTokenSecret: process.env.JWT_ACCESS_SECRET ?? "dev_access_secret_change_me",
+  refreshTokenSecret: process.env.JWT_REFRESH_SECRET ?? "dev_refresh_secret_change_me",
+  accessTokenExpiresIn: process.env.ACCESS_TOKEN_EXPIRES_IN ?? "15m",
+  refreshTokenExpiresIn: process.env.REFRESH_TOKEN_EXPIRES_IN ?? "30d",
+  calcServiceUrl: process.env.CALC_SERVICE_URL ?? "https://dev3.constrtodo.ru:3005",
+  calcServiceTimeoutMs: toInt(process.env.CALC_SERVICE_TIMEOUT_MS, 15000),
+};
+
+if (env.nodeEnv === "production" && !process.env.DATABASE_URL) {
+  throw new Error("DATABASE_URL is required");
+}
