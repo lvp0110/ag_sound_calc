@@ -1,9 +1,7 @@
 import { useEffect, useState } from "react";
+import { BASE_URL } from "./apiClient";
 
-// Всегда относительный путь — в dev Vite-proxy ведёт на dev3.constrtodo.ru:3005,
-// в prod backend проксирует через routes/calc.ts. Это сохраняет single-origin
-// для httpOnly-auth и не зависит от хоста calc-сервиса.
-const PRICE_API_URL = "/api/v2/data";
+const PRICE_API_URL = `${BASE_URL}/api/v2/data`;
 
 const cache = {
   byArticle: new Map(),

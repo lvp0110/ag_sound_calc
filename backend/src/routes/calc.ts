@@ -30,6 +30,7 @@ const proxyRequest = async (
   const queryString = req.originalUrl.split("?")[1] ?? "";
   const url = buildTargetUrl(targetPath, queryString);
   const targetBase = getTargetBase();
+  const startedAt = Date.now();
 
   const headers: Record<string, string> = {
     accept: req.get("accept") ?? "*/*",
@@ -56,9 +57,16 @@ const proxyRequest = async (
       err instanceof Error && err.name === "TimeoutError"
         ? `Calc service timeout after ${env.calcServiceTimeoutMs}ms`
         : `Calc service request failed: ${err instanceof Error ? err.message : String(err)}`;
+    console.error(
+      `[calc-proxy] ${req.method} ${req.originalUrl} → ${url} FAIL ${Date.now() - startedAt}ms: ${message}`
+    );
     res.status(502).json({ error: message });
     return;
   }
+
+  console.log(
+    `[calc-proxy] ${req.method} ${req.originalUrl} → ${url} ${upstream.status} ${Date.now() - startedAt}ms`
+  );
 
   res.status(upstream.status);
   const passThroughHeaders = ["content-type", "cache-control", "etag", "last-modified"];
@@ -91,16 +99,16 @@ router.get("/api/v1/IsolationConstrMaterials/:code", (req, res) =>
   )
 );
 
-router.get("/api/v1/constr/:filename", (req, res) =>
-  proxyRequest(req, res, `/api/v1/constr/${encodeURIComponent(req.params.filename)}`)
-);
-
 router.get("/api/v2/isolationConstructions/props/:code", (req, res) =>
   proxyRequest(
     req,
     res,
     `/api/v2/isolationConstructions/props/${encodeURIComponent(req.params.code)}`
   )
+);
+
+router.get("/api/v2/public/image/:filename", (req, res) =>
+  proxyRequest(req, res, `/api/v2/public/image/${encodeURIComponent(req.params.filename)}`)
 );
 
 // Прайс из 1С: используется в frontend/src/services/priceApi.js (cache + поиск).

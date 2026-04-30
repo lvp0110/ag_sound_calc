@@ -88,9 +88,8 @@ const Modal = ({ isOpen, onClose, title, html, icon, imageUrl, imageWidth, image
         </button>
         {imageUrl && (() => {
           // Проверяем, является ли это URL из API или статическим
-          const isApiImage = imageUrl.includes('/api/v1/constr/') || 
-                           imageUrl.includes('/constr/');
-          const imageProps = isApiImage 
+          const isApiImage = imageUrl.includes('/api/v2/public/image/');
+          const imageProps = isApiImage
             ? getResponsiveImageProps(imageUrl, 'modal')
             : { src: imageUrl };
           

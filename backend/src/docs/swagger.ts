@@ -435,40 +435,6 @@ registry.registerPath({
 
 registry.registerPath({
   method: "get",
-  path: "/api/v1/constr/{filename}",
-  tags: ["Calc (proxy)"],
-  summary: "Превью конструкции (картинка, прокси)",
-  description:
-    `${calcProxyDescription} Тело ответа — бинарный поток (обычно image/jpeg).`,
-  request: {
-    params: z.object({
-      filename: z.string().openapi({ example: "partition_50.jpg" }),
-    }),
-  },
-  responses: {
-    200: {
-      description: "Бинарный поток картинки",
-      content: {
-        "image/jpeg": {
-          schema: { type: "string", format: "binary" } as unknown as z.ZodTypeAny,
-        },
-        "image/png": {
-          schema: { type: "string", format: "binary" } as unknown as z.ZodTypeAny,
-        },
-      },
-    },
-    404: {
-      description: "Файл не найден во внешнем сервисе",
-    },
-    502: {
-      description: "Внешний сервис недоступен",
-      content: { "application/json": { schema: ErrorResponseSchema } },
-    },
-  },
-});
-
-registry.registerPath({
-  method: "get",
   path: "/api/v2/isolationConstructions/props/{code}",
   tags: ["Calc (proxy)"],
   summary: "Свойства конструкции v2 (прокси)",

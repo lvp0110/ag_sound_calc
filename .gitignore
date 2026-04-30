@@ -43,3 +43,6 @@ build/
 deploy/.env.deploy
 backend/.env.prod
 .env.prod
+
+# Local docker-compose overrides (port mappings for parallel projects, etc.)
+docker-compose.override.yml

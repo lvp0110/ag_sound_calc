@@ -2,19 +2,11 @@
  * API сервис для получения данных о конструкциях
  */
 
-// Все запросы к calc-сервису идут через относительные /api/v1/** и /api/v2/**:
-// — в dev Vite-proxy (см. vite.config.js) пробрасывает на dev3.constrtodo.ru:3005;
-// — в prod nginx → frontend-container → backend (calc.ts proxy) → dev3.
-// Браузер никогда не бьёт на внешний хост напрямую → нет CORS, нет смешанного origin.
-const API_BASE_URL = '/api/v1';
+import { BASE_URL } from './apiClient';
 
-const getApiOrigin = () => {
-  const fromEnv = import.meta.env.VITE_API_ORIGIN;
-  if (fromEnv && String(fromEnv).trim()) {
-    return String(fromEnv).replace(/\/$/, '');
-  }
-  return 'https://dev3.constrtodo.ru:3005';
-};
+// Все calc-запросы идут на backend (calc.ts proxy → внешний calcService).
+// В dev BASE_URL=http://localhost:3006, в prod — '' (тот же origin, что и страница).
+const API_BASE_URL = `${BASE_URL}/api/v1`;
 
 /** Относительный путь с учётом `base` из Vite (GitHub Pages и т.д.) */
 const withAppBase = (pathStartingWithSlash) => {
@@ -23,13 +15,8 @@ const withAppBase = (pathStartingWithSlash) => {
   return `${normalized}${pathStartingWithSlash}`;
 };
 
-/**
- * URL превью конструкции по уже нормализованному имени файла.
- * Тот же origin, что и приложение — `/api/v1/constr/...` → backend.calc-proxy → dev3 (или
- * public/api/v1/constr/* fallback в dev через bypass из vite.config.js).
- */
 const resolveConstrPreviewUrl = (processedImageName) => {
-  return withAppBase(`/api/v1/constr/${processedImageName}`);
+  return `${BASE_URL}/api/v2/public/image/${processedImageName}`;
 };
 
 /** Нормализует тело ответа GET /api/v1/AllIsolationConstr к массиву записей. */
@@ -82,34 +69,26 @@ export const getImageUrl = (imageName) => {
 
   const s = String(imageName).trim();
 
-  // Новый формат API (v2 public/image): в проде нельзя оставлять localhost из ответа.
+  // Новый формат API (v2 public/image): прицеливаемся на backend, тот сам проксирует.
   if (s.startsWith('/api/v2/public/image/')) {
-    return `${getApiOrigin()}${s}`;
+    return `${BASE_URL}${s}`;
   }
 
   if (s.startsWith('http://') || s.startsWith('https://')) {
     try {
       const parsed = new URL(s);
       if (parsed.pathname.startsWith('/api/v2/public/image/')) {
-        return `${getApiOrigin()}${parsed.pathname}${parsed.search}`;
+        return `${BASE_URL}${parsed.pathname}${parsed.search}`;
       }
     } catch {
       // Если URL не распарсился, продолжаем старую логику.
     }
   }
 
-  // Уже собранный URL превью (или вложенный после повторного вызова) — оставляем только имя файла
-  const constrMarker = 'api/v1/constr/';
-  const lastConstr = s.lastIndexOf(constrMarker);
-  if (lastConstr !== -1) {
-    imageName = s.slice(lastConstr + constrMarker.length);
-  } else {
-    imageName = s;
-  }
+  imageName = s;
 
-  // Если после срезки по constrMarker остался сторонний абсолютный URL
-  // (картинка с какого-то CDN или стороннего origin) — отдаём его как есть.
-  // Все свои `api/v1/constr/…`-ссылки уже нормализованы выше до имени файла.
+  // Сторонний абсолютный URL (картинка с какого-то CDN/origin) — отдаём как есть.
+  // Свои v2-ссылки уже обработаны выше.
   if (imageName.startsWith('http://') || imageName.startsWith('https://')) {
     return imageName;
   }
@@ -346,10 +325,8 @@ export const getIsolationConstrMaterials = async (isolationConstrCode) => {
 export const getConstructionProps = async (code) => {
   if (!code) return null;
 
-  // Всегда относительный /api/v2/… — dev Vite-proxy и prod nginx+backend
-  // ведут этот путь во внешний calc-сервис без участия браузера в cross-origin.
   const encodedCode = encodeURIComponent(code);
-  const url = `/api/v2/isolationConstructions/props/${encodedCode}`;
+  const url = `${BASE_URL}/api/v2/isolationConstructions/props/${encodedCode}`;
   
   try {
     const controller = new AbortController();

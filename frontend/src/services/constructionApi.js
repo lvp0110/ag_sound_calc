@@ -1,16 +1,15 @@
 /**
  * API сервис для расчета конструкций
  */
+
+import { BASE_URL } from "./apiClient";
+
 export const calculateConstruction = async (constrList) => {
   if (!constrList || constrList.length === 0) {
     return { data: [] };
   }
 
-  // Всегда относительный путь /api/v1/calcIsolation/byProduct:
-  // - в dev Vite-proxy из vite.config.js переправит на dev3.constrtodo.ru:3005;
-  // - в prod host nginx → frontend-container → backend (calc.ts proxy) → внешний сервис.
-  // Cross-origin не нужен — запрос на том же origin, что и страница.
-  const apiUrl = "/api/v1/calcIsolation/byProduct";
+  const apiUrl = `${BASE_URL}/api/v1/calcIsolation/byProduct`;
 
   const payload = JSON.stringify(constrList);
   const response = await fetch(apiUrl, {
