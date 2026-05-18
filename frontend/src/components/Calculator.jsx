@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import Modal from "./Modal";
 import "./Calculator.css";
@@ -16,15 +16,15 @@ import { validateInput, validateFloorInput, validateFloorMaxInput } from "../uti
 import { calculateAreaAndPerimeter, getConstructionCode } from "../utils/calculations";
 import { exportTablesToExcel, copyMaterialsToClipboard } from "../utils/excelExport";
 import { calculateConstruction } from "../services/constructionApi";
-import { createOffer } from "../services/offersApi";
+import { createOffer, getOffer, updateOffer } from "../services/offersApi";
 import {
   buildCreateOfferPayload,
   buildDraftSyncFromCalculator,
+  mapOfferToCalculatorState,
 } from "../utils/offerMapper";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useCalcField } from "../stores/calculatorStore.js";
 import { useOfferEditSession } from "../stores/offerEditSessionStore.js";
-import { updateOffer } from "../services/offersApi";
 import ItemsList from "./ItemsList";
 import SelectedItemForms from "./SelectedItemForms";
 import ConstructionList from "./tables/ConstructionList";
@@ -38,7 +38,10 @@ const Calculator = () => {
     isEditingDraft,
     kpSnapshot,
     startDraft,
+    clearKpSnapshot,
   } = useOfferEditSession();
+
+  const hydratedOfferIdRef = useRef(null);
 
   // Persistent-поля: живут в zustand-сторе (sessionStorage), переживают
   // переходы по страницам в рамках сессии. См. stores/calculatorStore.js.
@@ -160,6 +163,59 @@ const Calculator = () => {
       }
     }
   }, [openedSubCategories, itemsWithImages, getItemsForSection]);
+
+  // При редактировании КП подтягиваем конструкции из снимка КП или с сервера.
+  useEffect(() => {
+    if (!isEditingDraft || !activeOfferId) {
+      hydratedOfferIdRef.current = null;
+      return undefined;
+    }
+    if (hydratedOfferIdRef.current === activeOfferId) return undefined;
+
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const snap = kpSnapshot;
+        if (
+          snap?.calcTables?.ConstrToCalc?.length &&
+          snap?.constrToCalcToSent?.length
+        ) {
+          if (cancelled) return;
+          const { ConstrToCalc, materialsByConstruction } = snap.calcTables;
+          setConstrToCalc(ConstrToCalc);
+          setConstrToCalcToSent(snap.constrToCalcToSent);
+          setMaterialsByConstruction(materialsByConstruction ?? []);
+          setTableConstrToCalc(ConstrToCalc.length > 0 ? {} : null);
+          hydratedOfferIdRef.current = activeOfferId;
+          return;
+        }
+
+        const offer = await getOffer(activeOfferId);
+        if (cancelled) return;
+        const state = mapOfferToCalculatorState(offer);
+        setConstrToCalc(state.constrToCalc);
+        setConstrToCalcToSent(state.constrToCalcToSent);
+        setMaterialsByConstruction(state.materialsByConstruction);
+        setTableConstrToCalc(state.tableConstrToCalc);
+        hydratedOfferIdRef.current = activeOfferId;
+      } catch {
+        // пустой калькулятор — пользователь может добавить конструкции вручную
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    isEditingDraft,
+    activeOfferId,
+    kpSnapshot,
+    setConstrToCalc,
+    setConstrToCalcToSent,
+    setMaterialsByConstruction,
+    setTableConstrToCalc,
+  ]);
 
   const [constR, setConstR] = useState({
     title: "",
@@ -397,6 +453,8 @@ const Calculator = () => {
         kpSnapshot,
       });
       await updateOffer(activeOfferId, patchBody);
+      clearKpSnapshot();
+      hydratedOfferIdRef.current = null;
       navigate(`/kp/${activeOfferId}`);
     } catch (err) {
       setModal({
@@ -417,11 +475,11 @@ const Calculator = () => {
     materialsByConstruction,
     kpSnapshot,
     navigate,
+    clearKpSnapshot,
   ]);
 
-  const showMakeKpButton = isAuthed
-    ? !isEditingDraft && ConstrToCalcToSent.length > 0
-    : true;
+  const showMakeKpButton =
+    !isEditingDraft && ConstrToCalcToSent.length > 0;
   const showReturnToKpButton = isAuthed && isEditingDraft;
 
   const addConstrToCalc = useCallback(async () => {
@@ -900,8 +958,8 @@ const Calculator = () => {
                                 onDelete={delConstrFromList}
                               />
                             )}
-                          {template != null &&
-                            (showReturnToKpButton || showMakeKpButton) && (
+                          {(showReturnToKpButton ||
+                            (template != null && showMakeKpButton)) && (
                             <div className="tables-and-buttons-footer">
                               {showReturnToKpButton ? (
                                 <button

@@ -112,6 +112,22 @@ export function mapOfferResponseToKpView(offer, { titleByCode = new Map() } = {}
   };
 }
 
+/**
+ * Состояние калькулятора из GET /api/offers/:id (режим редактирования черновика КП).
+ */
+export function mapOfferToCalculatorState(offer, options) {
+  const view = mapOfferResponseToKpView(offer, options);
+  const constrToCalcToSent = (offer.constructions || [])
+    .map((c) => c.calc_params)
+    .filter(Boolean);
+  return {
+    constrToCalc: view.constructions,
+    constrToCalcToSent,
+    materialsByConstruction: view.materialsByConstruction,
+    tableConstrToCalc: view.constructions.length > 0 ? {} : null,
+  };
+}
+
 // ─── draft sync (калькулятор → черновик КП без финального «Сохранить») ───────
 
 /**
@@ -261,11 +277,13 @@ function mapMaterialRowToApi(row) {
   const price = parseNumber(row.price);
   const count = parseNumber(row.quantity);
   if (!row.name && price === 0 && count === 0) return null;
+  const article = String(row.sourceArticle ?? "").trim();
   return {
     name: row.name || "",
     price,
     count,
     unit: row.unit || "",
+    ...(article ? { source_article: article } : {}),
   };
 }
 
@@ -286,6 +304,7 @@ function mapAdditionalMaterialsToRows(additionalMaterials) {
     price: m.price !== undefined && m.price !== null ? String(m.price) : "",
     quantity: m.count !== undefined && m.count !== null ? String(m.count) : "",
     unit: m.unit || "",
+    sourceArticle: m.source_article ? String(m.source_article) : "",
   }));
 }
 

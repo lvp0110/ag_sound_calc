@@ -28,7 +28,7 @@ export default function KpList() {
   const navigate = useNavigate();
   const location = useLocation();
   const { isAuthed, status } = useAuth();
-  const { isEditingDraft, activeOfferId } = useOfferEditSession();
+  const { isEditingDraft, activeOfferId, startDraft } = useOfferEditSession();
   const [offers, setOffers] = useState([]);
   const [loadStatus, setLoadStatus] = useState("idle");
   const [error, setError] = useState(null);
@@ -77,7 +77,10 @@ export default function KpList() {
     setCloningId(id);
     try {
       const res = await cloneOffer(id);
-      if (res?.id) navigate(`/kp/${res.id}`);
+      if (res?.id) {
+        startDraft(res.id);
+        navigate(`/kp/${res.id}`);
+      }
     } catch (err) {
       setError(err?.message || "Не удалось скопировать оффер.");
     } finally {
@@ -115,7 +118,10 @@ export default function KpList() {
       const offer = await createOffer({
         offerDraft: { constructions: [] },
       });
-      if (offer?.id) navigate(`/kp/${offer.id}`);
+      if (offer?.id) {
+        startDraft(offer.id);
+        navigate(`/kp/${offer.id}`);
+      }
     } catch (err) {
       setError(err?.message || "Не удалось создать новое КП.");
     } finally {
@@ -182,6 +188,7 @@ export default function KpList() {
                         navigate(`/kp/${activeOfferId}`);
                         return;
                       }
+                      startDraft(o.id);
                       navigate(`/kp/${o.id}`);
                     }}
                   >

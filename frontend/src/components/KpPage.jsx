@@ -268,6 +268,7 @@ const KpPage = () => {
     isEditingDraft,
     activeOfferId,
     kpSnapshot,
+    startDraft,
     stashKpSnapshot,
     clearSession,
     setSelectedPriceArticles,
@@ -393,12 +394,12 @@ const KpPage = () => {
         if (snap?.manualMontagePriceByKeyId) {
           setManualMontagePriceByKeyId(snap.manualMontagePriceByKeyId);
         }
-        if (snap?.materialRows?.length) {
-          const articles = snap.materialRows
-            .map((r) => String(r.sourceArticle ?? "").trim())
-            .filter(Boolean);
-          if (articles.length) setSelectedPriceArticles(articles);
-        }
+        const rowsForArticles = snap?.materialRows ?? view.materialRows;
+        const articles = rowsForArticles
+          .map((r) => String(r.sourceArticle ?? "").trim())
+          .filter(Boolean);
+        if (articles.length) setSelectedPriceArticles(articles);
+
         setLoadStatus("loaded");
       } catch (err) {
         if (cancelled) return;
@@ -417,7 +418,14 @@ const KpPage = () => {
     return () => {
       cancelled = true;
     };
-  }, [id, isAuthed, authStatus, kpSnapshot, activeOfferId]); // kpSnapshot: доп. материалы/форма после прайса
+  }, [id, isAuthed, authStatus, kpSnapshot, activeOfferId, setSelectedPriceArticles]);
+
+  // Режим черновика: КП «открыто» до «Сохранить», навигация только на /calc и /price.
+  useEffect(() => {
+    if (loadStatus === "loaded" && id && isAuthed) {
+      startDraft(id);
+    }
+  }, [loadStatus, id, isAuthed, startDraft]);
 
   // Авто-заполнение montage по kpSettings и площади конструкций (фича из main).
   // После загрузки оффера или ручной правки kpSettings/конструкций пересчитываем
@@ -601,9 +609,17 @@ const KpPage = () => {
   };
 
   const stashAndLeaveKp = useCallback(() => {
+    const calcParamsById = new Map(
+      (originalConstructionsRef.current || []).map((c) => [c.id, c.calc_params])
+    );
+    const constrToCalcToSent = (calcTables.ConstrToCalc || [])
+      .map((ui) => calcParamsById.get(ui.key_id))
+      .filter(Boolean);
+
     stashKpSnapshot({
       form,
       calcTables,
+      constrToCalcToSent,
       montageByKeyId,
       serviceRows,
       materialRows,
@@ -622,6 +638,10 @@ const KpPage = () => {
   ]);
 
   const openPriceForMaterialSelection = () => {
+    const articles = materialRows
+      .map((r) => String(r.sourceArticle ?? "").trim())
+      .filter(Boolean);
+    if (articles.length) setSelectedPriceArticles(articles);
     stashAndLeaveKp();
     navigate("/price");
   };

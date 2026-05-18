@@ -21,12 +21,19 @@ export const useOfferEditSessionStore = create(
       ...initialState,
 
       startDraft: (offerId) =>
-        set({
-          activeOfferId: offerId,
-          isDraft: true,
-          kpSnapshot: null,
-          selectedPriceArticles: [],
+        set((state) => {
+          if (state.isDraft && state.activeOfferId === offerId) {
+            return state;
+          }
+          return {
+            activeOfferId: offerId,
+            isDraft: true,
+            kpSnapshot: null,
+            selectedPriceArticles: [],
+          };
         }),
+
+      clearKpSnapshot: () => set({ kpSnapshot: null }),
 
       stashKpSnapshot: (snapshot) =>
         set((state) => ({
@@ -87,6 +94,7 @@ export function useOfferEditSession() {
   const selectedPriceArticles = useOfferEditSessionStore((s) => s.selectedPriceArticles);
   const startDraft = useOfferEditSessionStore((s) => s.startDraft);
   const stashKpSnapshot = useOfferEditSessionStore((s) => s.stashKpSnapshot);
+  const clearKpSnapshot = useOfferEditSessionStore((s) => s.clearKpSnapshot);
   const clearSession = useOfferEditSessionStore((s) => s.clearSession);
   const togglePriceArticle = useOfferEditSessionStore((s) => s.togglePriceArticle);
   const setSelectedPriceArticles = useOfferEditSessionStore(
@@ -107,6 +115,7 @@ export function useOfferEditSession() {
     selectedPriceArticles,
     startDraft,
     stashKpSnapshot,
+    clearKpSnapshot,
     clearSession,
     togglePriceArticle,
     setSelectedPriceArticles,
