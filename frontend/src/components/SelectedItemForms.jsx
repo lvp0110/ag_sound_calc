@@ -44,7 +44,9 @@ const SelectedItemForms = ({
     setUnvisible(!unvisible);
   };
 
-  const handleInfoClick = () => {
+  const handleInfoClick = (e) => {
+    e.stopPropagation();
+    if (!selectedItem?.ag_id) return;
     navigate(`/info/${selectedItem.ag_id}`, { state: { c_id: selectedItem.c_id } });
   };
 

@@ -4,7 +4,7 @@ import { useOfferEditSession } from "../stores/offerEditSessionStore.js";
 
 /**
  * Блокирует уход с черновика КП на посторонние страницы (без useBlocker —
- * совместимо с BrowserRouter). Разрешены: /calc, /price, /kp/:activeOfferId.
+ * совместимо с BrowserRouter). Разрешены: /calc, /price, /info/:id, /kp/:activeOfferId.
  */
 export default function OfferDraftGuard() {
   const navigate = useNavigate();

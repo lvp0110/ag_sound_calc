@@ -70,6 +70,7 @@ export const useOfferEditSessionStore = create(
         const base = (pathname || "").split("?")[0];
         if (base === "/calc" || base.startsWith("/calc/")) return true;
         if (base === "/price") return true;
+        if (base === "/info" || base.startsWith("/info/")) return true;
         if (base === `/kp/${activeOfferId}`) return true;
         return false;
       },
