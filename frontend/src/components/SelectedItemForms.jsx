@@ -4,6 +4,7 @@ import CeilingForm from "./forms/CeilingForm";
 import FacingForm from "./forms/FacingForm";
 import SoundboardForm from "./forms/SoundboardForm";
 import ConstructionParameters from "./ConstructionParameters";
+import { isFacingTemplate } from "../utils/validation";
 
 /**
  * Компонент для отображения форм выбранного элемента
@@ -23,6 +24,8 @@ const SelectedItemForms = ({
   setCurrentWool,
   profileStep,
   setProfileStep,
+  facingProfileStep,
+  setFacingProfileStep,
   dFrame,
   setDFrame,
   opening,
@@ -35,7 +38,7 @@ const SelectedItemForms = ({
   const isFloorTemplate = [1, 111, 3, 607.1, 608.1, 609.1, 610.1, 2.1, 9, 9.1].includes(template);
   const hasFloorParameters = [3, 607.1, 608.1, 609.1, 610.1, 2.1, 9, 9.1].includes(template);
   const isCeilingTemplate = [4, 5].includes(template);
-  const isFacingTemplate = [6, 50, 75, 100, 101, 50.1, 75.1, 100.1, 101.1, 50.2, 75.2, 100.2, 8.1].includes(template);
+  const isFacing = isFacingTemplate(template);
   const isSoundboardTemplate = [201, 202].includes(template);
   const isVerticalSoundboard = template === 201 && selectedItem?.c_id === "5";
   const navigate = useNavigate();
@@ -124,7 +127,7 @@ const SelectedItemForms = ({
         </>
       )}
 
-      {isFacingTemplate && (
+      {isFacing && (
         <>
           <FacingForm
             constR={constR}
@@ -140,8 +143,8 @@ const SelectedItemForms = ({
               setCurrentGkla={setCurrentGkla}
               currentWool={currentWool}
               setCurrentWool={setCurrentWool}
-              profileStep={profileStep}
-              setProfileStep={setProfileStep}
+              profileStep={facingProfileStep}
+              setProfileStep={setFacingProfileStep}
               dFrame={dFrame}
               setDFrame={setDFrame}
               opening={opening}

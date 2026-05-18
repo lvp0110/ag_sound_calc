@@ -11,7 +11,8 @@ import { persist, createJSONStorage } from "zustand/middleware";
  *   - накопленные конструкции (ConstrToCalc, ConstrToCalcToSent, materialsByConstruction);
  *   - табличное состояние (tableConstrToCalc);
  *   - выбор пользователя в UI (currentSubCategory/Items, openedSubCategories,
- *     template, profileStep, dFrame, currentConstr, currentGkla/Wool, unvisible).
+ *     template, profileStep (лаги пола), facingProfileStep (облицовка/перегородки),
+ *     dFrame, currentConstr, currentGkla/Wool, unvisible).
  *
  * Эфемерные вещи (текущая форма нового элемента `constR`/`constrSent`/`opening`,
  * лоадеры, модалки) остаются useState в компоненте.
@@ -26,7 +27,8 @@ const initialState = {
   currentItems: 0,
   openedSubCategories: { F: null, C: null, L: null, W: null },
   template: null,
-  profileStep: 600,
+  profileStep: 400,
+  facingProfileStep: 600,
   dFrame: false,
   currentConstr: "",
   ConstrToCalcToSent: [],

@@ -12,7 +12,14 @@ import {
 } from "../constants/defaultValues";
 import { getImageUrl } from "../services/api";
 import { getResponsiveImageProps } from "../utils/responsiveImages";
-import { validateInput, validateFloorInput, validateFloorMaxInput } from "../utils/validation";
+import {
+  validateInput,
+  validateFloorInput,
+  validateFloorMaxInput,
+  normalizeFacingProfileStep,
+  normalizeLagProfileStep,
+  isFacingTemplate,
+} from "../utils/validation";
 import { calculateAreaAndPerimeter, getConstructionCode } from "../utils/calculations";
 import { exportTablesToExcel, copyMaterialsToClipboard } from "../utils/excelExport";
 import { calculateConstruction } from "../services/constructionApi";
@@ -54,6 +61,7 @@ const Calculator = () => {
   const [openedSubCategories, setOpenedSubCategories] = useCalcField("openedSubCategories");
   const [template, setTemplate] = useCalcField("template");
   const [profileStep, setProfileStep] = useCalcField("profileStep");
+  const [facingProfileStep, setFacingProfileStep] = useCalcField("facingProfileStep");
   const [dFrame, setDFrame] = useCalcField("dFrame");
   const [currentConstr, setCurrentConstr] = useCalcField("currentConstr");
   const [ConstrToCalcToSent, setConstrToCalcToSent] = useCalcField("ConstrToCalcToSent");
@@ -297,12 +305,15 @@ const Calculator = () => {
         setTemplate(item.template);
         setTableConstrToCalc(1);
         setCurrentConstr(item.ag_id);
+        if (isFacingTemplate(item.template)) {
+          setFacingProfileStep(600);
+        }
         if (item.c_id) {
           setCurrentSubCategory(item.c_id);
         }
       }
     },
-    [currentItems]
+    [currentItems, setFacingProfileStep]
   );
 
   useEffect(() => {
@@ -483,12 +494,23 @@ const Calculator = () => {
   const showReturnToKpButton = isAuthed && isEditingDraft;
 
   const addConstrToCalc = useCallback(async () => {
+    let calcProfileStep = Number(profileStep) || 600;
+    if (template === 3) {
+      calcProfileStep = normalizeLagProfileStep(profileStep);
+    } else if (
+      isFacingTemplate(template) ||
+      currentSubCategory === "W" ||
+      currentSubCategory === "L"
+    ) {
+      calcProfileStep = normalizeFacingProfileStep(facingProfileStep);
+    }
+
     const inputError = validateInput(
       constR,
       currentSubCategory,
       currentItems,
       template,
-      profileStep,
+      calcProfileStep,
       itemsWithImages
     );
 
@@ -578,7 +600,7 @@ const Calculator = () => {
       LenY: lenY,
       LenZ: lenZ,
       AddCeilShift: +constR.AddCeilShift || 0,
-      step: +profileStep,
+      step: calcProfileStep,
       dframe: dFrame,
       Area: area,
       Perimeter: perimeter,
@@ -590,7 +612,7 @@ const Calculator = () => {
     }
     if (
       (code == "AG.F615" || code == "AG.F615_vibroflex_LD") &&
-      profileStep === 600
+      calcProfileStep === 600
     ) {
       newConstrSent.step = 400;
     }
@@ -612,7 +634,7 @@ const Calculator = () => {
       setConstR({ ...constRZero });
       setDFrame(false);
       setUnvisible(false);
-      setProfileStep(600);
+      setFacingProfileStep(600);
       setCurrentGkla("default");
       setCurrentWool("default");
 
@@ -653,6 +675,7 @@ const Calculator = () => {
     currentItems,
     itemsWithImages,
     profileStep,
+    facingProfileStep,
     dFrame,
     constrSent,
     currentGkla,
@@ -903,6 +926,8 @@ const Calculator = () => {
                             setCurrentWool={setCurrentWool}
                             profileStep={profileStep}
                             setProfileStep={setProfileStep}
+                            facingProfileStep={facingProfileStep}
+                            setFacingProfileStep={setFacingProfileStep}
                             dFrame={dFrame}
                             setDFrame={setDFrame}
                             opening={opening}

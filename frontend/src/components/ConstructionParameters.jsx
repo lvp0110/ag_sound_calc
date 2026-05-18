@@ -1,4 +1,9 @@
-import { getMaxLenZInMeters } from "../utils/validation";
+import { useEffect } from "react";
+import {
+  getMaxLenZInMeters,
+  normalizeFacingProfileStep,
+  normalizeLagProfileStep,
+} from "../utils/validation";
 
 /**
  * Компонент параметров конструкции (гипсокартон, минвата, шаг профиля, проемы)
@@ -28,6 +33,24 @@ const ConstructionParameters = ({
   onAddOpening,
   onDeleteOpening,
 }) => {
+  const isZIPSFacing =
+    mode === "facing" &&
+    Boolean(
+      selectedItem?.ag_id &&
+        selectedItem.ag_id.startsWith("AG.Z") &&
+        selectedItem.c_id == "L"
+    );
+  const facingProfileStep = normalizeFacingProfileStep(profileStep);
+  const lagProfileStep = normalizeLagProfileStep(profileStep);
+
+  useEffect(() => {
+    if (mode !== "facing" || isZIPSFacing) return;
+    const normalized = normalizeFacingProfileStep(profileStep);
+    if (normalized !== Number(profileStep)) {
+      setProfileStep(normalized);
+    }
+  }, [mode, selectedItem?.id, isZIPSFacing, profileStep, setProfileStep]);
+
   if (mode === "ceiling") {
     const currentTemplate = template ?? selectedItem?.template;
     const isSuspendedCeiling = currentTemplate == 5;
@@ -183,7 +206,6 @@ const ConstructionParameters = ({
       currentTemplate
     );
     const isLagsType = currentTemplate == 3;
-    const isLagStepUnset = profileStep !== 400 && profileStep !== 300;
 
     return (
       <div className="selected-item-forms__stack">
@@ -237,7 +259,7 @@ const ConstructionParameters = ({
                     type="radio"
                     onChange={(e) => {
                       setCurrentConstr(e.target.value);
-                      if (isLagStepUnset) {
+                      if (lagProfileStep !== 300 && lagProfileStep !== 400) {
                         setProfileStep(400);
                       }
                     }}
@@ -256,7 +278,7 @@ const ConstructionParameters = ({
                     type="radio"
                     onChange={(e) => {
                       setCurrentConstr(e.target.value);
-                      if (isLagStepUnset) {
+                      if (lagProfileStep !== 300 && lagProfileStep !== 400) {
                         setProfileStep(400);
                       }
                     }}
@@ -280,7 +302,7 @@ const ConstructionParameters = ({
                     id={`lags_step400_${selectedItem.id}`}
                     name={`lags_step_${selectedItem.id}`}
                     value="400"
-                    checked={profileStep === 400 || isLagStepUnset}
+                    checked={lagProfileStep === 400}
                   />
                   <label className="label" htmlFor={`lags_step400_${selectedItem.id}`}>
                     шаг профиля 400 мм
@@ -294,7 +316,7 @@ const ConstructionParameters = ({
                     id={`lags_step300_${selectedItem.id}`}
                     name={`lags_step_${selectedItem.id}`}
                     value="300"
-                    checked={profileStep === 300}
+                    checked={lagProfileStep === 300}
                   />
                   <label className="label" htmlFor={`lags_step300_${selectedItem.id}`}>
                     шаг профиля 300 мм
@@ -404,11 +426,6 @@ const ConstructionParameters = ({
     );
   }
 
-  const isZIPSFacing =
-    selectedItem?.ag_id &&
-    selectedItem.ag_id.startsWith("AG.Z") &&
-    selectedItem.c_id == "L";
-
   return (
     <div className="selected-item-forms__stack">
       <h4 className="selected-item-forms__group-heading">выбрать тип гипсокартона</h4>
@@ -517,7 +534,7 @@ const ConstructionParameters = ({
               id={`step600_${selectedItem.id}`}
               name={`steps_${selectedItem.id}`}
               value="600"
-              checked={profileStep === 600}
+              checked={facingProfileStep === 600}
             />
             <label className="label" htmlFor={`step600_${selectedItem.id}`}>
               шаг профиля 600 мм{" "}
@@ -541,7 +558,7 @@ const ConstructionParameters = ({
               id={`step400_${selectedItem.id}`}
               name={`steps_${selectedItem.id}`}
               value="400"
-              checked={profileStep === 400}
+              checked={facingProfileStep === 400}
             />
             <label className="label" htmlFor={`step400_${selectedItem.id}`}>
               шаг профиля 400 мм{" "}
@@ -565,7 +582,7 @@ const ConstructionParameters = ({
               id={`step300_${selectedItem.id}`}
               name={`steps_${selectedItem.id}`}
               value="300"
-              checked={profileStep === 300}
+              checked={facingProfileStep === 300}
             />
             <label className="label" htmlFor={`step300_${selectedItem.id}`}>
               шаг профиля 300 мм{" "}

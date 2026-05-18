@@ -1,6 +1,27 @@
 import SizeLimits from "../data/sizeLimits";
 import { getValidationMessage } from "../constants/validationMessages";
 
+export const FACING_PROFILE_STEPS = [300, 400, 600];
+export const LAG_PROFILE_STEPS = [300, 400];
+export const FACING_TEMPLATES = [
+  6, 50, 75, 100, 101, 50.1, 75.1, 100.1, 101.1, 50.2, 75.2, 100.2, 8.1,
+];
+
+/** Шаг профиля для облицовки/перегородок: 300 | 400 | 600, иначе 600. */
+export const normalizeFacingProfileStep = (value) => {
+  const n = Number(value);
+  return FACING_PROFILE_STEPS.includes(n) ? n : 600;
+};
+
+/** Шаг лаг: 300 | 400, иначе 400. */
+export const normalizeLagProfileStep = (value) => {
+  const n = Number(value);
+  return LAG_PROFILE_STEPS.includes(n) ? n : 400;
+};
+
+export const isFacingTemplate = (template) =>
+  FACING_TEMPLATES.includes(template);
+
 /**
  * Проверяет, является ли конструкция ЗИПС потолком
  */
@@ -38,13 +59,17 @@ export const validateInput = (constR, currentSubCategory, currentItems, template
   const itemCId = currentItem?.c_id;
 
   const isZIPS = isZIPSCeiling(currentSubCategory, template, itemTemplate, itemCId, itemAgId);
+  const stepForLimits =
+    currentSubCategory == "W" || currentSubCategory == "L"
+      ? normalizeFacingProfileStep(profileStep)
+      : profileStep;
 
   let objectX;
   let max_constr_size;
 
   if (currentSubCategory == "W") {
     objectX = SizeLimits.find(
-      (el) => el.id_constr == currentItems && el.step == profileStep
+      (el) => el.id_constr == currentItems && el.step == stepForLimits
     );
     if (!objectX) return null;
     max_constr_size = objectX.max_lenZ;
@@ -59,7 +84,7 @@ export const validateInput = (constR, currentSubCategory, currentItems, template
       return getValidationMessage("W_LENZ_MAX");
   } else if (currentSubCategory == "L" && template != 6) {
     objectX = SizeLimits.find(
-      (el) => el.id_constr == currentItems && el.step == profileStep
+      (el) => el.id_constr == currentItems && el.step == stepForLimits
     );
     if (!objectX) return null;
     max_constr_size = objectX.max_lenZ;
@@ -74,7 +99,7 @@ export const validateInput = (constR, currentSubCategory, currentItems, template
       return getValidationMessage("L_NOT6_LENZ_MAX");
   } else if (currentSubCategory == "L" && template == 6) {
     objectX = SizeLimits.find(
-      (el) => el.id_constr == currentItems && el.step == profileStep
+      (el) => el.id_constr == currentItems && el.step == stepForLimits
     );
     if (!objectX) return null;
     max_constr_size = objectX.max_lenZ;
