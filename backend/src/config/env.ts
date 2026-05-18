@@ -36,7 +36,8 @@ export const env = {
   accessTokenExpiresIn: process.env.ACCESS_TOKEN_EXPIRES_IN ?? "15m",
   refreshTokenExpiresIn: process.env.REFRESH_TOKEN_EXPIRES_IN ?? "30d",
   calcServiceUrl: process.env.CALC_SERVICE_URL ?? "https://dev3.constrtodo.ru:3005",
-  calcServiceTimeoutMs: toInt(process.env.CALC_SERVICE_TIMEOUT_MS, 15000),
+  // AllIsolationConstr на dev3 может отвечать 25–35s; 15s давало обрыв chunked-тела.
+  calcServiceTimeoutMs: toInt(process.env.CALC_SERVICE_TIMEOUT_MS, 60000),
 };
 
 if (env.nodeEnv === "production" && !process.env.DATABASE_URL) {

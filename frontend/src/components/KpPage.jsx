@@ -114,6 +114,83 @@ function newCustomMaterialRow() {
   };
 }
 
+function KpCollapsibleExtraTable({
+  tableId,
+  ariaLabel,
+  title,
+  sectionOpen,
+  onToggleSection,
+  totalRub,
+  colgroup,
+  children,
+  footerRows,
+}) {
+  return (
+    <div className="kp-table-card">
+      <button
+        type="button"
+        className="kp-section-collapsible-toggle"
+        aria-expanded={sectionOpen}
+        aria-controls={tableId}
+        onClick={onToggleSection}
+      >
+        <span className="kp-collapsible-title-row">
+          <span className="kp-collapsible-title-inner">
+            <span
+              className={`kp-collapsible-chevron${
+                sectionOpen ? " kp-collapsible-chevron--expanded" : ""
+              }`}
+              aria-hidden
+            />
+            <span>{title}</span>
+          </span>
+          <span className="kp-collapsible-title-sum" aria-hidden>
+            {formatRub(totalRub)}
+          </span>
+        </span>
+      </button>
+      <div className="tbl-in">
+        <table
+          className="data kp-data-table--starts-with-column-headers"
+          id={tableId}
+          aria-label={ariaLabel}
+          data-export-section-title={title}
+          data-erp-data-start-row="1"
+        >
+          {colgroup}
+          {sectionOpen && (
+            <>
+              <thead>
+                <tr>
+                  <th>Название</th>
+                  <th>Цена</th>
+                  <th>Количество</th>
+                  <th>Ед. изм.</th>
+                  <th>Сумма</th>
+                </tr>
+              </thead>
+              <tbody>{children}</tbody>
+              <tfoot>
+                {footerRows}
+                <tr className="kp-page__section-total-row">
+                  <td colSpan={5} className="kp-page__section-total-cell">
+                    <div className="kp-card-sections-total__inner">
+                      <span className="kp-card-sections-total__label">Итого</span>
+                      <span className="kp-card-sections-total__amount">
+                        {formatRub(totalRub)}
+                      </span>
+                    </div>
+                  </td>
+                </tr>
+              </tfoot>
+            </>
+          )}
+        </table>
+      </div>
+    </div>
+  );
+}
+
 const MONTAGE_ROW_LABEL = "Монтаж";
 
 const INITIAL_SERVICE_ROWS = [
@@ -209,7 +286,10 @@ const KpPage = () => {
     cladding: "",
     partition: "",
   });
-  const [settingsSectionOpen, setSettingsSectionOpen] = useState(true);
+  const [settingsSectionOpen, setSettingsSectionOpen] = useState(false);
+  const [additionalMaterialsSectionOpen, setAdditionalMaterialsSectionOpen] =
+    useState(false);
+  const [servicesSectionOpen, setServicesSectionOpen] = useState(false);
   const [manualMontagePriceByKeyId, setManualMontagePriceByKeyId] = useState(
     () => ({})
   );
@@ -223,6 +303,14 @@ const KpPage = () => {
         availableRegionKeys.has(option.regionKey)
       ),
     [availableRegionKeys]
+  );
+  const additionalMaterialsTotalRub = useMemo(
+    () => additionalMaterialsGrandTotalRubForKp(materialRows),
+    [materialRows],
+  );
+  const servicesTotalRub = useMemo(
+    () => additionalServicesGrandTotalRubForKp(serviceRows),
+    [serviceRows],
   );
 
   const [loadStatus, setLoadStatus] = useState("idle"); // 'idle'|'loading'|'loaded'|'error'|'forbidden'
@@ -243,6 +331,9 @@ const KpPage = () => {
     }
 
     let cancelled = false;
+    setSettingsSectionOpen(false);
+    setAdditionalMaterialsSectionOpen(false);
+    setServicesSectionOpen(false);
     setLoadStatus("loading");
     setLoadError(null);
 
@@ -882,35 +973,53 @@ const KpPage = () => {
         </div>
 
         <div className="kp-page__services">
-          <div className="kp-table-card">
-            <div className="tbl-in">
-              <table
-                className="data"
-                id="kp-table-additional-materials"
-                aria-label="Дополнительные материалы"
-              >
-                <colgroup>
-                  <col style={{ width: "50%" }} />
-                  <col style={{ width: "12%" }} />
-                  <col style={{ width: "10%" }} />
-                  <col style={{ width: "7%" }} />
-                  <col style={{ width: "20%" }} />
-                </colgroup>
-                <thead>
-                  <tr>
-                    <th colSpan={5}>Дополнительные материалы</th>
-                  </tr>
-                  <tr>
-                    <th>Название</th>
-                    <th>Цена</th>
-                    <th>Количество</th>
-                    <th>Ед. изм.</th>
-                    <th>Сумма</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {materialRows.map((row) => (
-                    <tr key={row.id}>
+          <KpCollapsibleExtraTable
+            tableId="kp-table-additional-materials"
+            ariaLabel="Дополнительные материалы"
+            title="Дополнительные материалы"
+            sectionOpen={additionalMaterialsSectionOpen}
+            onToggleSection={() =>
+              setAdditionalMaterialsSectionOpen((v) => !v)
+            }
+            totalRub={additionalMaterialsTotalRub}
+            colgroup={
+              <colgroup>
+                <col style={{ width: "50%" }} />
+                <col style={{ width: "12%" }} />
+                <col style={{ width: "10%" }} />
+                <col style={{ width: "7%" }} />
+                <col style={{ width: "20%" }} />
+              </colgroup>
+            }
+            footerRows={
+              <>
+                <tr className="kp-page__services-add-row">
+                  <td colSpan={5} className="kp-page__services-add-cell">
+                    <button
+                      type="button"
+                      className="kp-page__services-add kp-page__services-add--secondary"
+                      onClick={openPriceForMaterialSelection}
+                    >
+                      Выбрать материал из прайса
+                    </button>
+                  </td>
+                </tr>
+                <tr className="kp-page__services-add-row">
+                  <td colSpan={5} className="kp-page__services-add-cell">
+                    <button
+                      type="button"
+                      className="kp-page__services-add"
+                      onClick={addMaterialRow}
+                    >
+                      Добавить строку
+                    </button>
+                  </td>
+                </tr>
+              </>
+            }
+          >
+            {materialRows.map((row) => (
+              <tr key={row.id}>
                       <td>
                         <div className="kp-page__service-name-cell">
                           <button
@@ -967,66 +1076,42 @@ const KpPage = () => {
                           aria-label={`Сумма, ${row.name || "материал"} (цена × количество)`}
                         />
                       </td>
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot>
-                  <tr className="kp-page__services-add-row">
-                    <td colSpan={5} className="kp-page__services-add-cell">
-                      <button
-                        type="button"
-                        className="kp-page__services-add kp-page__services-add--secondary"
-                        onClick={openPriceForMaterialSelection}
-                      >
-                        Выбрать материал из прайса
-                      </button>
-                    </td>
-                  </tr>
-                  <tr className="kp-page__services-add-row">
-                    <td colSpan={5} className="kp-page__services-add-cell">
-                      <button
-                        type="button"
-                        className="kp-page__services-add"
-                        onClick={addMaterialRow}
-                      >
-                        Добавить строку
-                      </button>
-                    </td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-          </div>
+              </tr>
+            ))}
+          </KpCollapsibleExtraTable>
 
-          <div className="kp-table-card">
-            <div className="tbl-in">
-              <table
-                className="data"
-                id="kp-table-services"
-                aria-label="Дополнительные услуги"
-              >
-                <colgroup>
-                  <col style={{ width: "60%" }} />
-                  <col style={{ width: "10%" }} />
-                  <col style={{ width: "10%" }} />
-                  <col style={{ width: "10%" }} />
-                  <col style={{ width: "10%" }} />
-                </colgroup>
-                <thead>
-                  <tr>
-                    <th colSpan={5}>Дополнительные услуги</th>
-                  </tr>
-                  <tr>
-                    <th>Название</th>
-                    <th>Цена</th>
-                    <th>Количество</th>
-                    <th>Ед. изм.</th>
-                    <th>Сумма</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {serviceRows.map((row) => (
-                    <tr key={row.id}>
+          <KpCollapsibleExtraTable
+            tableId="kp-table-services"
+            ariaLabel="Дополнительные услуги"
+            title="Дополнительные услуги"
+            sectionOpen={servicesSectionOpen}
+            onToggleSection={() => setServicesSectionOpen((v) => !v)}
+            totalRub={servicesTotalRub}
+            colgroup={
+              <colgroup>
+                <col style={{ width: "60%" }} />
+                <col style={{ width: "10%" }} />
+                <col style={{ width: "10%" }} />
+                <col style={{ width: "10%" }} />
+                <col style={{ width: "10%" }} />
+              </colgroup>
+            }
+            footerRows={
+              <tr className="kp-page__services-add-row">
+                <td colSpan={5} className="kp-page__services-add-cell">
+                  <button
+                    type="button"
+                    className="kp-page__services-add"
+                    onClick={addServiceRow}
+                  >
+                    Добавить строку
+                  </button>
+                </td>
+              </tr>
+            }
+          >
+            {serviceRows.map((row) => (
+              <tr key={row.id}>
                       <td
                         className={
                           row.preset
@@ -1107,25 +1192,9 @@ const KpPage = () => {
                           aria-label={`Сумма, ${row.name || "услуга"} (цена × количество)`}
                         />
                       </td>
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot>
-                  <tr className="kp-page__services-add-row">
-                    <td colSpan={5} className="kp-page__services-add-cell">
-                      <button
-                        type="button"
-                        className="kp-page__services-add"
-                        onClick={addServiceRow}
-                      >
-                        Добавить строку
-                      </button>
-                    </td>
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
-          </div>
+              </tr>
+            ))}
+          </KpCollapsibleExtraTable>
         </div>
 
         {calcTables.tableConstrToCalc != null &&

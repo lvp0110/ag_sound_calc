@@ -1,6 +1,4 @@
 import { Router, type Request, type Response as ExpressResponse } from "express";
-import { Readable } from "node:stream";
-import type { ReadableStream as WebReadableStream } from "node:stream/web";
 import { env } from "../config/env.js";
 
 /**
@@ -80,7 +78,20 @@ const proxyRequest = async (
     return;
   }
 
-  Readable.fromWeb(upstream.body as WebReadableStream<Uint8Array>).pipe(res);
+  try {
+    const body = Buffer.from(await upstream.arrayBuffer());
+    res.send(body);
+  } catch (err) {
+    const message = `Failed to read calc service response: ${err instanceof Error ? err.message : String(err)}`;
+    console.error(
+      `[calc-proxy] ${req.method} ${req.originalUrl} → ${url} BODY FAIL ${Date.now() - startedAt}ms: ${message}`
+    );
+    if (!res.headersSent) {
+      res.status(502).json({ error: message });
+    } else {
+      res.end();
+    }
+  }
 };
 
 router.post("/api/v1/calcIsolation/byProduct", (req, res) =>

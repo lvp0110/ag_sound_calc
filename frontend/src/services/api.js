@@ -8,6 +8,9 @@ import { BASE_URL } from './apiClient';
 // В dev BASE_URL=http://localhost:3006, в prod — '' (тот же origin, что и страница).
 const API_BASE_URL = `${BASE_URL}/api/v1`;
 
+/** Каталог конструкций на внешнем calc-сервисе иногда отвечает 25–35s. */
+const ALL_ISOLATION_CONSTR_TIMEOUT_MS = 60000;
+
 /** Относительный путь с учётом `base` из Vite (GitHub Pages и т.д.) */
 const withAppBase = (pathStartingWithSlash) => {
   const base = import.meta.env.BASE_URL || '/';
@@ -36,7 +39,7 @@ export const getAllIsolationConstr = async () => {
 
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    const timeoutId = setTimeout(() => controller.abort(), ALL_ISOLATION_CONSTR_TIMEOUT_MS);
 
     const response = await fetch(url, {
       method: 'GET',

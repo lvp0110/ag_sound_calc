@@ -308,6 +308,41 @@
   flex-shrink: 0;
 }
 
+/* «Итого» в сворачиваемых блоках доп. материалов и услуг */
+.kp-page .kp-table-card #kp-table-additional-materials tfoot tr.kp-page__section-total-row td,
+.kp-page .kp-table-card #kp-table-services tfoot tr.kp-page__section-total-row td {
+  padding: 14px 12px 12px;
+  text-align: left;
+  vertical-align: middle;
+  background: #dde9ef;
+  border-top: 1px solid var(--table-border);
+  font-weight: normal;
+}
+
+.kp-page .kp-table-card #kp-table-additional-materials tfoot tr.kp-page__section-total-row:hover,
+.kp-page .kp-table-card #kp-table-services tfoot tr.kp-page__section-total-row:hover {
+  background-color: #dde9ef;
+}
+
+.kp-page .kp-table-card #kp-table-additional-materials tfoot tr.kp-page__section-total-row .kp-card-sections-total__label,
+.kp-page .kp-table-card #kp-table-additional-materials tfoot tr.kp-page__section-total-row .kp-card-sections-total__amount,
+.kp-page .kp-table-card #kp-table-services tfoot tr.kp-page__section-total-row .kp-card-sections-total__label,
+.kp-page .kp-table-card #kp-table-services tfoot tr.kp-page__section-total-row .kp-card-sections-total__amount {
+  font-size: var(--kp-card-section-heading-font-size);
+  line-height: var(--kp-card-section-heading-line-height);
+  font-weight: var(--kp-card-section-heading-weight);
+  font-style: normal;
+  letter-spacing: var(--kp-card-section-heading-letter-spacing);
+  color: var(--kp-card-section-heading-color);
+}
+
+.kp-page .kp-table-card #kp-table-additional-materials tfoot tr.kp-page__section-total-row .kp-card-sections-total__amount,
+.kp-page .kp-table-card #kp-table-services tfoot tr.kp-page__section-total-row .kp-card-sections-total__amount {
+  white-space: nowrap;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
 /* Итог: строки «Стоимость …» (одинаковый фон) и «Общий итог» */
 .kp-page
   .construction-grand-total-wrap.kp-table-card
