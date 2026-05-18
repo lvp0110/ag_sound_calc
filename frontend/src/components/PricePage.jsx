@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { formatRub } from "./tables/MaterialsList";
 import { setPriceRegion, usePriceData } from "../services/priceApi";
@@ -31,6 +31,42 @@ function getPriceByRegion(row, region, key) {
   return row[key];
 }
 
+function getPriceRowKey(row, region) {
+  return `${row.article}-${region || "default"}`;
+}
+
+function PriceRowDetailCard({ row, selectedRegion }) {
+  return (
+    <div className="price-page__detail-card">
+      <p className="price-page__detail-name">
+        {row.name?.trim() ? row.name : "—"}
+      </p>
+      <dl className="price-page__detail-meta">
+        <div className="price-page__detail-meta-row">
+          <dt>Артикул</dt>
+          <dd>{row.article ?? "—"}</dd>
+        </div>
+        <div className="price-page__detail-meta-row">
+          <dt>₽ / м²</dt>
+          <dd>
+            {formatPriceCell(
+              getPriceByRegion(row, selectedRegion, "pricePerM2")
+            )}
+          </dd>
+        </div>
+        <div className="price-page__detail-meta-row">
+          <dt>₽ / ед.</dt>
+          <dd>
+            {formatPriceCell(
+              getPriceByRegion(row, selectedRegion, "pricePerUnit")
+            )}
+          </dd>
+        </div>
+      </dl>
+    </div>
+  );
+}
+
 function newMaterialRowFromPrice(row, selectedRegion) {
   const id =
     typeof crypto !== "undefined" && crypto.randomUUID
@@ -55,6 +91,7 @@ function newMaterialRowFromPrice(row, selectedRegion) {
 const PricePage = () => {
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
+  const [expandedRowKey, setExpandedRowKey] = useState(null);
   const {
     isEditingDraft,
     activeOfferId,
@@ -212,7 +249,7 @@ const PricePage = () => {
           className="price-page__search"
           type="search"
           autoComplete="off"
-          placeholder="Артикул или слово из названия, например Sylomer или 16965"
+          placeholder="Артикул или название"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
@@ -231,44 +268,83 @@ const PricePage = () => {
             <tbody>
               {filtered.map((row) => {
                 const article = String(row.article ?? "").trim();
+                const rowKey = getPriceRowKey(row, selectedRegion);
+                const isExpanded = expandedRowKey === rowKey;
                 const isSelected =
                   isEditingDraft && article && selectedSet.has(article);
+                const rowClassName = [
+                  isSelected ? "price-page__row--selected" : "",
+                  isExpanded ? "price-page__row--expanded" : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ") || undefined;
+
                 return (
-                  <tr
-                    key={`${row.article}-${selectedRegion || "default"}`}
-                    className={
-                      isSelected ? "price-page__row--selected" : undefined
-                    }
-                  >
-                    <td className="price-page__article">{row.article}</td>
-                    <td className="price-page__name">
-                      {row.name?.trim() ? row.name : "—"}
-                    </td>
-                    <td>
-                      {formatPriceCell(
-                        getPriceByRegion(row, selectedRegion, "pricePerM2")
-                      )}
-                    </td>
-                    <td>
-                      {formatPriceCell(
-                        getPriceByRegion(row, selectedRegion, "pricePerUnit")
-                      )}
-                    </td>
-                    <td>
-                      <button
-                        type="button"
-                        className={`price-page__add-button${
-                          isSelected ? " price-page__add-button--selected" : ""
-                        }`}
-                        onClick={() => addRowToAdditionalMaterials(row)}
-                        aria-label={`${
-                          isSelected ? "Снять выбор" : "Выбрать"
-                        } материал ${row.name?.trim() || row.article}`}
-                      >
-                        {isSelected ? "Выбрано" : "Выбрать"}
-                      </button>
-                    </td>
-                  </tr>
+                  <Fragment key={rowKey}>
+                    <tr
+                      className={rowClassName}
+                      onClick={() =>
+                        setExpandedRowKey((prev) =>
+                          prev === rowKey ? null : rowKey
+                        )
+                      }
+                      role="button"
+                      tabIndex={0}
+                      aria-expanded={isExpanded}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          setExpandedRowKey((prev) =>
+                            prev === rowKey ? null : rowKey
+                          );
+                        }
+                      }}
+                    >
+                      <td className="price-page__article">{row.article}</td>
+                      <td className="price-page__name">
+                        {row.name?.trim() ? row.name : "—"}
+                      </td>
+                      <td>
+                        {formatPriceCell(
+                          getPriceByRegion(row, selectedRegion, "pricePerM2")
+                        )}
+                      </td>
+                      <td>
+                        {formatPriceCell(
+                          getPriceByRegion(row, selectedRegion, "pricePerUnit")
+                        )}
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          className={`price-page__add-button${
+                            isSelected
+                              ? " price-page__add-button--selected"
+                              : ""
+                          }`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            addRowToAdditionalMaterials(row);
+                          }}
+                          aria-label={`${
+                            isSelected ? "Снять выбор" : "Выбрать"
+                          } материал ${row.name?.trim() || row.article}`}
+                        >
+                          {isSelected ? "Выбрано" : "Выбрать"}
+                        </button>
+                      </td>
+                    </tr>
+                    {isExpanded && (
+                      <tr className="price-page__detail-row">
+                        <td className="price-page__detail-cell" colSpan={5}>
+                          <PriceRowDetailCard
+                            row={row}
+                            selectedRegion={selectedRegion}
+                          />
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
                 );
               })}
             </tbody>

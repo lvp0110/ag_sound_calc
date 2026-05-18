@@ -1,4 +1,5 @@
 .kp-list {
+  width: -webkit-fill-available;
   max-width: 1100px;
   margin: 0 auto;
   padding: 24px 20px 48px;
@@ -157,4 +158,124 @@
 .kp-list__action-btn--danger:hover:not(:disabled) {
   background: #dc2626;
   color: #fff;
+}
+
+/* Cards — visible only below 700px */
+.kp-list__cards {
+  display: none;
+}
+
+.kp-list__card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-bottom: 12px;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+}
+
+.kp-list__card-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.kp-list__card-num {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 6px;
+  border-radius: 6px;
+  background: #f1f5f9;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.kp-list__card-title {
+  flex: 1;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.kp-list__card-meta {
+  margin: 0 0 14px;
+  padding: 0;
+}
+
+.kp-list__card-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  padding: 6px 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.kp-list__card-row:last-child {
+  border-bottom: none;
+}
+
+.kp-list__card-row dt {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.kp-list__card-row dd {
+  margin: 0;
+  font-size: 14px;
+  color: #334155;
+  text-align: right;
+}
+
+.kp-list__card-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.kp-list__card-actions .kp-list__action-btn {
+  width: 100%;
+  justify-content: center;
+  text-align: center;
+}
+
+@media (max-width: 699px) {
+  .kp-list {
+    padding: 16px 12px 32px;
+  }
+
+  .kp-list__header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .kp-list__new-btn {
+    width: 100%;
+  }
+
+  .kp-list__table {
+    display: none;
+  }
+
+  .kp-list__cards {
+    display: block;
+  }
+}
+
+@media (min-width: 700px) {
+  .kp-list__cards {
+    display: none;
+  }
 }

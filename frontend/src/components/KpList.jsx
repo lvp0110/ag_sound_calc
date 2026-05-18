@@ -129,6 +129,37 @@ export default function KpList() {
     }
   };
 
+  const openOffer = (id) => {
+    if (isEditingDraft && activeOfferId) {
+      navigate(`/kp/${activeOfferId}`);
+      return;
+    }
+    startDraft(id);
+    navigate(`/kp/${id}`);
+  };
+
+  const renderOfferActions = (o) => (
+    <>
+      <button
+        type="button"
+        className="kp-list__action-btn"
+        onClick={() => handleClone(o.id)}
+        disabled={cloningId === o.id || deletingId === o.id}
+      >
+        {cloningId === o.id ? "Копирование..." : "Создать на основе"}
+      </button>
+      <button
+        type="button"
+        className="kp-list__action-btn kp-list__action-btn--danger"
+        onClick={() => handleDelete(o)}
+        disabled={deletingId === o.id || cloningId === o.id}
+        aria-label="Удалить КП"
+      >
+        {deletingId === o.id ? "Удаление..." : "Удалить"}
+      </button>
+    </>
+  );
+
   if (status === "loading" || loadStatus === "loading") {
     return (
       <div className="kp-list">
@@ -164,63 +195,72 @@ export default function KpList() {
       {offers.length === 0 ? (
         <p className="kp-list__empty">Пока нет ни одного КП. Начните с калькулятора.</p>
       ) : (
-        <table className="kp-list__table">
-          <thead>
-            <tr>
-              <th className="kp-list__num-col">№</th>
-              <th>Объект</th>
-              <th>Регион</th>
-              <th>Дата КП</th>
-              <th>Обновлено</th>
-              <th className="kp-list__actions-col">Действия</th>
-            </tr>
-          </thead>
-          <tbody>
+        <>
+          <div className="kp-list__cards" role="list">
             {offers.map((o, i) => (
-              <tr key={o.id}>
-                <td className="kp-list__num-cell">{i + 1}</td>
-                <td>
+              <article key={o.id} className="kp-list__card" role="listitem">
+                <div className="kp-list__card-header">
+                  <span className="kp-list__card-num">{i + 1}</span>
                   <button
                     type="button"
-                    className="kp-list__link"
-                    onClick={() => {
-                      if (isEditingDraft && activeOfferId) {
-                        navigate(`/kp/${activeOfferId}`);
-                        return;
-                      }
-                      startDraft(o.id);
-                      navigate(`/kp/${o.id}`);
-                    }}
+                    className="kp-list__link kp-list__card-title"
+                    onClick={() => openOffer(o.id)}
                   >
                     {o.object_name || "(без названия)"}
                   </button>
-                </td>
-                <td>{o.region || "—"}</td>
-                <td>{o.kp_date || "—"}</td>
-                <td>{formatDate(o.updated_at)}</td>
-                <td className="kp-list__actions">
-                  <button
-                    type="button"
-                    className="kp-list__action-btn"
-                    onClick={() => handleClone(o.id)}
-                    disabled={cloningId === o.id || deletingId === o.id}
-                  >
-                    {cloningId === o.id ? "Копирование..." : "Создать на основе"}
-                  </button>
-                  <button
-                    type="button"
-                    className="kp-list__action-btn kp-list__action-btn--danger"
-                    onClick={() => handleDelete(o)}
-                    disabled={deletingId === o.id || cloningId === o.id}
-                    aria-label="Удалить КП"
-                  >
-                    {deletingId === o.id ? "Удаление..." : "Удалить"}
-                  </button>
-                </td>
-              </tr>
+                </div>
+                <dl className="kp-list__card-meta">
+                  <div className="kp-list__card-row">
+                    <dt>Регион</dt>
+                    <dd>{o.region || "—"}</dd>
+                  </div>
+                  <div className="kp-list__card-row">
+                    <dt>Дата КП</dt>
+                    <dd>{o.kp_date || "—"}</dd>
+                  </div>
+                  <div className="kp-list__card-row">
+                    <dt>Обновлено</dt>
+                    <dd>{formatDate(o.updated_at)}</dd>
+                  </div>
+                </dl>
+                <div className="kp-list__card-actions">{renderOfferActions(o)}</div>
+              </article>
             ))}
-          </tbody>
-        </table>
+          </div>
+
+          <table className="kp-list__table">
+            <thead>
+              <tr>
+                <th className="kp-list__num-col">№</th>
+                <th>Объект</th>
+                <th>Регион</th>
+                <th>Дата КП</th>
+                <th>Обновлено</th>
+                <th className="kp-list__actions-col">Действия</th>
+              </tr>
+            </thead>
+            <tbody>
+              {offers.map((o, i) => (
+                <tr key={o.id}>
+                  <td className="kp-list__num-cell">{i + 1}</td>
+                  <td>
+                    <button
+                      type="button"
+                      className="kp-list__link"
+                      onClick={() => openOffer(o.id)}
+                    >
+                      {o.object_name || "(без названия)"}
+                    </button>
+                  </td>
+                  <td>{o.region || "—"}</td>
+                  <td>{o.kp_date || "—"}</td>
+                  <td>{formatDate(o.updated_at)}</td>
+                  <td className="kp-list__actions">{renderOfferActions(o)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </>
       )}
     </div>
   );
