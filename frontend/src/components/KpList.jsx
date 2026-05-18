@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
+import { useOfferEditSession } from "../stores/offerEditSessionStore.js";
 import {
   cloneOffer,
   createOffer,
@@ -25,7 +26,9 @@ function formatDate(iso) {
 
 export default function KpList() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { isAuthed, status } = useAuth();
+  const { isEditingDraft, activeOfferId } = useOfferEditSession();
   const [offers, setOffers] = useState([]);
   const [loadStatus, setLoadStatus] = useState("idle");
   const [error, setError] = useState(null);
@@ -49,6 +52,15 @@ export default function KpList() {
       }
     }
   }, []);
+
+  useEffect(() => {
+    const autoOpenId =
+      location.state?.autoOpenOfferId ||
+      (isEditingDraft ? activeOfferId : null);
+    if (autoOpenId) {
+      navigate(`/kp/${autoOpenId}`, { replace: true });
+    }
+  }, [location.state, isEditingDraft, activeOfferId, navigate]);
 
   useEffect(() => {
     if (status === "loading") return;
@@ -165,7 +177,13 @@ export default function KpList() {
                   <button
                     type="button"
                     className="kp-list__link"
-                    onClick={() => navigate(`/kp/${o.id}`)}
+                    onClick={() => {
+                      if (isEditingDraft && activeOfferId) {
+                        navigate(`/kp/${activeOfferId}`);
+                        return;
+                      }
+                      navigate(`/kp/${o.id}`);
+                    }}
                   >
                     {o.object_name || "(без названия)"}
                   </button>

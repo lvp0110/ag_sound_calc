@@ -17,9 +17,14 @@ import { calculateAreaAndPerimeter, getConstructionCode } from "../utils/calcula
 import { exportTablesToExcel, copyMaterialsToClipboard } from "../utils/excelExport";
 import { calculateConstruction } from "../services/constructionApi";
 import { createOffer } from "../services/offersApi";
-import { buildCreateOfferPayload } from "../utils/offerMapper";
+import {
+  buildCreateOfferPayload,
+  buildDraftSyncFromCalculator,
+} from "../utils/offerMapper";
 import { useAuth } from "../context/AuthContext.jsx";
 import { useCalcField } from "../stores/calculatorStore.js";
+import { useOfferEditSession } from "../stores/offerEditSessionStore.js";
+import { updateOffer } from "../services/offersApi";
 import ItemsList from "./ItemsList";
 import SelectedItemForms from "./SelectedItemForms";
 import ConstructionList from "./tables/ConstructionList";
@@ -28,6 +33,12 @@ const Calculator = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const { isAuthed, openLoginModal } = useAuth();
+  const {
+    activeOfferId,
+    isEditingDraft,
+    kpSnapshot,
+    startDraft,
+  } = useOfferEditSession();
 
   // Persistent-поля: живут в zustand-сторе (sessionStorage), переживают
   // переходы по страницам в рамках сессии. См. stores/calculatorStore.js.
@@ -317,7 +328,8 @@ const Calculator = () => {
         constrToCalc: ConstrToCalc,
       });
       const offer = await createOffer(payload);
-      navigate(`/kp/${offer.id}`);
+      startDraft(offer.id);
+      navigate("/kp/list", { state: { autoOpenOfferId: offer.id } });
     } catch (err) {
       setModal({
         isOpen: true,
@@ -331,7 +343,7 @@ const Calculator = () => {
     } finally {
       setIsSubmittingKp(false);
     }
-  }, [ConstrToCalcToSent, ConstrToCalc, navigate]);
+  }, [ConstrToCalcToSent, ConstrToCalc, navigate, startDraft]);
 
   /**
    * «Сделать КП»: либо сразу создаёт оффер (если авторизован), либо открывает
@@ -371,6 +383,46 @@ const Calculator = () => {
   const handleOpenPrice = () => {
     navigate("/price");
   };
+
+  const handleReturnToKp = useCallback(async () => {
+    if (!activeOfferId || ConstrToCalcToSent.length === 0) {
+      navigate(`/kp/${activeOfferId}`);
+      return;
+    }
+    setIsSubmittingKp(true);
+    try {
+      const patchBody = buildDraftSyncFromCalculator({
+        constrToCalcToSent: ConstrToCalcToSent,
+        materialsByConstruction,
+        kpSnapshot,
+      });
+      await updateOffer(activeOfferId, patchBody);
+      navigate(`/kp/${activeOfferId}`);
+    } catch (err) {
+      setModal({
+        isOpen: true,
+        title: "Ошибка",
+        html: `Не удалось обновить КП.<br><br>${err?.message || ""}`,
+        icon: "error",
+        imageUrl: null,
+        confirmButtonText: "OK",
+        confirmButtonColor: "#6cabc8",
+      });
+    } finally {
+      setIsSubmittingKp(false);
+    }
+  }, [
+    activeOfferId,
+    ConstrToCalcToSent,
+    materialsByConstruction,
+    kpSnapshot,
+    navigate,
+  ]);
+
+  const showMakeKpButton = isAuthed
+    ? !isEditingDraft && ConstrToCalcToSent.length > 0
+    : true;
+  const showReturnToKpButton = isAuthed && isEditingDraft;
 
   const addConstrToCalc = useCallback(async () => {
     const inputError = validateInput(
@@ -848,16 +900,32 @@ const Calculator = () => {
                                 onDelete={delConstrFromList}
                               />
                             )}
-                          {template != null && (
+                          {template != null &&
+                            (showReturnToKpButton || showMakeKpButton) && (
                             <div className="tables-and-buttons-footer">
-                              <button
-                                type="button"
-                                onClick={handleMakeKP}
-                                className="counter__button_plus"
-                                disabled={isSubmittingKp}
-                              >
-                                {isSubmittingKp ? "Создание КП..." : "Сделать КП"}
-                              </button>
+                              {showReturnToKpButton ? (
+                                <button
+                                  type="button"
+                                  onClick={handleReturnToKp}
+                                  className="counter__button_plus"
+                                  disabled={isSubmittingKp}
+                                >
+                                  {isSubmittingKp
+                                    ? "Обновление КП..."
+                                    : "Вернуться в КП"}
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={handleMakeKP}
+                                  className="counter__button_plus"
+                                  disabled={isSubmittingKp}
+                                >
+                                  {isSubmittingKp
+                                    ? "Создание КП..."
+                                    : "Сделать КП"}
+                                </button>
+                              )}
                             </div>
                           )}
                         </div>

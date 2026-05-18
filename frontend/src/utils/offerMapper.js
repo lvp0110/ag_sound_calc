@@ -112,6 +112,54 @@ export function mapOfferResponseToKpView(offer, { titleByCode = new Map() } = {}
   };
 }
 
+// ─── draft sync (калькулятор → черновик КП без финального «Сохранить») ───────
+
+/**
+ * PATCH при «Вернуться в КП»: конструкции из калькулятора + форма/услуги/доп. материалы
+ * из kpSnapshot (несохранённые правки на странице КП).
+ */
+export function buildDraftSyncFromCalculator({
+  constrToCalcToSent,
+  materialsByConstruction,
+  kpSnapshot = null,
+}) {
+  const oldKeyIds = kpSnapshot?.calcTables?.ConstrToCalc?.map((c) => c.key_id) || [];
+  const montageByKeyId = kpSnapshot?.montageByKeyId || {};
+
+  const constructions = (constrToCalcToSent || []).map((calcParams, i) => {
+    const materials = materialsByConstruction?.[i]?.data || [];
+    const legacyKeyId = oldKeyIds[i];
+    const montageRow = legacyKeyId ? montageByKeyId[legacyKeyId] : null;
+    const montage = montageRow
+      ? [
+          {
+            name: "Монтаж",
+            price: parseNumber(montageRow.price),
+            count: parseNumber(montageRow.quantity),
+            unit: montageRow.unit || "",
+          },
+        ]
+      : [];
+    return { calc_params: calcParams, materials, montage };
+  });
+
+  const payload = { constructions };
+
+  if (kpSnapshot?.form) {
+    payload.form = mapFormToApi(kpSnapshot.form);
+  }
+  if (kpSnapshot?.serviceRows) {
+    payload.services = kpSnapshot.serviceRows.map(mapServiceRowToApi).filter(Boolean);
+  }
+  if (kpSnapshot?.materialRows) {
+    payload.additional_materials = kpSnapshot.materialRows
+      .map(mapMaterialRowToApi)
+      .filter(Boolean);
+  }
+
+  return payload;
+}
+
 // ─── update ─────────────────────────────────────────────────────────────────
 
 /**

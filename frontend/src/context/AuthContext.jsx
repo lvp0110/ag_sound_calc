@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import * as authApi from "../services/authApi.js";
+import { useOfferEditSessionStore } from "../stores/offerEditSessionStore.js";
 
 const AuthContext = createContext(null);
 
@@ -44,6 +45,7 @@ export function AuthProvider({ children }) {
   // глобальный слушатель: apiClient эмитит при 401 + провалившемся refresh
   useEffect(() => {
     const handler = () => {
+      useOfferEditSessionStore.getState().clearSession();
       setUser(null);
       setStatus("anon");
       setLoginModal({ isOpen: true });
@@ -70,6 +72,7 @@ export function AuthProvider({ children }) {
 
   const logout = useCallback(async () => {
     await authApi.logout();
+    useOfferEditSessionStore.getState().clearSession();
     setUser(null);
     setStatus("anon");
   }, []);

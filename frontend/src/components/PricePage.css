@@ -159,3 +159,39 @@
 .price-page__add-button:hover {
   background: #e2f0f7;
 }
+
+.price-page__row--selected {
+  background: #e8f4fa;
+}
+
+.price-page__row--selected td {
+  background: #e8f4fa;
+}
+
+.price-page__add-button--selected {
+  background: #6cabc8;
+  color: #fff;
+  border-color: #5a9ab5;
+}
+
+.price-page__draft-hint {
+  margin: 0 4px 8px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: #3d6b82;
+}
+
+.price-page__return-kp {
+  width: auto;
+  height: auto;
+  margin: 0;
+  padding: 0;
+  border: none;
+  box-shadow: none;
+  background: none;
+  color: #3d6b82;
+  font-size: inherit;
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+}

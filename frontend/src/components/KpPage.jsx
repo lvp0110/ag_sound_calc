@@ -18,6 +18,8 @@ import {
 import { getAllIsolationConstr } from "../services/api";
 import { useAuth } from "../context/AuthContext.jsx";
 import { setPriceRegion, usePriceData } from "../services/priceApi";
+import { useOfferEditSession } from "../stores/offerEditSessionStore.js";
+import { useCalculatorStore } from "../stores/calculatorStore.js";
 import "./Calculator.css";
 import "./KpPage.css";
 
@@ -262,6 +264,14 @@ const KpPage = () => {
   const navigate = useNavigate();
   const { isAuthed, status: authStatus } = useAuth();
   const { regions, selectedRegion } = usePriceData();
+  const {
+    isEditingDraft,
+    activeOfferId,
+    kpSnapshot,
+    stashKpSnapshot,
+    clearSession,
+    setSelectedPriceArticles,
+  } = useOfferEditSession();
 
   const [form, setForm] = useState(initialForm);
   const [calcTables, setCalcTables] = useState({
@@ -357,23 +367,38 @@ const KpPage = () => {
         const view = mapOfferResponseToKpView(offer, { titleByCode });
         originalConstructionsRef.current = offer.constructions || [];
 
-        setForm(view.form);
+        const snap =
+          kpSnapshot && activeOfferId === id ? kpSnapshot : null;
+
+        setForm(snap?.form ?? view.form);
         setCalcTables({
           tableConstrToCalc: view.constructions.length > 0 ? {} : null,
           ConstrToCalc: view.constructions,
           materialsByConstruction: view.materialsByConstruction,
         });
-        setMontageByKeyId(view.montageByKeyId);
+        setMontageByKeyId(snap?.montageByKeyId ?? view.montageByKeyId);
         setServiceRows(
-          view.serviceRows.length > 0 ? view.serviceRows : INITIAL_SERVICE_ROWS,
+          snap?.serviceRows ??
+            (view.serviceRows.length > 0
+              ? view.serviceRows
+              : INITIAL_SERVICE_ROWS),
         );
-        // Доп. материалы хранятся независимо (offer.additional_materials).
-        // Если пустой список — показываем одну пустую строку для удобства добавления.
         setMaterialRows(
-          view.materialRows.length > 0
-            ? view.materialRows
-            : [newCustomMaterialRow()],
+          snap?.materialRows ??
+            (view.materialRows.length > 0
+              ? view.materialRows
+              : [newCustomMaterialRow()]),
         );
+        if (snap?.kpSettings) setKpSettings(snap.kpSettings);
+        if (snap?.manualMontagePriceByKeyId) {
+          setManualMontagePriceByKeyId(snap.manualMontagePriceByKeyId);
+        }
+        if (snap?.materialRows?.length) {
+          const articles = snap.materialRows
+            .map((r) => String(r.sourceArticle ?? "").trim())
+            .filter(Boolean);
+          if (articles.length) setSelectedPriceArticles(articles);
+        }
         setLoadStatus("loaded");
       } catch (err) {
         if (cancelled) return;
@@ -392,7 +417,7 @@ const KpPage = () => {
     return () => {
       cancelled = true;
     };
-  }, [id, isAuthed, authStatus]);
+  }, [id, isAuthed, authStatus, kpSnapshot, activeOfferId]); // kpSnapshot: доп. материалы/форма после прайса
 
   // Авто-заполнение montage по kpSettings и площади конструкций (фича из main).
   // После загрузки оффера или ручной правки kpSettings/конструкций пересчитываем
@@ -473,6 +498,8 @@ const KpPage = () => {
         originalConstructionsFromOffer: originalConstructionsRef.current,
       });
       await updateOffer(id, payload);
+      clearSession();
+      useCalculatorStore.getState().reset();
       navigate("/kp/list");
     } catch (err) {
       setSaveError(err?.message || "Не удалось сохранить.");
@@ -573,8 +600,35 @@ const KpPage = () => {
     setSettingsSectionOpen((prev) => !prev);
   };
 
+  const stashAndLeaveKp = useCallback(() => {
+    stashKpSnapshot({
+      form,
+      calcTables,
+      montageByKeyId,
+      serviceRows,
+      materialRows,
+      manualMontagePriceByKeyId,
+      kpSettings,
+    });
+  }, [
+    stashKpSnapshot,
+    form,
+    calcTables,
+    montageByKeyId,
+    serviceRows,
+    materialRows,
+    manualMontagePriceByKeyId,
+    kpSettings,
+  ]);
+
   const openPriceForMaterialSelection = () => {
+    stashAndLeaveKp();
     navigate("/price");
+  };
+
+  const openCalculatorForConstructions = () => {
+    stashAndLeaveKp();
+    navigate("/calc");
   };
 
   const updateMontageRow = useCallback(
@@ -770,13 +824,15 @@ const KpPage = () => {
       <div className="kp-page">
         <main className="kp-page__main">
           <p className="kp-page__tables-empty">{loadError}</p>
-          <button
-            type="button"
-            onClick={() => navigate("/kp/list")}
-            className="add_design_button"
-          >
-            К списку КП
-          </button>
+          {!isEditingDraft && (
+            <button
+              type="button"
+              onClick={() => navigate("/kp/list")}
+              className="add_design_button"
+            >
+              К списку КП
+            </button>
+          )}
         </main>
       </div>
     );
@@ -963,7 +1019,7 @@ const KpPage = () => {
               <button
                 type="button"
                 className="kp-page__link-btn"
-                onClick={() => navigate("/calc")}
+                onClick={openCalculatorForConstructions}
               >
                 калькулятор
               </button>

@@ -1,7 +1,9 @@
 import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { formatRub } from "./tables/MaterialsList";
 import { setPriceRegion, usePriceData } from "../services/priceApi";
 import { filterPriceRows } from "./priceSearch";
+import { useOfferEditSession } from "../stores/offerEditSessionStore.js";
 import "./PricePage.css";
 
 const REGION_SELECT_OPTIONS = [
@@ -29,8 +31,38 @@ function getPriceByRegion(row, region, key) {
   return row[key];
 }
 
+function newMaterialRowFromPrice(row, selectedRegion) {
+  const id =
+    typeof crypto !== "undefined" && crypto.randomUUID
+      ? crypto.randomUUID()
+      : `mat-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+  const pricePerUnit = getPriceByRegion(row, selectedRegion, "pricePerUnit");
+  const pricePerM2 = getPriceByRegion(row, selectedRegion, "pricePerM2");
+  const price =
+    pricePerUnit != null && !Number.isNaN(Number(pricePerUnit))
+      ? pricePerUnit
+      : pricePerM2;
+  return {
+    id,
+    name: row.name?.trim() ? row.name : String(row.article ?? ""),
+    price: price != null && !Number.isNaN(Number(price)) ? String(price) : "",
+    quantity: "",
+    unit: "",
+    sourceArticle: row.article ? String(row.article) : "",
+  };
+}
+
 const PricePage = () => {
+  const navigate = useNavigate();
   const [query, setQuery] = useState("");
+  const {
+    isEditingDraft,
+    activeOfferId,
+    selectedPriceArticles,
+    togglePriceArticle,
+    kpSnapshot,
+    updateKpSnapshotMaterialRows,
+  } = useOfferEditSession();
   const {
     list: priceList,
     loaded,
@@ -65,16 +97,55 @@ const PricePage = () => {
     setPriceRegion(selectedOption.regionKey);
   };
 
-  // TODO: раньше добавляло строку в sessionStorage.calculator_state.additionalMaterials.
-  // После перехода на backend-flow такой передачи нет — строка попадает только
-  // в локальный клипборд (скопировать артикул). Интеграцию в текущий оффер нужно
-  // сделать отдельным этапом (потребует знать offerId контекстно).
+  const selectedSet = useMemo(
+    () => new Set(selectedPriceArticles),
+    [selectedPriceArticles]
+  );
+
   const addRowToAdditionalMaterials = (row) => {
-    try {
-      navigator.clipboard?.writeText(String(row.article ?? row.name ?? ""));
-    } catch {
-      // ignore
+    if (!isEditingDraft) {
+      try {
+        navigator.clipboard?.writeText(String(row.article ?? row.name ?? ""));
+      } catch {
+        // ignore
+      }
+      return;
     }
+
+    const article = String(row.article ?? "").trim();
+    if (!article) return;
+
+    const wasSelected = selectedSet.has(article);
+    togglePriceArticle(article);
+
+    const baseRows = kpSnapshot?.materialRows?.length
+      ? kpSnapshot.materialRows
+      : [{ id: "empty", name: "", price: "", quantity: "", unit: "" }];
+
+    let nextRows;
+    if (wasSelected) {
+      nextRows = baseRows.filter(
+        (r) => String(r.sourceArticle ?? "").trim() !== article
+      );
+      if (nextRows.length === 0) {
+        nextRows = [
+          {
+            id: `mat-${Date.now()}`,
+            name: "",
+            price: "",
+            quantity: "",
+            unit: "",
+          },
+        ];
+      }
+    } else {
+      const withoutEmpty = baseRows.filter(
+        (r) => r.name?.trim() || r.price?.trim() || r.quantity?.trim()
+      );
+      nextRows = [...withoutEmpty, newMaterialRowFromPrice(row, selectedRegion)];
+    }
+
+    updateKpSnapshotMaterialRows(nextRows);
   };
 
   const filtered = useMemo(() => {
@@ -90,6 +161,19 @@ const PricePage = () => {
           руб./ед., где указано). Источник: API{" "}
           <code className="price-page__code">/api/v2/data</code>.
         </p>
+        {isEditingDraft && (
+          <p className="price-page__draft-hint">
+            Выбранные позиции подсвечены и попадут в блок «Дополнительные
+            материалы» КП.{" "}
+            <button
+              type="button"
+              className="price-page__return-kp"
+              onClick={() => navigate(`/kp/${activeOfferId}`)}
+            >
+              Вернуться в КП
+            </button>
+          </p>
+        )}
         {loading && !loaded && (
           <p className="price-page__subtitle">Загрузка прайса...</p>
         )}
@@ -145,41 +229,51 @@ const PricePage = () => {
               </tr>
             </thead>
             <tbody>
-              {filtered.map((row) => (
-                <tr key={`${row.article}-${selectedRegion || "default"}`}>
-                  <td className="price-page__article">{row.article}</td>
-                  <td className="price-page__name">
-                    {row.name?.trim() ? row.name : "—"}
-                  </td>
-                  <td>
-                    {formatPriceCell(
-                      getPriceByRegion(row, selectedRegion, "pricePerM2")
-                    )}
-                  </td>
-                  <td>
-                    {formatPriceCell(
-                      getPriceByRegion(row, selectedRegion, "pricePerUnit")
-                    )}
-                  </td>
-                  <td>
-                    <button
-                      type="button"
-                      className="price-page__add-button"
-                      onClick={() => addRowToAdditionalMaterials(row)}
-                      aria-label={`Добавить материал ${row.name?.trim() || row.article} в дополнительные материалы`}
-                    >
-                      Выбрать
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {filtered.map((row) => {
+                const article = String(row.article ?? "").trim();
+                const isSelected =
+                  isEditingDraft && article && selectedSet.has(article);
+                return (
+                  <tr
+                    key={`${row.article}-${selectedRegion || "default"}`}
+                    className={
+                      isSelected ? "price-page__row--selected" : undefined
+                    }
+                  >
+                    <td className="price-page__article">{row.article}</td>
+                    <td className="price-page__name">
+                      {row.name?.trim() ? row.name : "—"}
+                    </td>
+                    <td>
+                      {formatPriceCell(
+                        getPriceByRegion(row, selectedRegion, "pricePerM2")
+                      )}
+                    </td>
+                    <td>
+                      {formatPriceCell(
+                        getPriceByRegion(row, selectedRegion, "pricePerUnit")
+                      )}
+                    </td>
+                    <td>
+                      <button
+                        type="button"
+                        className={`price-page__add-button${
+                          isSelected ? " price-page__add-button--selected" : ""
+                        }`}
+                        onClick={() => addRowToAdditionalMaterials(row)}
+                        aria-label={`${
+                          isSelected ? "Снять выбор" : "Выбрать"
+                        } материал ${row.name?.trim() || row.article}`}
+                      >
+                        {isSelected ? "Выбрано" : "Выбрать"}
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
-
-        {filtered.length === 0 && (
-          <p className="price-page__empty">Ничего не найдено.</p>
-        )}
       </main>
     </div>
   );
