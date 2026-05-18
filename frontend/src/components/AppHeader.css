@@ -1,3 +1,8 @@
+:root {
+  /* logo 65px + padding 10px×2; overwritten by ResizeObserver in AppHeader */
+  --app-header-inner-height: 85px;
+}
+
 .app-header {
   position: sticky;
   top: 0;
@@ -44,8 +49,23 @@
   gap: 4px 8px;
 }
 
+.app-header__icon {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.app-header__icon-svg {
+  display: block;
+  width: 1em;
+  height: 1em;
+}
+
 .app-header__link {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   padding: 8px 12px;
   border-radius: 6px;
   font-size: 14px;
@@ -64,12 +84,23 @@
 
 .app-header__link--active {
   background: #6cabc8;
-  color: #fff;
+  color: white;
+}
+
+.app-header__link--active .app-header__icon,
+.app-header__link--active .app-header__label {
+  /* Override global `span { color: #878181 }` from Calculator.css */
+  color: white;
 }
 
 .app-header__link--active:hover {
   background: #5a9bb8;
-  color: #fff;
+  color: white;
+}
+
+.app-header__link--active:hover .app-header__icon,
+.app-header__link--active:hover .app-header__label {
+  color: white;
 }
 
 .app-header__auth {
@@ -100,6 +131,7 @@
   box-shadow: none;
   display: inline-flex;
   align-items: center;
+  gap: 6px;
   padding: 6px 14px;
   border: 1px solid #6cabc8;
   background: transparent;
@@ -119,14 +151,115 @@
   color: #fff;
 }
 
-@media (max-width: 640px) {
-  .app-header__link {
-    padding: 8px 10px;
-    font-size: 13px;
+@media (max-width: 699px) {
+  .app-header__inner {
+    flex-wrap: nowrap;
+    justify-content: space-evenly;
+    gap: 0;
+    padding: 10px 12px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+  }
+
+  .app-header__nav,
+  .app-header__auth {
+    display: contents;
+  }
+
+  .app-header__auth {
+    margin-left: 0;
+  }
+
+  .app-header__icon {
+    display: flex;
+    width: 55px;
+    height: 55px;
+    font-size: 40px;
+  }
+
+  .app-header__icon-svg {
+    width: 40px;
+    height: 40px;
+  }
+
+  .app-header__label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .app-header__link,
+  .app-header__auth-btn,
+  .app-header__user {
+    position: relative;
+    flex-shrink: 0;
+    justify-content: center;
+    width: 55px;
+    height: 55px;
+    padding: 0;
+    border-radius: 50%;
+    font-size: 0;
   }
 
   .app-header__user {
-    max-width: 120px;
-    font-size: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    max-width: none;
+    overflow: visible;
+    text-overflow: unset;
+    white-space: normal;
+    color: #3d7a96;
+    pointer-events: auto;
+  }
+
+  .app-header__auth-btn {
+    border: none;
+    background: transparent;
+    color: #3d7a96;
+  }
+
+  .app-header__auth-btn:hover {
+    background: rgba(108, 171, 200, 0.2);
+    color: #2a5f78;
+  }
+
+  .app-header__link:hover,
+  .app-header__user:hover {
+    background: rgba(108, 171, 200, 0.2);
+    color: #2a5f78;
+  }
+
+  .app-header__link--active {
+    background: #6cabc8;
+    color: white;
+  }
+
+  .app-header__link--active .app-header__icon,
+  .app-header__link--active .app-header__label {
+    color: white;
+  }
+
+  .app-header__link--active:hover {
+    background: #5a9bb8;
+    color: white;
+  }
+
+  .app-header__link--active:hover .app-header__icon,
+  .app-header__link--active:hover .app-header__label {
+    color: white;
+  }
+}
+
+@media (max-width: 364px) {
+  .app-header__user {
+    display: none;
   }
 }

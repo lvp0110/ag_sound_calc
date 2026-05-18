@@ -11,13 +11,6 @@ const API_BASE_URL = `${BASE_URL}/api/v1`;
 /** Каталог конструкций на внешнем calc-сервисе иногда отвечает 25–35s. */
 const ALL_ISOLATION_CONSTR_TIMEOUT_MS = 60000;
 
-/** Относительный путь с учётом `base` из Vite (GitHub Pages и т.д.) */
-const withAppBase = (pathStartingWithSlash) => {
-  const base = import.meta.env.BASE_URL || '/';
-  const normalized = base === '/' ? '' : base.replace(/\/$/, '');
-  return `${normalized}${pathStartingWithSlash}`;
-};
-
 const resolveConstrPreviewUrl = (processedImageName) => {
   return `${BASE_URL}/api/v2/public/image/${processedImageName}`;
 };
@@ -119,11 +112,6 @@ export const getImageUrl = (imageName) => {
     }
   } else if (imageName.startsWith('/')) {
     processedImageName = imageName.slice(1);
-  }
-
-  // Иконки секций из public/ (не эндпойнт API)
-  if (/^icon_[^/]+\.svg$/i.test(processedImageName)) {
-    return withAppBase(`/${processedImageName}`);
   }
 
   return resolveConstrPreviewUrl(processedImageName);
