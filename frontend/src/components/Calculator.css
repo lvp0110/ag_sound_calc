@@ -527,13 +527,13 @@ button::-moz-focus-inner {
 }
 
 .section-icon {
-  width: 80px;
-  height: 80px;
-  min-width: 80px;
-  min-height: 80px;
-  max-width: 80px;
-  max-height: 80px;
-  flex: 0 0 80px;
+  width: 180px;
+  height: 180px;
+  min-width: 180px;
+  min-height: 180px;
+  max-width: 180px;
+  max-height: 180px;
+  flex: 0 0 180px;
   background: cadetblue;
   border-radius: 10px;
   display: block;
@@ -544,20 +544,9 @@ button::-moz-focus-inner {
   z-index: 0;
 }
 
-@media screen and (min-width: 768px) {
-  .section-icon {
-    width: 180px;
-    height: 180px;
-    min-width: 180px;
-    min-height: 180px;
-    max-width: 180px;
-    max-height: 180px;
-    flex: 0 0 180px;
-  }
-}
-
 /* Блок для выбранного элемента */
 .selected-item-container {
+  scroll-margin-top: var(--app-header-inner-height);
   margin-top: 20px;
   padding: 15px;
   border: 1px solid #ddd;
@@ -1126,9 +1115,13 @@ button::-moz-focus-inner {
   .main-content {
     --calc-viewport-block: calc(100dvh - var(--app-header-inner-height));
     /* ~2 ряда плиток в секции; отступы main-content, section, заголовок, gap */
+    --calc-section-overhead: 11.5rem;
     --calc-tile-size: clamp(
       96px,
-      min(calc(50vw - 24px), calc((var(--calc-viewport-block) - 11.5rem) / 2)),
+      min(
+        calc(50vw - 24px),
+        calc((var(--calc-viewport-block) - var(--calc-section-overhead)) / 2)
+      ),
       200px
     );
   }
@@ -1158,7 +1151,7 @@ button::-moz-focus-inner {
     height: auto;
     min-height: clamp(
       72px,
-      calc((var(--calc-viewport-block) - 11.5rem) / 4),
+      calc((var(--calc-viewport-block) - var(--calc-section-overhead)) / 4),
       120px
     );
   }
@@ -1257,5 +1250,83 @@ button::-moz-focus-inner {
   .content-calc .data td:has(.counter__button_minus) {
     min-width: 50px !important;
     white-space: nowrap;
+  }
+}
+
+/* Узкий экран: колоночный заголовок, 4 секции в высоту viewport */
+@media screen and (max-width: 399px) {
+  .main-content {
+    --calc-section-count: 4;
+    --calc-section-chrome: calc(10px + 20px + var(--calc-section-count) * 10px);
+    --calc-section-slot: calc(
+      (100dvh - var(--app-header-inner-height) - var(--calc-section-chrome)) /
+        var(--calc-section-count)
+    );
+    --calc-section-inner: calc(var(--calc-section-slot) - 30px);
+    --calc-section-header-text: 2.8em;
+    --calc-section-icon-size: min(
+      180px,
+      max(
+        48px,
+        calc(
+          var(--calc-section-inner) - 20px - 10px -
+            var(--calc-section-header-text) - 6px
+        )
+      )
+    );
+    --calc-section-overhead: calc(
+      30px + 10px + 20px + var(--calc-section-icon-size) + 10px +
+        var(--calc-section-header-text) + 10px
+    );
+    --calc-tile-size: clamp(
+      96px,
+      min(
+        calc(50vw - 24px),
+        calc((var(--calc-viewport-block) - var(--calc-section-overhead)) / 2)
+      ),
+      200px
+    );
+    flex: 1;
+    min-height: 0;
+  }
+
+  .main-content:not(:has(.items.content-item)) {
+    align-self: stretch;
+    height: calc(100dvh - var(--app-header-inner-height) - 10px);
+    max-height: calc(100dvh - var(--app-header-inner-height) - 10px);
+    overflow: hidden;
+  }
+
+  .section-title {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 6px 0;
+    font-size: clamp(14px, 3.5vw, 20px);
+    line-height: 1.2;
+  }
+
+  .section-container {
+    flex: 1 1 0;
+    min-height: 0;
+    max-height: var(--calc-section-slot);
+    overflow: hidden;
+    justify-content: center;
+  }
+
+  .section-container:has(.items.content-item) {
+    flex: 0 0 auto;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .section-icon {
+    width: var(--calc-section-icon-size);
+    height: var(--calc-section-icon-size);
+    min-width: var(--calc-section-icon-size);
+    min-height: var(--calc-section-icon-size);
+    max-width: var(--calc-section-icon-size);
+    max-height: var(--calc-section-icon-size);
+    flex: 0 0 var(--calc-section-icon-size);
   }
 }

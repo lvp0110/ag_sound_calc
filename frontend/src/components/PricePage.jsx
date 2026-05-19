@@ -102,8 +102,6 @@ const PricePage = () => {
   } = useOfferEditSession();
   const {
     list: priceList,
-    loaded,
-    loading,
     error,
     regions,
     selectedRegion,
@@ -193,11 +191,6 @@ const PricePage = () => {
     <div className="price-page">
       <main className="price-page__main">
         <h1 className="price-page__title">Прайс</h1>
-        <p className="price-page__subtitle">
-          Ориентировочные наименования и цены по выбранному региону (руб./м² и
-          руб./ед., где указано). Источник: API{" "}
-          <code className="price-page__code">/api/v2/data</code>.
-        </p>
         {isEditingDraft && (
           <p className="price-page__draft-hint">
             Выбранные позиции подсвечены и попадут в блок «Дополнительные
@@ -210,9 +203,6 @@ const PricePage = () => {
               Вернуться в КП
             </button>
           </p>
-        )}
-        {loading && !loaded && (
-          <p className="price-page__subtitle">Загрузка прайса...</p>
         )}
         {error && (
           <p className="price-page__empty">

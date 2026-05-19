@@ -22,20 +22,6 @@
   color: #6d7277;
 }
 
-.price-page__subtitle {
-  margin: 0 4px 8px;
-  font-size: 13px;
-  line-height: 1.45;
-  color: #5a5e62;
-}
-
-.price-page__code {
-  font-size: 12px;
-  padding: 2px 6px;
-  background: #eef6fa;
-  border-radius: 4px;
-}
-
 .price-page__search-label {
   font-size: 13px;
   font-weight: 700;
