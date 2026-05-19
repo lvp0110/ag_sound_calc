@@ -8,7 +8,13 @@ import {
   deleteOffer,
   listOffers,
 } from "../services/offersApi";
+import { getRegionCityLabel } from "../constants/regionSelectOptions.js";
 import "./KpList.css";
+
+function formatRegionCell(region) {
+  const label = getRegionCityLabel(region);
+  return label || "—";
+}
 
 function formatDate(iso) {
   if (!iso) return "";
@@ -212,7 +218,7 @@ export default function KpList() {
                 <dl className="kp-list__card-meta">
                   <div className="kp-list__card-row">
                     <dt>Регион</dt>
-                    <dd>{o.region || "—"}</dd>
+                    <dd>{formatRegionCell(o.region)}</dd>
                   </div>
                   <div className="kp-list__card-row">
                     <dt>Дата КП</dt>
@@ -252,7 +258,7 @@ export default function KpList() {
                       {o.object_name || "(без названия)"}
                     </button>
                   </td>
-                  <td>{o.region || "—"}</td>
+                  <td>{formatRegionCell(o.region)}</td>
                   <td>{o.kp_date || "—"}</td>
                   <td>{formatDate(o.updated_at)}</td>
                   <td className="kp-list__actions">{renderOfferActions(o)}</td>

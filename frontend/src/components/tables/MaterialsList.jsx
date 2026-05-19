@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   convertUnits,
   filterVariable,
@@ -10,6 +10,9 @@ import {
   getPricePerUnit,
   usePriceData,
 } from "../../services/priceApi";
+import { KpNarrowExpandableRow } from "../kp/KpNarrowExpandableRow";
+import { useKpExpandedRow } from "../../hooks/useKpExpandedRow";
+import { useKpNarrowViewport } from "../../hooks/useKpNarrowViewport";
 import "./MaterialsList.css";
 
 export const formatRub = (value) => {
@@ -118,22 +121,10 @@ const MaterialsList = ({
   editablePriceCells = false,
   onKpMaterialPriceChange,
 }) => {
-  const [isNarrowScreen, setIsNarrowScreen] = useState(false);
   const [sectionOpen, setSectionOpen] = useState(false);
+  const isNarrowScreen = useKpNarrowViewport();
+  const { expandedKey, toggleRow } = useKpExpandedRow();
   usePriceData();
-
-  useEffect(() => {
-    const mediaQuery = window.matchMedia("(max-width: 768px)");
-    const handleChange = (event) => setIsNarrowScreen(event.matches);
-
-    // Устанавливаем начальное значение и подписываемся на изменения ширины
-    handleChange(mediaQuery);
-    mediaQuery.addEventListener("change", handleChange);
-
-    return () => {
-      mediaQuery.removeEventListener("change", handleChange);
-    };
-  }, []);
 
   const data = dataProp ?? calculatedMaterials?.data;
   const hasData = Array.isArray(data) && data.length > 0;
@@ -153,6 +144,11 @@ const MaterialsList = ({
   const totalSumRub = computeTotalRubForMaterialsData(data);
 
   const showBody = !collapsible || sectionOpen;
+  /** Калькулятор: на узком экране убираем колонки из DOM. КП (collapsible): все колонки в DOM, скрытие через CSS. */
+  const legacyNarrow = !collapsible && isNarrowScreen;
+  const colInDom = collapsible || !legacyNarrow;
+  const hideOnKpNarrow = collapsible ? " kp-data-col--hide-narrow" : "";
+  const kpNarrowDetail = collapsible && isNarrowScreen;
 
   const collapsibleTitle = collapsible ? (
     <span className="kp-collapsible-title-row">
@@ -199,7 +195,7 @@ const MaterialsList = ({
             {!collapsible && (
               <tr>
                 <th
-                  colSpan={isNarrowScreen ? 4 : 8}
+                  colSpan={legacyNarrow ? 4 : 8}
                   className="materials-list__section-title-th"
                 >
                   {sectionTitle}
@@ -208,14 +204,36 @@ const MaterialsList = ({
             )}
             {showBody && (
               <tr>
-                {!isNarrowScreen && <th>артикул</th>}
-                <th>название</th>
-                <th className="materials-list__col--hidden" />
-                <th>кол-во</th>
-                <th>ед.изм</th>
-                {!isNarrowScreen && <th>цена, ₽/м²</th>}
-                {!isNarrowScreen && <th>цена, ₽/ед.</th>}
-                {!isNarrowScreen && <th>сумма, ₽</th>}
+                {colInDom && (
+                  <th className={hideOnKpNarrow.trim() || undefined}>артикул</th>
+                )}
+                <th className={collapsible ? "kp-data-col--name" : undefined}>
+                  название
+                </th>
+                <th
+                  className={`materials-list__col--hidden${hideOnKpNarrow}`}
+                />
+                {colInDom && (
+                  <th className={hideOnKpNarrow.trim() || undefined}>кол-во</th>
+                )}
+                {colInDom && (
+                  <th className={hideOnKpNarrow.trim() || undefined}>ед.изм</th>
+                )}
+                {colInDom && (
+                  <th className={hideOnKpNarrow.trim() || undefined}>
+                    цена, ₽/м²
+                  </th>
+                )}
+                {colInDom && (
+                  <th className={hideOnKpNarrow.trim() || undefined}>
+                    цена, ₽/ед.
+                  </th>
+                )}
+                {colInDom && (
+                  <th className={collapsible ? "kp-data-col--sum" : undefined}>
+                    сумма, ₽
+                  </th>
+                )}
               </tr>
             )}
           </thead>
@@ -233,96 +251,175 @@ const MaterialsList = ({
                     : Material.Name != null && String(Material.Name).trim() !== ""
                     ? String(Material.Name).trim()
                     : "—";
-                return (
-                  <tr key={index}>
-                    {!isNarrowScreen && (
-                      <td>{filterVariable(Material.Code)}</td>
-                    )}
-                    <td>{materialName}</td>
-                    <td className="materials-list__col--hidden" />
-                    <td>{convertUnits(Material)}</td>
-                    <td>{Material.Units}</td>
-                    {!isNarrowScreen &&
-                      (editablePriceCells ? (
-                        <td>
-                          <input
-                            type="text"
-                            className="kp-page__services-input"
-                            value={
-                              Material.KpPricePerM2 != null &&
-                              Material.KpPricePerM2 !== ""
-                                ? String(Material.KpPricePerM2)
-                                : ""
-                            }
-                            onChange={(e) =>
-                              onKpMaterialPriceChange?.(
-                                index,
-                                "KpPricePerM2",
-                                e.target.value
-                              )
-                            }
-                            placeholder={
-                              pricePerM2 != null
-                                ? formatRub(pricePerM2)
-                                : "—"
-                            }
-                            aria-label={`Цена за м², ${materialName}`}
-                          />
-                        </td>
-                      ) : (
-                        <td>{formatRub(pricePerM2)}</td>
-                      ))}
-                    {!isNarrowScreen &&
-                      (editablePriceCells ? (
-                        <td>
-                          <input
-                            type="text"
-                            className="kp-page__services-input"
-                            value={
-                              Material.KpPricePerUnit != null &&
-                              Material.KpPricePerUnit !== ""
-                                ? String(Material.KpPricePerUnit)
-                                : ""
-                            }
-                            onChange={(e) =>
-                              onKpMaterialPriceChange?.(
-                                index,
-                                "KpPricePerUnit",
-                                e.target.value
-                              )
-                            }
-                            placeholder={
-                              pricePerUnit != null
-                                ? formatRub(pricePerUnit)
-                                : "—"
-                            }
-                            aria-label={`Цена за единицу, ${materialName}`}
-                          />
-                        </td>
-                      ) : (
-                        <td>{formatRub(pricePerUnit)}</td>
-                      ))}
-                    {!isNarrowScreen &&
-                      (editablePriceCells ? (
-                        <td>
-                          <input
-                            type="text"
-                            readOnly
-                            className="kp-page__services-input kp-page__services-input--computed"
-                            value={formatRub(sumRub)}
-                            aria-label={`Сумма, ${materialName}`}
-                          />
-                        </td>
-                      ) : (
-                        <td>{formatRub(sumRub)}</td>
-                      ))}
-                  </tr>
+                const priceM2Input = editablePriceCells ? (
+                  <input
+                    type="text"
+                    className="kp-page__services-input"
+                    value={
+                      Material.KpPricePerM2 != null &&
+                      Material.KpPricePerM2 !== ""
+                        ? String(Material.KpPricePerM2)
+                        : ""
+                    }
+                    onChange={(e) =>
+                      onKpMaterialPriceChange?.(
+                        index,
+                        "KpPricePerM2",
+                        e.target.value
+                      )
+                    }
+                    placeholder={
+                      pricePerM2 != null ? formatRub(pricePerM2) : "—"
+                    }
+                    aria-label={`Цена за м², ${materialName}`}
+                  />
+                ) : (
+                  formatRub(pricePerM2)
                 );
+                const priceUnitInput = editablePriceCells ? (
+                  <input
+                    type="text"
+                    className="kp-page__services-input"
+                    value={
+                      Material.KpPricePerUnit != null &&
+                      Material.KpPricePerUnit !== ""
+                        ? String(Material.KpPricePerUnit)
+                        : ""
+                    }
+                    onChange={(e) =>
+                      onKpMaterialPriceChange?.(
+                        index,
+                        "KpPricePerUnit",
+                        e.target.value
+                      )
+                    }
+                    placeholder={
+                      pricePerUnit != null ? formatRub(pricePerUnit) : "—"
+                    }
+                    aria-label={`Цена за единицу, ${materialName}`}
+                  />
+                ) : (
+                  formatRub(pricePerUnit)
+                );
+                const sumDisplay = editablePriceCells ? (
+                  <input
+                    type="text"
+                    readOnly
+                    className="kp-page__services-input kp-page__services-input--computed"
+                    value={formatRub(sumRub)}
+                    aria-label={`Сумма, ${materialName}`}
+                  />
+                ) : (
+                  formatRub(sumRub)
+                );
+                const showInputsInRow = !kpNarrowDetail;
+                const detailFields = kpNarrowDetail
+                  ? [
+                      {
+                        id: "article",
+                        label: "Артикул",
+                        children: filterVariable(Material.Code),
+                      },
+                      {
+                        id: "qty",
+                        label: "Кол-во",
+                        children: convertUnits(Material),
+                      },
+                      {
+                        id: "units",
+                        label: "Ед.изм",
+                        children: Material.Units ?? "—",
+                      },
+                      {
+                        id: "priceM2",
+                        label: "Цена, ₽/м²",
+                        children: priceM2Input,
+                      },
+                      {
+                        id: "priceUnit",
+                        label: "Цена, ₽/ед.",
+                        children: priceUnitInput,
+                      },
+                      {
+                        id: "sum",
+                        label: "Сумма, ₽",
+                        children: sumDisplay,
+                      },
+                    ]
+                  : [];
+                const rowCells = (
+                  <>
+                    {colInDom && (
+                      <td className={hideOnKpNarrow.trim() || undefined}>
+                        {filterVariable(Material.Code)}
+                      </td>
+                    )}
+                    <td
+                      className={collapsible ? "kp-data-col--name" : undefined}
+                    >
+                      {materialName}
+                    </td>
+                    <td
+                      className={`materials-list__col--hidden${hideOnKpNarrow}`}
+                    />
+                    {colInDom && (
+                      <td className={hideOnKpNarrow.trim() || undefined}>
+                        {convertUnits(Material)}
+                      </td>
+                    )}
+                    {colInDom && (
+                      <td className={hideOnKpNarrow.trim() || undefined}>
+                        {Material.Units}
+                      </td>
+                    )}
+                    {colInDom && (
+                      <td className={hideOnKpNarrow.trim() || undefined}>
+                        {showInputsInRow && editablePriceCells
+                          ? priceM2Input
+                          : formatRub(pricePerM2)}
+                      </td>
+                    )}
+                    {colInDom && (
+                      <td className={hideOnKpNarrow.trim() || undefined}>
+                        {showInputsInRow && editablePriceCells
+                          ? priceUnitInput
+                          : formatRub(pricePerUnit)}
+                      </td>
+                    )}
+                    {colInDom && (
+                      <td
+                        className={
+                          collapsible ? "kp-data-col--sum" : undefined
+                        }
+                      >
+                        {showInputsInRow && editablePriceCells
+                          ? sumDisplay
+                          : formatRub(sumRub)}
+                      </td>
+                    )}
+                  </>
+                );
+                if (kpNarrowDetail) {
+                  return (
+                    <KpNarrowExpandableRow
+                      key={index}
+                      rowKey={index}
+                      expandedKey={expandedKey}
+                      onToggleRow={toggleRow}
+                      narrow
+                      colSpan={8}
+                      detailFields={detailFields}
+                    >
+                      {rowCells}
+                    </KpNarrowExpandableRow>
+                  );
+                }
+                return <tr key={index}>{rowCells}</tr>;
               })
             ) : (
               <tr>
                 <td
-                  colSpan={isNarrowScreen ? 4 : 8}
+                  colSpan={legacyNarrow ? 4 : 8}
                   className="materials-list__empty-message"
                 >
                   {calculatedMaterials != null || dataProp !== undefined
@@ -337,7 +434,7 @@ const MaterialsList = ({
           <tfoot>
             <tr>
               <td
-                colSpan={isNarrowScreen ? 4 : 8}
+                colSpan={legacyNarrow ? 4 : 8}
                 className="materials-list__footer-cell"
               >
                 <div className="materials-list__footer-inner">

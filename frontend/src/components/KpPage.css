@@ -791,3 +791,151 @@
 .kp-page__link-btn:hover {
   color: #1e40af;
 }
+
+/* Таблицы КП с шапкой колонок: на экранах <768px только «название» и «сумма» */
+@media (max-width: 767px) {
+  .kp-page
+    .data.kp-data-table--starts-with-column-headers
+    .kp-data-col--hide-narrow,
+  .kp-page
+    .data.kp-data-table--starts-with-column-headers
+    col.kp-data-col--hide-narrow {
+    display: none;
+  }
+
+  .kp-page
+    .data.kp-data-table--starts-with-column-headers:not([data-materials-table])
+    thead
+    th:nth-child(2),
+  .kp-page
+    .data.kp-data-table--starts-with-column-headers:not([data-materials-table])
+    thead
+    th:nth-child(3),
+  .kp-page
+    .data.kp-data-table--starts-with-column-headers:not([data-materials-table])
+    thead
+    th:nth-child(4),
+  .kp-page
+    .data.kp-data-table--starts-with-column-headers:not([data-materials-table])
+    tbody
+    td:nth-child(2),
+  .kp-page
+    .data.kp-data-table--starts-with-column-headers:not([data-materials-table])
+    tbody
+    td:nth-child(3),
+  .kp-page
+    .data.kp-data-table--starts-with-column-headers:not([data-materials-table])
+    tbody
+    td:nth-child(4),
+  .kp-page
+    .data.kp-data-table--starts-with-column-headers:not([data-materials-table])
+    colgroup
+    col:nth-child(2),
+  .kp-page
+    .data.kp-data-table--starts-with-column-headers:not([data-materials-table])
+    colgroup
+    col:nth-child(3),
+  .kp-page
+    .data.kp-data-table--starts-with-column-headers:not([data-materials-table])
+    colgroup
+    col:nth-child(4) {
+    display: none;
+  }
+
+  .kp-page
+    .data.kp-data-table--starts-with-column-headers[data-materials-table]
+    th.kp-data-col--name,
+  .kp-page
+    .data.kp-data-table--starts-with-column-headers[data-materials-table]
+    td.kp-data-col--name {
+    text-align: left;
+    width: auto;
+  }
+
+  .kp-page
+    .data.kp-data-table--starts-with-column-headers[data-materials-table]
+    th.kp-data-col--sum,
+  .kp-page
+    .data.kp-data-table--starts-with-column-headers[data-materials-table]
+    td.kp-data-col--sum {
+    text-align: right;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+    width: auto;
+  }
+
+  .kp-page
+    .kp-table-card
+    #kp-table-additional-materials
+    th:nth-child(n + 2):not(.kp-data-col--sum),
+  .kp-page
+    .kp-table-card
+    #kp-table-additional-materials
+    td:nth-child(n + 2):not(.kp-data-col--sum),
+  .kp-page .kp-table-card #kp-table-services th:nth-child(n + 2):not(:nth-child(5)),
+  .kp-page .kp-table-card #kp-table-services td:nth-child(n + 2):not(:nth-child(5)) {
+    width: auto;
+  }
+
+  .kp-page .kp-table-card #kp-table-additional-materials th:nth-child(1),
+  .kp-page .kp-table-card #kp-table-additional-materials td:nth-child(1),
+  .kp-page .kp-table-card #kp-table-services th:nth-child(1),
+  .kp-page .kp-table-card #kp-table-services td:nth-child(1) {
+    width: auto;
+  }
+
+  .kp-page .kp-table-card #kp-table-additional-materials th:nth-child(5),
+  .kp-page .kp-table-card #kp-table-additional-materials td:nth-child(5),
+  .kp-page .kp-table-card #kp-table-services th:nth-child(5),
+  .kp-page .kp-table-card #kp-table-services td:nth-child(5) {
+    width: auto;
+    text-align: right;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .kp-page .kp-narrow-row--clickable {
+    cursor: pointer;
+  }
+
+  .kp-page .kp-narrow-row--clickable:hover td {
+    background: #f8fafb;
+  }
+
+  .kp-page .kp-narrow-row--expanded td {
+    border-bottom: none;
+    background: #f8fafb;
+  }
+
+  .kp-page .kp-narrow-detail-row td.kp-narrow-detail-cell {
+    display: table-cell;
+    width: 100%;
+    padding: 0;
+    text-align: left;
+    background: #f8fafb;
+    border-bottom: 1px solid var(--table-border, #d8e0e6);
+  }
+
+  .kp-page .kp-narrow-row-summary-name {
+    display: block;
+    justify-content: flex-start;
+    color: inherit;
+    font-weight: inherit;
+    pointer-events: none;
+    word-break: break-word;
+    line-height: 1.35;
+  }
+
+  .kp-page .kp-narrow-row-summary-sum {
+    text-align: right;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+    font-weight: 600;
+  }
+}
+
+@media (max-width: 378px) {
+  .kp-page {
+    padding: 8px 8px 28px;
+  }
+}

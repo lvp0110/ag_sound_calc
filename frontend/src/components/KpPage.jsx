@@ -17,9 +17,18 @@ import {
 } from "../utils/offerMapper";
 import { getAllIsolationConstr } from "../services/api";
 import { useAuth } from "../context/AuthContext.jsx";
+import {
+  REGION_SELECT_OPTIONS,
+  filterVisibleRegionOptions,
+  findRegionOptionByRegionKey,
+  findRegionOptionByValue,
+} from "../constants/regionSelectOptions.js";
 import { setPriceRegion, usePriceData } from "../services/priceApi";
 import { useOfferEditSession } from "../stores/offerEditSessionStore.js";
 import { useCalculatorStore } from "../stores/calculatorStore.js";
+import { KpNarrowExpandableRow } from "./kp/KpNarrowExpandableRow";
+import { useKpExpandedRow } from "../hooks/useKpExpandedRow";
+import { useKpNarrowViewport } from "../hooks/useKpNarrowViewport";
 import "./Calculator.css";
 import "./KpPage.css";
 
@@ -213,15 +222,6 @@ const KP_SETTINGS_FIELDS = [
   { key: "partition", label: "Монтаж перегородки, р/за м2" },
 ];
 
-const REGION_SELECT_OPTIONS = [
-  { value: "moscow", label: "Москва", regionKey: "msk" },
-  { value: "saint-petersburg", label: "Санкт-Петербург", regionKey: "msk" },
-  { value: "yekaterinburg", label: "Екатеринбург", regionKey: "ural" },
-  { value: "ufa", label: "Уфа", regionKey: "ural" },
-  { value: "krasnodar", label: "Краснодар", regionKey: "south" },
-  { value: "kazan", label: "Казань", regionKey: "kazan" },
-];
-
 function parseConstructionNumber(value) {
   if (value == null || value === "") return NaN;
   const normalized = String(value).replace(",", ".").trim();
@@ -263,7 +263,8 @@ const KpPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { isAuthed, status: authStatus } = useAuth();
-  const { regions, selectedRegion } = usePriceData();
+  const { regions, selectedRegion, loaded: priceLoaded, loading: priceLoading, error: priceError } =
+    usePriceData();
   const {
     isEditingDraft,
     activeOfferId,
@@ -301,20 +302,16 @@ const KpPage = () => {
   const [additionalMaterialsSectionOpen, setAdditionalMaterialsSectionOpen] =
     useState(false);
   const [servicesSectionOpen, setServicesSectionOpen] = useState(false);
+  const isKpNarrow = useKpNarrowViewport();
+  const { expandedKey, toggleRow } = useKpExpandedRow();
   const [manualMontagePriceByKeyId, setManualMontagePriceByKeyId] = useState(
     () => ({})
   );
-  const availableRegionKeys = useMemo(
-    () => new Set(regions.map((region) => String(region).toLowerCase())),
+  const visibleRegionOptions = useMemo(
+    () => filterVisibleRegionOptions(regions),
     [regions]
   );
-  const visibleRegionOptions = useMemo(
-    () =>
-      REGION_SELECT_OPTIONS.filter((option) =>
-        availableRegionKeys.has(option.regionKey)
-      ),
-    [availableRegionKeys]
-  );
+  const isPriceRegionsLoading = priceLoading || (!priceLoaded && !priceError);
   const additionalMaterialsTotalRub = useMemo(
     () => additionalMaterialsGrandTotalRubForKp(materialRows),
     [materialRows],
@@ -543,8 +540,17 @@ const KpPage = () => {
       (option) => option.value === optionValue
     );
     if (!selectedOption) return;
-    setPriceRegion(selectedOption.regionKey);
+    setPriceRegion(selectedOption.regionKey, { cityValue: optionValue });
   };
+
+  useEffect(() => {
+    if (!form.region || loadStatus !== "loaded" || !priceLoaded) return;
+    const selectedOption =
+      findRegionOptionByValue(form.region) ??
+      findRegionOptionByRegionKey(form.region);
+    if (!selectedOption) return;
+    setPriceRegion(selectedOption.regionKey, { cityValue: selectedOption.value });
+  }, [form.region, loadStatus, priceLoaded]);
 
   useEffect(() => {
     if (!selectedRegion || form.region) return;
@@ -554,6 +560,9 @@ const KpPage = () => {
     );
     if (!matchingOption) return;
     setForm((prev) => ({ ...prev, region: matchingOption.value }));
+    setPriceRegion(matchingOption.regionKey, {
+      cityValue: matchingOption.value,
+    });
   }, [form.region, selectedRegion, visibleRegionOptions]);
 
   const updateServiceRow = (id, field) => (e) => {
@@ -757,11 +766,9 @@ const KpPage = () => {
             )}
             {montageOpen && (
               <tbody>
-                <tr>
-                  <td className="kp-page__service-name-td--preset">
-                    {MONTAGE_ROW_LABEL}
-                  </td>
-                  <td>
+                {(() => {
+                  const montageRowKey = `montage-${key_id}`;
+                  const priceInput = (
                     <input
                       id={`kp-montage-${key_id}-price`}
                       type="text"
@@ -770,8 +777,8 @@ const KpPage = () => {
                       onChange={updateMontagePriceRow(key_id)}
                       aria-label={`Цена, ${MONTAGE_ROW_LABEL} (карточка ${cardIndex + 1}, из настроек КП)`}
                     />
-                  </td>
-                  <td>
+                  );
+                  const quantityInput = (
                     <input
                       id={`kp-montage-${key_id}-quantity`}
                       type="text"
@@ -780,8 +787,8 @@ const KpPage = () => {
                       value={row.quantity}
                       aria-label={`Количество, ${MONTAGE_ROW_LABEL} (карточка ${cardIndex + 1}, площадь конструкции)`}
                     />
-                  </td>
-                  <td>
+                  );
+                  const unitInput = (
                     <input
                       id={`kp-montage-${key_id}-unit`}
                       type="text"
@@ -790,8 +797,8 @@ const KpPage = () => {
                       value={row.unit}
                       aria-label={`Единица измерения, ${MONTAGE_ROW_LABEL} (карточка ${cardIndex + 1})`}
                     />
-                  </td>
-                  <td>
+                  );
+                  const sumInput = (
                     <input
                       id={`kp-montage-${key_id}-sum`}
                       type="text"
@@ -800,8 +807,57 @@ const KpPage = () => {
                       value={serviceRowSum(row.price, row.quantity)}
                       aria-label={`Сумма, ${MONTAGE_ROW_LABEL} (карточка ${cardIndex + 1}, цена × количество)`}
                     />
-                  </td>
-                </tr>
+                  );
+                  const montageDetailFields = [
+                    { id: "price", label: "Цена", children: priceInput },
+                    {
+                      id: "quantity",
+                      label: "Количество",
+                      children: quantityInput,
+                    },
+                    { id: "unit", label: "Ед. изм.", children: unitInput },
+                    { id: "sum", label: "Сумма", children: sumInput },
+                  ];
+                  const montageCells = isKpNarrow ? (
+                    <>
+                      <td className="kp-page__service-name-td--preset">
+                        {MONTAGE_ROW_LABEL}
+                      </td>
+                      <td />
+                      <td />
+                      <td />
+                      <td className="kp-narrow-row-summary-sum">
+                        {serviceRowSum(row.price, row.quantity) || "—"}
+                      </td>
+                    </>
+                  ) : (
+                    <>
+                      <td className="kp-page__service-name-td--preset">
+                        {MONTAGE_ROW_LABEL}
+                      </td>
+                      <td>{priceInput}</td>
+                      <td>{quantityInput}</td>
+                      <td>{unitInput}</td>
+                      <td>{sumInput}</td>
+                    </>
+                  );
+                  if (isKpNarrow) {
+                    return (
+                      <KpNarrowExpandableRow
+                        rowKey={montageRowKey}
+                        expandedKey={expandedKey}
+                        onToggleRow={toggleRow}
+                        narrow
+                        colSpan={5}
+                        detailTitle={MONTAGE_ROW_LABEL}
+                        detailFields={montageDetailFields}
+                      >
+                        {montageCells}
+                      </KpNarrowExpandableRow>
+                    );
+                  }
+                  return <tr>{montageCells}</tr>;
+                })()}
               </tbody>
             )}
           </table>
@@ -814,6 +870,9 @@ const KpPage = () => {
       toggleMontageSection,
       updateMontagePriceRow,
       updateMontageRow,
+      isKpNarrow,
+      expandedKey,
+      toggleRow,
     ],
   );
 
@@ -883,12 +942,18 @@ const KpPage = () => {
             <select
               id="kp-region"
               className="kp-page__input kp-page__select"
-              value={form.region}
+              value={
+                isPriceRegionsLoading || visibleRegionOptions.length === 0
+                  ? ""
+                  : form.region
+              }
               onChange={onRegionChange}
               aria-label="Регион прайса"
-              disabled={visibleRegionOptions.length === 0}
+              disabled={isPriceRegionsLoading || visibleRegionOptions.length === 0}
             >
-              {visibleRegionOptions.length === 0 ? (
+              {isPriceRegionsLoading ? (
+                <option value="">Загрузка регионов...</option>
+              ) : visibleRegionOptions.length === 0 ? (
                 <option value="">Регионы не найдены</option>
               ) : (
                 visibleRegionOptions.map((option) => (
@@ -1094,66 +1159,111 @@ const KpPage = () => {
               </>
             }
           >
-            {materialRows.map((row) => (
-              <tr key={row.id}>
-                      <td>
-                        <div className="kp-page__service-name-cell">
-                          <button
-                            type="button"
-                            className="kp-page__service-row-remove"
-                            onClick={() => removeMaterialRow(row.id)}
-                            aria-label="Удалить строку"
-                          >
-                            ×
-                          </button>
-                          <textarea
-                            className="kp-page__services-input kp-page__services-textarea"
-                            value={row.name}
-                            onChange={updateMaterialRow(row.id, "name")}
-                            onInput={autoResizeNameField}
-                            aria-label="Название материала"
-                            rows={1}
-                          />
-                        </div>
-                      </td>
-                      <td>
-                        <input
-                          type="text"
-                          className="kp-page__services-input"
-                          value={row.price}
-                          onChange={updateMaterialRow(row.id, "price")}
-                          aria-label={`Цена, ${row.name || "материал"}`}
-                        />
-                      </td>
-                      <td>
-                        <input
-                          type="text"
-                          className="kp-page__services-input"
-                          value={row.quantity}
-                          onChange={updateMaterialRow(row.id, "quantity")}
-                          aria-label={`Количество, ${row.name || "материал"}`}
-                        />
-                      </td>
-                      <td>
-                        <input
-                          type="text"
-                          className="kp-page__services-input"
-                          value={row.unit}
-                          onChange={updateMaterialRow(row.id, "unit")}
-                          aria-label={`Единица измерения, ${row.name || "материал"}`}
-                        />
-                      </td>
-                      <td>
-                        <input
-                          type="text"
-                          readOnly
-                          className="kp-page__services-input kp-page__services-input--computed"
-                          value={serviceRowSum(row.price, row.quantity)}
-                          aria-label={`Сумма, ${row.name || "материал"} (цена × количество)`}
-                        />
-                      </td>
-              </tr>
-            ))}
+            {materialRows.map((row) => {
+              const rowKey = `mat-${row.id}`;
+              const nameCell = (
+                <div className="kp-page__service-name-cell">
+                  <button
+                    type="button"
+                    className="kp-page__service-row-remove"
+                    onClick={() => removeMaterialRow(row.id)}
+                    aria-label="Удалить строку"
+                  >
+                    ×
+                  </button>
+                  <textarea
+                    className="kp-page__services-input kp-page__services-textarea"
+                    value={row.name}
+                    onChange={updateMaterialRow(row.id, "name")}
+                    onInput={autoResizeNameField}
+                    aria-label="Название материала"
+                    rows={1}
+                  />
+                </div>
+              );
+              const priceInput = (
+                <input
+                  type="text"
+                  className="kp-page__services-input"
+                  value={row.price}
+                  onChange={updateMaterialRow(row.id, "price")}
+                  aria-label={`Цена, ${row.name || "материал"}`}
+                />
+              );
+              const quantityInput = (
+                <input
+                  type="text"
+                  className="kp-page__services-input"
+                  value={row.quantity}
+                  onChange={updateMaterialRow(row.id, "quantity")}
+                  aria-label={`Количество, ${row.name || "материал"}`}
+                />
+              );
+              const unitInput = (
+                <input
+                  type="text"
+                  className="kp-page__services-input"
+                  value={row.unit}
+                  onChange={updateMaterialRow(row.id, "unit")}
+                  aria-label={`Единица измерения, ${row.name || "материал"}`}
+                />
+              );
+              const sumInput = (
+                <input
+                  type="text"
+                  readOnly
+                  className="kp-page__services-input kp-page__services-input--computed"
+                  value={serviceRowSum(row.price, row.quantity)}
+                  aria-label={`Сумма, ${row.name || "материал"} (цена × количество)`}
+                />
+              );
+              const detailFields = [
+                { id: "name", label: "Название", children: nameCell },
+                { id: "price", label: "Цена", children: priceInput },
+                { id: "quantity", label: "Количество", children: quantityInput },
+                { id: "unit", label: "Ед. изм.", children: unitInput },
+                { id: "sum", label: "Сумма", children: sumInput },
+              ];
+              const rowCells = isKpNarrow ? (
+                <>
+                  <td>
+                    <span className="kp-narrow-row-summary-name">
+                      {row.name?.trim() ? row.name : "—"}
+                    </span>
+                  </td>
+                  <td />
+                  <td />
+                  <td />
+                  <td className="kp-narrow-row-summary-sum">
+                    {serviceRowSum(row.price, row.quantity) || "—"}
+                  </td>
+                </>
+              ) : (
+                <>
+                  <td>{nameCell}</td>
+                  <td>{priceInput}</td>
+                  <td>{quantityInput}</td>
+                  <td>{unitInput}</td>
+                  <td>{sumInput}</td>
+                </>
+              );
+              if (isKpNarrow) {
+                return (
+                  <KpNarrowExpandableRow
+                    key={row.id}
+                    rowKey={rowKey}
+                    expandedKey={expandedKey}
+                    onToggleRow={toggleRow}
+                    narrow
+                    colSpan={5}
+                    detailFields={detailFields}
+                  >
+                    {rowCells}
+                  </KpNarrowExpandableRow>
+                );
+              }
+              return <tr key={row.id}>{rowCells}</tr>;
+            })}
           </KpCollapsibleExtraTable>
 
           <KpCollapsibleExtraTable
@@ -1186,90 +1296,123 @@ const KpPage = () => {
               </tr>
             }
           >
-            {serviceRows.map((row) => (
-              <tr key={row.id}>
-                      <td
-                        className={
-                          row.preset
-                            ? "kp-page__service-name-td--preset"
-                            : undefined
-                        }
-                      >
-                        {row.preset ? (
-                          row.name
-                        ) : (
-                          <div className="kp-page__service-name-cell">
-                            <button
-                              type="button"
-                              className="kp-page__service-row-remove"
-                              onClick={() => removeServiceRow(row.id)}
-                              aria-label="Удалить строку"
-                            >
-                              ×
-                            </button>
-                            <textarea
-                              className="kp-page__services-input kp-page__services-textarea"
-                              value={row.name}
-                              onChange={updateServiceRow(row.id, "name")}
-                              onInput={autoResizeNameField}
-                              aria-label="Название услуги"
-                              rows={1}
-                            />
-                          </div>
-                        )}
-                      </td>
-                      <td>
-                        <input
-                          id={
-                            row.preset
-                              ? `kp-service-${row.id}-price`
-                              : undefined
-                          }
-                          type="text"
-                          className="kp-page__services-input"
-                          value={row.price}
-                          onChange={updateServiceRow(row.id, "price")}
-                          aria-label={`Цена, ${row.name || "услуга"}`}
-                        />
-                      </td>
-                      <td>
-                        <input
-                          id={
-                            row.preset
-                              ? `kp-service-${row.id}-quantity`
-                              : undefined
-                          }
-                          type="text"
-                          className="kp-page__services-input"
-                          value={row.quantity}
-                          onChange={updateServiceRow(row.id, "quantity")}
-                          aria-label={`Количество, ${row.name || "услуга"}`}
-                        />
-                      </td>
-                      <td>
-                        <input
-                          id={
-                            row.preset ? `kp-service-${row.id}-unit` : undefined
-                          }
-                          type="text"
-                          className="kp-page__services-input"
-                          value={row.unit}
-                          onChange={updateServiceRow(row.id, "unit")}
-                          aria-label={`Единица измерения, ${row.name || "услуга"}`}
-                        />
-                      </td>
-                      <td>
-                        <input
-                          id={`kp-service-${row.id}-sum`}
-                          type="text"
-                          readOnly
-                          className="kp-page__services-input kp-page__services-input--computed"
-                          value={serviceRowSum(row.price, row.quantity)}
-                          aria-label={`Сумма, ${row.name || "услуга"} (цена × количество)`}
-                        />
-                      </td>
-              </tr>
-            ))}
+            {serviceRows.map((row) => {
+              const rowKey = `svc-${row.id}`;
+              const nameCell = row.preset ? (
+                row.name
+              ) : (
+                <div className="kp-page__service-name-cell">
+                  <button
+                    type="button"
+                    className="kp-page__service-row-remove"
+                    onClick={() => removeServiceRow(row.id)}
+                    aria-label="Удалить строку"
+                  >
+                    ×
+                  </button>
+                  <textarea
+                    className="kp-page__services-input kp-page__services-textarea"
+                    value={row.name}
+                    onChange={updateServiceRow(row.id, "name")}
+                    onInput={autoResizeNameField}
+                    aria-label="Название услуги"
+                    rows={1}
+                  />
+                </div>
+              );
+              const priceInput = (
+                <input
+                  id={row.preset ? `kp-service-${row.id}-price` : undefined}
+                  type="text"
+                  className="kp-page__services-input"
+                  value={row.price}
+                  onChange={updateServiceRow(row.id, "price")}
+                  aria-label={`Цена, ${row.name || "услуга"}`}
+                />
+              );
+              const quantityInput = (
+                <input
+                  id={
+                    row.preset ? `kp-service-${row.id}-quantity` : undefined
+                  }
+                  type="text"
+                  className="kp-page__services-input"
+                  value={row.quantity}
+                  onChange={updateServiceRow(row.id, "quantity")}
+                  aria-label={`Количество, ${row.name || "услуга"}`}
+                />
+              );
+              const unitInput = (
+                <input
+                  id={row.preset ? `kp-service-${row.id}-unit` : undefined}
+                  type="text"
+                  className="kp-page__services-input"
+                  value={row.unit}
+                  onChange={updateServiceRow(row.id, "unit")}
+                  aria-label={`Единица измерения, ${row.name || "услуга"}`}
+                />
+              );
+              const sumInput = (
+                <input
+                  id={`kp-service-${row.id}-sum`}
+                  type="text"
+                  readOnly
+                  className="kp-page__services-input kp-page__services-input--computed"
+                  value={serviceRowSum(row.price, row.quantity)}
+                  aria-label={`Сумма, ${row.name || "услуга"} (цена × количество)`}
+                />
+              );
+              const detailFields = [
+                { id: "name", label: "Название", children: nameCell },
+                { id: "price", label: "Цена", children: priceInput },
+                { id: "quantity", label: "Количество", children: quantityInput },
+                { id: "unit", label: "Ед. изм.", children: unitInput },
+                { id: "sum", label: "Сумма", children: sumInput },
+              ];
+              const nameTdClass = row.preset
+                ? "kp-page__service-name-td--preset"
+                : undefined;
+              const rowCells = isKpNarrow ? (
+                <>
+                  <td className={nameTdClass}>
+                    <span className="kp-narrow-row-summary-name">
+                      {row.name?.trim() ? row.name : "—"}
+                    </span>
+                  </td>
+                  <td />
+                  <td />
+                  <td />
+                  <td className="kp-narrow-row-summary-sum">
+                    {serviceRowSum(row.price, row.quantity) || "—"}
+                  </td>
+                </>
+              ) : (
+                <>
+                  <td className={nameTdClass}>{nameCell}</td>
+                  <td>{priceInput}</td>
+                  <td>{quantityInput}</td>
+                  <td>{unitInput}</td>
+                  <td>{sumInput}</td>
+                </>
+              );
+              if (isKpNarrow) {
+                return (
+                  <KpNarrowExpandableRow
+                    key={row.id}
+                    rowKey={rowKey}
+                    expandedKey={expandedKey}
+                    onToggleRow={toggleRow}
+                    narrow
+                    colSpan={5}
+                    detailTitle={row.name?.trim() ? row.name : undefined}
+                    detailFields={detailFields}
+                  >
+                    {rowCells}
+                  </KpNarrowExpandableRow>
+                );
+              }
+              return <tr key={row.id}>{rowCells}</tr>;
+            })}
           </KpCollapsibleExtraTable>
         </div>
 

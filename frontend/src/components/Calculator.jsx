@@ -637,16 +637,6 @@ const Calculator = () => {
       setFacingProfileStep(600);
       setCurrentGkla("default");
       setCurrentWool("default");
-
-      requestAnimationFrame(() => {
-        const constructionTable = document.getElementById("table1");
-        if (constructionTable) {
-          constructionTable.scrollIntoView({
-            behavior: "smooth",
-            block: "start",
-          });
-        }
-      });
     } catch (error) {
       let errorMessage = error.message;
       if (error.message.includes("invalid construction size")) {
@@ -910,7 +900,7 @@ const Calculator = () => {
                         className="selected-item-container"
                         onClick={(e) => e.stopPropagation()}
                       >
-                        <div className="selected-item-forms">
+                        <div className="selected-item-panel">
                           <SelectedItemForms
                             selectedItem={selectedItem}
                             constR={constR}
@@ -938,8 +928,10 @@ const Calculator = () => {
                           />
 
                           {selectedItem.template != null && (
-                            <div>
+                            <div className="selected-item-calc-action">
                               <button
+                                type="button"
+                                onMouseDown={(e) => e.preventDefault()}
                                 onClick={addConstrToCalc}
                                 className="counter__button_plus"
                               >
@@ -966,51 +958,53 @@ const Calculator = () => {
                               */}
                             </div>
                           )}
-                        </div>
 
-                        <div className="tables-and-buttons-container">
-                          {template != null && (
-                            <div className="tables-and-buttons-header">
-                              <h3 className="tables-and-buttons-title">
-                                Список конструкций
-                              </h3>
-                            </div>
-                          )}
-                          {tableConstrToCalc != null &&
-                            ConstrToCalc.length > 0 && (
-                              <ConstructionList
-                                constructions={ConstrToCalc}
-                                onDelete={delConstrFromList}
-                              />
+                          <div className="tables-and-buttons-container">
+                            {template != null && (
+                              <div className="tables-and-buttons-header">
+                                <h3 className="tables-and-buttons-title">
+                                  Список конструкций
+                                </h3>
+                              </div>
                             )}
-                          {(showReturnToKpButton ||
-                            (template != null && showMakeKpButton)) && (
-                            <div className="tables-and-buttons-footer">
-                              {showReturnToKpButton ? (
-                                <button
-                                  type="button"
-                                  onClick={handleReturnToKp}
-                                  className="counter__button_plus"
-                                  disabled={isSubmittingKp}
-                                >
-                                  {isSubmittingKp
-                                    ? "Обновление КП..."
-                                    : "Вернуться в КП"}
-                                </button>
-                              ) : (
-                                <button
-                                  type="button"
-                                  onClick={handleMakeKP}
-                                  className="counter__button_plus"
-                                  disabled={isSubmittingKp}
-                                >
-                                  {isSubmittingKp
-                                    ? "Создание КП..."
-                                    : "Сделать КП"}
-                                </button>
+                            {tableConstrToCalc != null &&
+                              ConstrToCalc.length > 0 && (
+                                <ConstructionList
+                                  constructions={ConstrToCalc}
+                                  onDelete={delConstrFromList}
+                                />
                               )}
-                            </div>
-                          )}
+                            {(showReturnToKpButton ||
+                              (template != null && showMakeKpButton)) && (
+                              <div className="tables-and-buttons-footer">
+                                {showReturnToKpButton ? (
+                                  <button
+                                    type="button"
+                                    onMouseDown={(e) => e.preventDefault()}
+                                    onClick={handleReturnToKp}
+                                    className="counter__button_plus"
+                                    disabled={isSubmittingKp}
+                                  >
+                                    {isSubmittingKp
+                                      ? "Обновление КП..."
+                                      : "Вернуться в КП"}
+                                  </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onMouseDown={(e) => e.preventDefault()}
+                                    onClick={handleMakeKP}
+                                    className="counter__button_plus"
+                                    disabled={isSubmittingKp}
+                                  >
+                                    {isSubmittingKp
+                                      ? "Создание КП..."
+                                      : "Сделать КП"}
+                                  </button>
+                                )}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
                     );

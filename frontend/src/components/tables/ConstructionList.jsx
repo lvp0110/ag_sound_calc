@@ -195,13 +195,6 @@ function formatConstructionAreaM2(item) {
   return area.toFixed(1);
 }
 
-function formatConstructionWeightByArea(item) {
-  const area = constructionAreaM2(item);
-  const mass = parseConstructionNumber(item.weight);
-  if (Number.isNaN(area) || Number.isNaN(mass)) return "—";
-  return (area * mass).toFixed(1);
-}
-
 function constructionWeightKg(item) {
   const area = constructionAreaM2(item);
   const mass = parseConstructionNumber(item.weight);
@@ -344,7 +337,7 @@ const ConstructionList = ({
                   <thead>
                     <tr>
                       <th
-                        colSpan={readOnly ? 4 : 5}
+                        colSpan={readOnly ? 3 : 4}
                         className="construction-card__heading-th"
                       >
                         <div className="construction-card__heading-content">
@@ -382,10 +375,9 @@ const ConstructionList = ({
                     {!cardCollapsed && (
                       <tr>
                         {!readOnly && <th className="construction-card__delete-col" />}
-                        <th>шифр</th>
+                        <th className="tbl-in__cipher-col">шифр</th>
                         <th className="construction-card__dim-th">размеры, мм</th>
                         <th>площадь, м2</th>
-                        <th>вес,кг</th>
                       </tr>
                     )}
                   </thead>
@@ -409,12 +401,11 @@ const ConstructionList = ({
                             />
                           </td>
                         )}
-                        <td>{constRItem.ag_id}</td>
+                        <td className="tbl-in__cipher-col">{constRItem.ag_id}</td>
                         <td className="construction-card__dim-td">
                           {constructionDimensionsMm(constRItem)}
                         </td>
                         <td>{formatConstructionAreaM2(constRItem)}</td>
-                        <td>{formatConstructionWeightByArea(constRItem)}</td>
                       </tr>
                     </tbody>
                   )}
@@ -527,7 +518,7 @@ const ConstructionList = ({
         <thead>
           <tr>
             {!readOnly && <th className="construction-card__delete-col" />}
-            <th>шифр</th>
+            <th className="tbl-in__cipher-col">шифр</th>
             <th>название</th>
             <th className="construction-list-legacy__dim-th">размеры, мм</th>
           </tr>
@@ -552,7 +543,7 @@ const ConstructionList = ({
                   />
                 </td>
               )}
-              <td className="construction-list-legacy__code-td">
+              <td className="construction-list-legacy__code-td tbl-in__cipher-col">
                 {constRItem.ag_id}
               </td>
               <td className="construction-list-legacy__title-td">

@@ -348,6 +348,7 @@ h4 {
   border: solid 1px rgb(255, 255, 255);
   box-shadow: none;
   filter: drop-shadow(0px 0px 2px black);
+  touch-action: manipulation;
 }
 
 .counter__button_param {
@@ -552,8 +553,8 @@ button::-moz-focus-inner {
   font-weight: 600;
   text-transform: uppercase;
   color: #6d7277;
-  margin: 0;
-  padding: 10px 0;
+  margin: 0px 0px 10px 0px;
+  padding: 10px;
   position: relative;
   isolation: isolate;
   overflow: visible;
@@ -582,22 +583,31 @@ button::-moz-focus-inner {
   border-radius: 10px;
   background-color: #ffffff;
   width: 100%;
+  max-width: 100%;
   box-sizing: border-box;
-  display: flex;
-  flex-direction: row;
-  gap: 20px;
-  align-items: flex-start;
-}
-@media (max-width: 1024px) {
-  .selected-item-container {
-    flex-direction: column;
-  }
+  min-width: 0;
+  overflow-x: hidden;
 }
 
-/* Левая часть - формы и кнопки */
-.selected-item-forms {
-  flex: 0 0 40%;
+.selected-item-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
   max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.selected-item-calc-action {
+  width: 100%;
+  min-width: 0;
+}
+
+/* Формы выбранной конструкции */
+.selected-item-forms {
+  max-width: 100%;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -1111,19 +1121,56 @@ button::-moz-focus-inner {
   }
 }
 
-/* Правая часть - таблицы */
-.selected-item-container .tables-and-buttons-container {
-  flex: 0 0 60%;
-  max-width: 60%;
+/* Таблицы и кнопки КП внутри панели выбранной конструкции */
+.selected-item-panel .tables-and-buttons-container {
+  width: 100%;
+  max-width: 100%;
   min-width: 0;
-  width: 60%;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
   overflow-x: hidden;
+  padding-right: 0;
 }
 
-.selected-item-container .tables-and-buttons-container .tbl-in {
+@media screen and (min-width: 1025px) {
+  .selected-item-container {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+    gap: 20px;
+    align-items: start;
+  }
+
+  .selected-item-panel {
+    display: contents;
+  }
+
+  .selected-item-panel > .selected-item-forms {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .selected-item-panel > .selected-item-calc-action,
+  .selected-item-panel > .buttons-container {
+    grid-column: 1;
+  }
+
+  .selected-item-panel > .selected-item-calc-action {
+    grid-row: 2;
+  }
+
+  .selected-item-panel > .buttons-container {
+    grid-row: 3;
+  }
+
+  .selected-item-panel > .tables-and-buttons-container {
+    grid-column: 2;
+    grid-row: 1 / span 20;
+    align-self: start;
+  }
+}
+
+.selected-item-panel .tables-and-buttons-container .tbl-in {
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
@@ -1131,7 +1178,7 @@ button::-moz-focus-inner {
   overflow-y: visible;
 }
 
-.content-calc .selected-item-container .tables-and-buttons-container .data {
+.content-calc .selected-item-panel .tables-and-buttons-container .data {
   width: 100%;
   max-width: 100%;
   table-layout: auto;
@@ -1182,20 +1229,9 @@ button::-moz-focus-inner {
     );
   }
 
-  .selected-item-container {
-    flex-direction: column;
-  }
-
-  .selected-item-forms {
-    flex: 0 0 100%;
-    max-width: 100%;
+  .selected-item-panel .tables-and-buttons-container {
     width: 100%;
-  }
-
-  .selected-item-container .tables-and-buttons-container {
-    flex: 0 0 100%;
     max-width: 100%;
-    width: 100%;
     box-sizing: border-box;
     overflow-x: hidden;
     padding-right: 0;

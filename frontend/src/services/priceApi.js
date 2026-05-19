@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { findRegionOptionByValue } from "../constants/regionSelectOptions.js";
 import { BASE_URL } from "./apiClient";
 
 const PRICE_API_URL = `${BASE_URL}/api/v2/data`;
@@ -8,6 +9,8 @@ const cache = {
   list: [],
   regions: [],
   selectedRegion: "",
+  /** Slug города (moscow, kazan, …) — совпадает с form.region на КП и селектом прайса. */
+  selectedCityRegion: "",
   loaded: false,
   loadingPromise: null,
   error: null,
@@ -292,10 +295,15 @@ const pickRegionalOrBasePrice = (row, selectedRegion, key) => {
 };
 
 export const ensurePriceDataLoaded = async () => {
-  if (cache.loaded) return;
+  if (cache.loaded && cache.list.length > 0) return;
   if (cache.loadingPromise) {
     await cache.loadingPromise;
     return;
+  }
+
+  if (cache.loaded && cache.list.length === 0) {
+    cache.loaded = false;
+    cache.error = null;
   }
 
   cache.loadingPromise = (async () => {
@@ -360,12 +368,29 @@ export const getRegionLabel = (region) => {
   return REGION_LABELS[normalized] ?? normalizeRegionName(region);
 };
 
-export const setPriceRegion = (region) => {
+export const setPriceRegion = (region, { cityValue } = {}) => {
   const nextRegion = normalizeRegionName(region);
-  if (!cache.regions.includes(nextRegion) || nextRegion === cache.selectedRegion) {
+  let changed = false;
+
+  if (cityValue != null && cityValue !== "") {
+    const cityOption = findRegionOptionByValue(cityValue);
+    if (cityOption && cache.selectedCityRegion !== cityOption.value) {
+      cache.selectedCityRegion = cityOption.value;
+      changed = true;
+    }
+  }
+
+  if (!cache.regions.includes(nextRegion)) {
+    if (changed) notifyListeners();
     return;
   }
-  cache.selectedRegion = nextRegion;
+
+  if (nextRegion !== cache.selectedRegion) {
+    cache.selectedRegion = nextRegion;
+    changed = true;
+  }
+
+  if (!changed) return;
   notifyListeners();
 };
 
@@ -376,6 +401,7 @@ export const getPriceState = () => ({
   list: cache.list,
   regions: cache.regions,
   selectedRegion: cache.selectedRegion,
+  selectedCityRegion: cache.selectedCityRegion,
 });
 
 export const usePriceData = () => {

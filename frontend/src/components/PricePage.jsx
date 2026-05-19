@@ -1,19 +1,15 @@
-import { Fragment, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { formatRub } from "./tables/MaterialsList";
+import {
+  REGION_SELECT_OPTIONS,
+  filterVisibleRegionOptions,
+  findRegionOptionByValue,
+} from "../constants/regionSelectOptions.js";
 import { setPriceRegion, usePriceData } from "../services/priceApi";
 import { filterPriceRows } from "./priceSearch";
 import { useOfferEditSession } from "../stores/offerEditSessionStore.js";
 import "./PricePage.css";
-
-const REGION_SELECT_OPTIONS = [
-  { value: "moscow", label: "Москва", regionKey: "msk" },
-  { value: "saint-petersburg", label: "Санкт-Петербург", regionKey: "msk" },
-  { value: "yekaterinburg", label: "Екатеринбург", regionKey: "ural" },
-  { value: "ufa", label: "Уфа", regionKey: "ural" },
-  { value: "krasnodar", label: "Краснодар", regionKey: "south" },
-  { value: "kazan", label: "Казань", regionKey: "kazan" },
-];
 
 const getDefaultRegionOption = (availableRegionKeys) =>
   REGION_SELECT_OPTIONS.find((option) => availableRegionKeys.has(option.regionKey))?.value ??
@@ -103,33 +99,62 @@ const PricePage = () => {
   const {
     list: priceList,
     error,
+    loaded,
+    loading,
     regions,
     selectedRegion,
+    selectedCityRegion,
   } = usePriceData();
-  const [selectedRegionOption, setSelectedRegionOption] = useState("");
 
-  const availableRegionKeys = useMemo(() => {
-    return new Set(regions.map((region) => region.toLowerCase()));
-  }, [regions]);
+  const visibleRegionOptions = useMemo(
+    () => filterVisibleRegionOptions(regions),
+    [regions]
+  );
 
-  const visibleRegionOptions = useMemo(() => {
-    return REGION_SELECT_OPTIONS.filter((option) =>
-      availableRegionKeys.has(option.regionKey)
-    );
-  }, [availableRegionKeys]);
+  const availableRegionKeys = useMemo(
+    () => new Set(visibleRegionOptions.map((option) => option.regionKey)),
+    [visibleRegionOptions]
+  );
 
-  const effectiveSelectedRegionOption =
-    selectedRegionOption && visibleRegionOptions.some((option) => option.value === selectedRegionOption)
-      ? selectedRegionOption
-      : getDefaultRegionOption(availableRegionKeys);
+  const isPriceRegionsLoading = loading || (!loaded && !error);
+
+  const effectiveSelectedRegionOption = useMemo(() => {
+    if (
+      selectedCityRegion &&
+      visibleRegionOptions.some((option) => option.value === selectedCityRegion)
+    ) {
+      return selectedCityRegion;
+    }
+    if (selectedRegion) {
+      const regionKey = String(selectedRegion).toLowerCase();
+      const match = visibleRegionOptions.find(
+        (option) => option.regionKey === regionKey
+      );
+      if (match) return match.value;
+    }
+    return getDefaultRegionOption(availableRegionKeys);
+  }, [
+    selectedCityRegion,
+    selectedRegion,
+    visibleRegionOptions,
+    availableRegionKeys,
+  ]);
+
+  useEffect(() => {
+    if (!isEditingDraft) return;
+    const cityFromKp = kpSnapshot?.form?.region;
+    if (!cityFromKp) return;
+    const option = findRegionOptionByValue(cityFromKp);
+    if (!option) return;
+    setPriceRegion(option.regionKey, { cityValue: option.value });
+  }, [isEditingDraft, kpSnapshot?.form?.region]);
 
   const handleRegionChange = (optionValue) => {
-    setSelectedRegionOption(optionValue);
     const selectedOption = REGION_SELECT_OPTIONS.find(
       (option) => option.value === optionValue
     );
     if (!selectedOption) return;
-    setPriceRegion(selectedOption.regionKey);
+    setPriceRegion(selectedOption.regionKey, { cityValue: optionValue });
   };
 
   const selectedSet = useMemo(
@@ -216,11 +241,17 @@ const PricePage = () => {
         <select
           id="price-region"
           className="price-page__search price-page__region-select"
-          value={effectiveSelectedRegionOption}
+          value={
+            isPriceRegionsLoading || visibleRegionOptions.length === 0
+              ? ""
+              : effectiveSelectedRegionOption
+          }
           onChange={(e) => handleRegionChange(e.target.value)}
-          disabled={visibleRegionOptions.length === 0}
+          disabled={isPriceRegionsLoading || visibleRegionOptions.length === 0}
         >
-          {visibleRegionOptions.length === 0 ? (
+          {isPriceRegionsLoading ? (
+            <option value="">Загрузка регионов...</option>
+          ) : visibleRegionOptions.length === 0 ? (
             <option value="">Регионы не найдены</option>
           ) : (
             visibleRegionOptions.map((option) => (
