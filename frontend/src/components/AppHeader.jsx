@@ -153,10 +153,20 @@ export default function AppHeader() {
           {user && (
             <NavLink
               to={isEditingDraft && activeOfferId ? `/kp/${activeOfferId}` : "/kp/list"}
-              className={`app-header__link${kpNavActive ? " app-header__link--active" : ""}`}
+              className={`app-header__link${kpNavActive ? " app-header__link--active" : ""}${
+                isEditingDraft ? " app-header__link--unsaved" : ""
+              }`}
               end={isEditingDraft}
-              title="Мои КП"
-              aria-label="Мои КП"
+              title={
+                isEditingDraft
+                  ? "Мои КП — есть несохранённые изменения"
+                  : "Мои КП"
+              }
+              aria-label={
+                isEditingDraft
+                  ? "Мои КП, несохранённые изменения"
+                  : "Мои КП"
+              }
               onClick={(e) =>
                 guardDraftNav(
                   e,
@@ -170,6 +180,11 @@ export default function AppHeader() {
                 <IconOffers />
               </HeaderIcon>
               <span className="app-header__label">Мои КП</span>
+              {isEditingDraft ? (
+                <span className="app-header__unsaved-badge" aria-hidden="true">
+                  !
+                </span>
+              ) : null}
             </NavLink>
           )}
           <NavLink

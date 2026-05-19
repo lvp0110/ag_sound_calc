@@ -195,8 +195,8 @@
   text-align: center;
 }
 
-/* Узкий экран: колонка «шифр» в таблицах .tbl-in */
-@media screen and (max-width: 375px) {
+/* Экран < 768px: колонка «шифр» в таблицах .tbl-in */
+@media screen and (max-width: 767px) {
   .tbl-in .tbl-in__cipher-col {
     display: none;
   }

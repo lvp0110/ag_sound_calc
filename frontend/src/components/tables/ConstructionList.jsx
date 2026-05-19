@@ -234,6 +234,14 @@ function constructionCardHeading({ title, type, ag_id: code }) {
   return "Конструкция";
 }
 
+/** Колонка «название» в legacy-таблице: не дублируем шифр, если title = ag_id. */
+function constructionLegacyTitle(item) {
+  const display = constructionDisplayTitle(item);
+  const code = String(item.ag_id ?? "").trim();
+  if (code !== "" && display === code) return "";
+  return display;
+}
+
 /** Как в колонке «артикул»: без цифры в начале кода показывается «---». */
 function splitMaterialsByArticleDisplay(materials) {
   if (!Array.isArray(materials)) return { withArticle: [], noArticle: [] };
@@ -547,7 +555,7 @@ const ConstructionList = ({
                 {constRItem.ag_id}
               </td>
               <td className="construction-list-legacy__title-td">
-                {constructionDisplayTitle(constRItem)}
+                {constructionLegacyTitle(constRItem)}
               </td>
               <td className="construction-list-legacy__dim-td">
                 {constructionDimensionsMm(constRItem)}

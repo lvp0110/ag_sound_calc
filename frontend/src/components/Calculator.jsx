@@ -10,7 +10,7 @@ import {
   constSentZero,
   openingZero,
 } from "../constants/defaultValues";
-import { getImageUrl } from "../services/api";
+import { getAllIsolationConstr, getImageUrl } from "../services/api";
 import { getResponsiveImageProps } from "../utils/responsiveImages";
 import {
   validateInput,
@@ -199,9 +199,23 @@ const Calculator = () => {
           return;
         }
 
-        const offer = await getOffer(activeOfferId);
+        const [offer, constrList] = await Promise.all([
+          getOffer(activeOfferId),
+          getAllIsolationConstr().catch(() => []),
+        ]);
         if (cancelled) return;
-        const state = mapOfferToCalculatorState(offer);
+
+        const titleByCode = new Map();
+        for (const row of constrList || []) {
+          if (row?.Code) {
+            titleByCode.set(row.Code, {
+              Name: row.Name,
+              Description: row.Description,
+            });
+          }
+        }
+
+        const state = mapOfferToCalculatorState(offer, { titleByCode });
         setConstrToCalc(state.constrToCalc);
         setConstrToCalcToSent(state.constrToCalcToSent);
         setMaterialsByConstruction(state.materialsByConstruction);
