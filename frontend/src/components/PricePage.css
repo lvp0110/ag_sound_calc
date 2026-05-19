@@ -109,7 +109,7 @@
 }
 
 .price-page__table tbody tr:hover td {
-  background: #f8fafb;
+  background: #d8e3e8;
 }
 
 .price-page__row--expanded td {
@@ -131,10 +131,8 @@
   box-sizing: border-box;
   width: 100%;
   background: #fff;
-  border: none;
-  border-top: 1px solid var(--price-border);
-  border-bottom: 1px solid var(--price-border);
-  border-radius: 0;
+  border: 1px solid var(--price-border);
+  border-radius: 0 0 8px 8px;
   padding: 12px 14px;
 }
 
@@ -266,6 +264,56 @@
 
   .price-page__name {
     max-width: none;
+  }
+
+  .price-page__name-cell {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .price-page__name-text {
+    flex: 1 1 auto;
+    min-width: 0;
+    line-height: 1.35;
+    word-break: break-word;
+  }
+
+  /* Триггер раскрытия карточки строки (как на КП) */
+  .price-page__row-trigger {
+    flex-shrink: 0;
+    box-sizing: border-box;
+    display: inline-block;
+    width: 0.55em;
+    height: 0.55em;
+    border-style: solid;
+    border-color: currentColor;
+    border-width: 0 0.14em 0.14em 0;
+    transform: rotate(-45deg);
+    transform-origin: 45% 55%;
+    opacity: 0.85;
+    transition: transform 0.15s ease;
+  }
+
+  .price-page__row-trigger--expanded {
+    transform: rotate(45deg);
+    transform-origin: 50% 50%;
+  }
+
+  .price-page__row--expanded td {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  .price-page__detail-row td.price-page__detail-cell {
+    padding: 0 10px 10px;
+    border-bottom: none;
+  }
+
+  .price-page__detail-row .price-page__detail-card {
+    overflow: hidden;
   }
 
   .price-page__detail-name {

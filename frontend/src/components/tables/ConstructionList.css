@@ -51,12 +51,6 @@
   padding-bottom: 8px;
 }
 
-.construction-grand-total__weight-info {
-  margin: 8px;
-  font-weight: 500;
-  text-align: right;
-}
-
 /* Карточка конструкции (шапка и размеры) */
 .construction-card__heading-th {
   font-weight: bold;

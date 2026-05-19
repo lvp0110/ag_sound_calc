@@ -1,8 +1,11 @@
 .kp-page {
   min-height: 100vh;
   padding: 24px 20px 48px;
+  width: 100%;
   max-width: 960px;
   margin: 0 auto;
+  box-sizing: border-box;
+  overflow-x: clip;
   font-family: "Montserrat", sans-serif;
   color: #2c2f33;
   --table-border: #c9d0d6;
@@ -17,8 +20,17 @@
 .kp-page__main {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: stretch;
   gap: 0;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+/* Calculator.css: .tables-and-buttons-container { padding-right: 20px } */
+.kp-page .tables-and-buttons-container {
+  padding-right: 0;
 }
 
 .kp-page__title {
@@ -117,8 +129,8 @@
 
 .kp-page__field-row {
   display: grid;
-  grid-template-columns: minmax(120px, 4%) 1fr;
-  align-items: baseline;
+  grid-template-columns: minmax(120px, 4%) minmax(0, 1fr);
+  align-items: start;
   column-gap: 16px;
   padding: 10px 0 8px;
   border-bottom: 1px solid #c9d0d6;
@@ -140,6 +152,9 @@
 
 .kp-page__input {
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
   margin: 0;
   padding: 2px 0 4px;
   font-family: inherit;
@@ -154,9 +169,23 @@
   outline: none;
 }
 
+textarea.kp-page__input {
+  resize: none;
+  overflow: hidden;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  line-height: 1.35;
+  field-sizing: content;
+}
+
 .kp-page__select {
   appearance: auto;
   cursor: pointer;
+  white-space: normal;
+  overflow-wrap: break-word;
+  word-break: break-word;
+  line-height: 1.35;
 }
 
 .kp-page__input::placeholder {
@@ -191,6 +220,13 @@
 
 .kp-page .kp-table-card--group > .tbl-in + .tbl-in {
   border-top: 1px solid var(--table-border);
+}
+
+/* Нижние углы карточки конструкции (border-collapse ломает radius на td) */
+.kp-page .kp-table-card--group > .kp-card-sections-total-wrap {
+  border-bottom-left-radius: 10px;
+  border-bottom-right-radius: 10px;
+  overflow: hidden;
 }
 
 .kp-page .kp-table-card {
@@ -445,6 +481,22 @@
   border: 1px solid var(--table-border);
 }
 
+/* Таблицы КП с шапкой колонок — на всю ширину карточки / .tbl-in */
+.kp-page table.data.kp-data-table--starts-with-column-headers {
+  width: 100%;
+  min-width: 100%;
+}
+
+.kp-page .tbl-in.materials-data-table,
+.kp-page .kp-page__montage-table-wrap,
+.kp-page .kp-table-card > .tbl-in {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+  min-width: 0;
+}
+
 .kp-page .data th {
   padding: 10px 12px;
   text-align: center;
@@ -533,10 +585,14 @@
 
 .kp-page__service-name-cell {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
   min-width: 0;
   white-space: normal;
+}
+
+.kp-page .data td:has(.kp-page__services-textarea) {
+  vertical-align: top;
 }
 
 .kp-page__service-name-cell .kp-page__services-input {
@@ -602,10 +658,10 @@
 
 .kp-page__services-input {
   width: 100%;
-  min-width: 120px;
+  min-width: 0;
   box-sizing: border-box;
   margin: 0;
-  padding: 6px 8px;
+  padding: 6px 6px;
   font-family: inherit;
   font-size: 14px;
   color: #1a1d21;
@@ -617,8 +673,15 @@
   overflow: hidden;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+  word-break: break-word;
   line-height: 1.35;
   min-height: 30px;
+  field-sizing: content;
+}
+
+.kp-page__services-input::placeholder {
+  color: #9aa2a9;
+  font-weight: 600;
 }
 
 .kp-page__services-input:focus-visible {
@@ -746,6 +809,65 @@
   transform-origin: 50% 50%;
 }
 
+/* Триггер раскрытия карточки строки на узком экране (перебивает глобальный span из Calculator.css) */
+.kp-page .kp-narrow-row-trigger-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  max-width: 100%;
+  font-size: inherit;
+  font-weight: inherit;
+  color: inherit;
+  justify-content: flex-start;
+  pointer-events: none;
+}
+
+/* Текст в tbody/tfoot: тот же 14px, что на ≥768px (глобальный span { font-size: 12px }) */
+.kp-page .kp-table-card .data tbody td .kp-narrow-row-summary-name,
+.kp-page .kp-table-card .data tfoot .materials-list__footer-inner > span {
+  font-size: inherit;
+  font-weight: inherit;
+  color: inherit;
+  display: inline;
+  justify-content: unset;
+  align-items: unset;
+  pointer-events: none;
+}
+
+.kp-page .kp-narrow-row-trigger-wrap > :not(.kp-narrow-row-trigger) {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.kp-page .kp-narrow-row-trigger {
+  flex-shrink: 0;
+  box-sizing: border-box;
+  display: inline-block !important;
+  width: 0.55em;
+  height: 0.55em;
+  margin: 0;
+  padding: 0;
+  border-style: solid;
+  border-color: currentColor;
+  border-width: 0 0.14em 0.14em 0;
+  transform: rotate(-45deg);
+  transform-origin: 45% 55%;
+  font-size: inherit;
+  font-weight: normal;
+  color: inherit;
+  justify-content: unset;
+  align-items: unset;
+  pointer-events: none;
+  opacity: 0.85;
+  transition: transform 0.15s ease;
+}
+
+.kp-page .kp-narrow-row-trigger--expanded {
+  transform: rotate(45deg);
+  transform-origin: 50% 50%;
+}
+
 .kp-page__save-bar {
   margin-top: 24px;
   display: flex;
@@ -792,7 +914,14 @@
   color: #1e40af;
 }
 
-/* Таблицы КП с шапкой колонок: на экранах <768px только «название» и «сумма» */
+/* ≥768px: полная таблица, контент сжимается в ширину экрана */
+@media (min-width: 768px) {
+  .kp-page .kp-table-card .tbl-in {
+    min-width: 0;
+  }
+}
+
+/* <768px: только «название» и «сумма» */
 @media (max-width: 767px) {
   .kp-page
     .data.kp-data-table--starts-with-column-headers
@@ -847,9 +976,16 @@
     th.kp-data-col--name,
   .kp-page
     .data.kp-data-table--starts-with-column-headers[data-materials-table]
-    td.kp-data-col--name {
+    td.kp-data-col--name,
+  .kp-page
+    .data.kp-data-table--starts-with-column-headers:not([data-materials-table])
+    thead
+    th:nth-child(1),
+  .kp-page
+    .data.kp-data-table--starts-with-column-headers:not([data-materials-table])
+    tbody
+    td:nth-child(1) {
     text-align: left;
-    width: auto;
   }
 
   .kp-page
@@ -857,38 +993,15 @@
     th.kp-data-col--sum,
   .kp-page
     .data.kp-data-table--starts-with-column-headers[data-materials-table]
-    td.kp-data-col--sum {
-    text-align: right;
-    white-space: nowrap;
-    font-variant-numeric: tabular-nums;
-    width: auto;
-  }
-
+    td.kp-data-col--sum,
   .kp-page
-    .kp-table-card
-    #kp-table-additional-materials
-    th:nth-child(n + 2):not(.kp-data-col--sum),
+    .data.kp-data-table--starts-with-column-headers:not([data-materials-table])
+    thead
+    th:nth-child(5),
   .kp-page
-    .kp-table-card
-    #kp-table-additional-materials
-    td:nth-child(n + 2):not(.kp-data-col--sum),
-  .kp-page .kp-table-card #kp-table-services th:nth-child(n + 2):not(:nth-child(5)),
-  .kp-page .kp-table-card #kp-table-services td:nth-child(n + 2):not(:nth-child(5)) {
-    width: auto;
-  }
-
-  .kp-page .kp-table-card #kp-table-additional-materials th:nth-child(1),
-  .kp-page .kp-table-card #kp-table-additional-materials td:nth-child(1),
-  .kp-page .kp-table-card #kp-table-services th:nth-child(1),
-  .kp-page .kp-table-card #kp-table-services td:nth-child(1) {
-    width: auto;
-  }
-
-  .kp-page .kp-table-card #kp-table-additional-materials th:nth-child(5),
-  .kp-page .kp-table-card #kp-table-additional-materials td:nth-child(5),
-  .kp-page .kp-table-card #kp-table-services th:nth-child(5),
-  .kp-page .kp-table-card #kp-table-services td:nth-child(5) {
-    width: auto;
+    .data.kp-data-table--starts-with-column-headers:not([data-materials-table])
+    tbody
+    td:nth-child(5) {
     text-align: right;
     white-space: nowrap;
     font-variant-numeric: tabular-nums;
@@ -899,21 +1012,40 @@
   }
 
   .kp-page .kp-narrow-row--clickable:hover td {
-    background: #f8fafb;
+    background: #d8e3e8;
   }
 
   .kp-page .kp-narrow-row--expanded td {
     border-bottom: none;
     background: #f8fafb;
+    padding-left: 10px;
+    padding-right: 10px;
   }
 
+  /* Отступы у ячейки + radius на внутреннем блоке (не на td: border-collapse: collapse) */
   .kp-page .kp-narrow-detail-row td.kp-narrow-detail-cell {
     display: table-cell;
     width: 100%;
-    padding: 0;
+    padding: 0 10px 10px;
     text-align: left;
     background: #f8fafb;
-    border-bottom: 1px solid var(--table-border, #d8e0e6);
+    border-bottom: none;
+  }
+
+  .kp-page .kp-narrow-detail-row .kp-narrow-row-detail {
+    overflow: hidden;
+  }
+
+  .kp-page .kp-narrow-row-summary-cell {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .kp-page .kp-narrow-row-summary-cell .kp-narrow-row-summary-name {
+    flex: 1 1 auto;
+    min-width: 0;
   }
 
   .kp-page .kp-narrow-row-summary-name {
@@ -931,6 +1063,40 @@
     white-space: nowrap;
     font-variant-numeric: tabular-nums;
     font-weight: 600;
+  }
+
+  /* Доп. материалы / услуги: colgroup задаёт 50%+20% при скрытых средних колонках — остаётся пустое место справа */
+  .kp-page .kp-table-card #kp-table-additional-materials col:nth-child(1),
+  .kp-page .kp-table-card #kp-table-services col:nth-child(1) {
+    width: 72% !important;
+  }
+
+  .kp-page .kp-table-card #kp-table-additional-materials col:nth-child(2),
+  .kp-page .kp-table-card #kp-table-additional-materials col:nth-child(3),
+  .kp-page .kp-table-card #kp-table-additional-materials col:nth-child(4),
+  .kp-page .kp-table-card #kp-table-services col:nth-child(2),
+  .kp-page .kp-table-card #kp-table-services col:nth-child(3),
+  .kp-page .kp-table-card #kp-table-services col:nth-child(4) {
+    width: 0 !important;
+  }
+
+  .kp-page .kp-table-card #kp-table-additional-materials col:nth-child(5),
+  .kp-page .kp-table-card #kp-table-services col:nth-child(5) {
+    width: 28% !important;
+  }
+
+  .kp-page .kp-table-card #kp-table-additional-materials th:nth-child(1),
+  .kp-page .kp-table-card #kp-table-additional-materials td:nth-child(1),
+  .kp-page .kp-table-card #kp-table-services th:nth-child(1),
+  .kp-page .kp-table-card #kp-table-services td:nth-child(1) {
+    width: 72%;
+  }
+
+  .kp-page .kp-table-card #kp-table-additional-materials th:nth-child(5),
+  .kp-page .kp-table-card #kp-table-additional-materials td:nth-child(5),
+  .kp-page .kp-table-card #kp-table-services th:nth-child(5),
+  .kp-page .kp-table-card #kp-table-services td:nth-child(5) {
+    width: 28%;
   }
 }
 

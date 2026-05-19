@@ -2,7 +2,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import ConstructionList, {
   ConstructionGrandTotalBlock,
-  computeTotalWeightKgForConstructions,
 } from "./tables/ConstructionList";
 import {
   computeGrandTotalRubForConstructions,
@@ -50,10 +49,21 @@ function formatServiceSum(product) {
   }).format(product);
 }
 
+const KP_DECIMAL_PLACEHOLDER = "0,00";
+
+const KP_AUTO_RESIZE_TEXTAREA_SELECTOR =
+  ".kp-page__services-textarea, .kp-page__contact textarea.kp-page__input";
+
+function syncTextareaHeight(field) {
+  if (!field || field.nodeName !== "TEXTAREA") return;
+  field.style.height = "auto";
+  field.style.height = `${field.scrollHeight}px`;
+}
+
 function serviceRowSum(priceStr, qtyStr) {
   const p = parseKpDecimal(priceStr);
   const q = parseKpDecimal(qtyStr);
-  if (p === null || q === null) return "";
+  if (p === null || q === null) return KP_DECIMAL_PLACEHOLDER;
   return formatServiceSum(p * q);
 }
 
@@ -156,7 +166,7 @@ function KpCollapsibleExtraTable({
             <span>{title}</span>
           </span>
           <span className="kp-collapsible-title-sum" aria-hidden>
-            {formatRub(totalRub)}
+            {formatRub(totalRub ?? 0)}
           </span>
         </span>
       </button>
@@ -588,18 +598,52 @@ const KpPage = () => {
   };
 
   const autoResizeNameField = (e) => {
-    const field = e.target;
-    field.style.height = "auto";
-    field.style.height = `${field.scrollHeight}px`;
+    syncTextareaHeight(e.target);
+  };
+
+  const onContactFieldChange = (key) => (e) => {
+    onFieldChange(key)(e);
+    autoResizeNameField(e);
   };
 
   useEffect(() => {
-    const fields = document.querySelectorAll(".kp-page__services-textarea");
-    fields.forEach((field) => {
-      field.style.height = "auto";
-      field.style.height = `${field.scrollHeight}px`;
+    const syncAll = () => {
+      requestAnimationFrame(() => {
+        document
+          .querySelectorAll(KP_AUTO_RESIZE_TEXTAREA_SELECTOR)
+          .forEach(syncTextareaHeight);
+      });
+    };
+
+    syncAll();
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const { target } of entries) {
+        syncTextareaHeight(target);
+      }
     });
-  }, [materialRows, serviceRows]);
+
+    const fields = document.querySelectorAll(KP_AUTO_RESIZE_TEXTAREA_SELECTOR);
+    fields.forEach((field) => resizeObserver.observe(field));
+
+    window.addEventListener("resize", syncAll);
+
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener("resize", syncAll);
+    };
+  }, [
+    materialRows,
+    serviceRows,
+    loadStatus,
+    isKpNarrow,
+    expandedKey,
+    form.object,
+    form.manager,
+    form.phone,
+    form.email,
+    form.officeAddress,
+  ]);
 
   const addMaterialRow = () => {
     setMaterialRows((rows) => [...rows, newCustomMaterialRow()]);
@@ -742,7 +786,7 @@ const KpPage = () => {
                 <span>Монтаж</span>
               </span>
               <span className="kp-collapsible-title-sum" aria-hidden>
-                {formatRub(montageLineProductRub(row))}
+                {formatRub(montageLineProductRub(row) ?? 0)}
               </span>
             </span>
           </button>
@@ -774,6 +818,7 @@ const KpPage = () => {
                       type="text"
                       className="kp-page__services-input"
                       value={row.price}
+                      placeholder={KP_DECIMAL_PLACEHOLDER}
                       onChange={updateMontagePriceRow(key_id)}
                       aria-label={`Цена, ${MONTAGE_ROW_LABEL} (карточка ${cardIndex + 1}, из настроек КП)`}
                     />
@@ -785,6 +830,7 @@ const KpPage = () => {
                       readOnly
                       className="kp-page__services-input"
                       value={row.quantity}
+                      placeholder={KP_DECIMAL_PLACEHOLDER}
                       aria-label={`Количество, ${MONTAGE_ROW_LABEL} (карточка ${cardIndex + 1}, площадь конструкции)`}
                     />
                   );
@@ -827,7 +873,7 @@ const KpPage = () => {
                       <td />
                       <td />
                       <td className="kp-narrow-row-summary-sum">
-                        {serviceRowSum(row.price, row.quantity) || "—"}
+                        {serviceRowSum(row.price, row.quantity)}
                       </td>
                     </>
                   ) : (
@@ -968,67 +1014,73 @@ const KpPage = () => {
             <label className="kp-page__label" htmlFor="kp-object">
               Объект:
             </label>
-            <input
+            <textarea
               id="kp-object"
               className="kp-page__input"
-              type="text"
+              rows={1}
               value={form.object}
-              onChange={onFieldChange("object")}
+              onChange={onContactFieldChange("object")}
+              onInput={autoResizeNameField}
             />
           </div>
           <div className="kp-page__field-row">
             <label className="kp-page__label" htmlFor="kp-manager">
               Менеджер:
             </label>
-            <input
+            <textarea
               id="kp-manager"
               className="kp-page__input"
-              type="text"
+              rows={1}
               autoComplete="name"
               value={form.manager}
-              onChange={onFieldChange("manager")}
+              onChange={onContactFieldChange("manager")}
+              onInput={autoResizeNameField}
             />
           </div>
           <div className="kp-page__field-row">
             <label className="kp-page__label" htmlFor="kp-phone">
               Телефон:
             </label>
-            <input
+            <textarea
               id="kp-phone"
               className="kp-page__input"
-              type="tel"
+              rows={1}
               autoComplete="tel"
               inputMode="tel"
               placeholder="+7 (___) ___-__-__"
               value={form.phone}
-              onChange={onFieldChange("phone")}
+              onChange={onContactFieldChange("phone")}
+              onInput={autoResizeNameField}
             />
           </div>
           <div className="kp-page__field-row">
             <label className="kp-page__label" htmlFor="kp-email">
               Email:
             </label>
-            <input
+            <textarea
               id="kp-email"
               className="kp-page__input kp-page__input--email"
-              type="email"
+              rows={1}
               autoComplete="email"
+              inputMode="email"
               placeholder="name@example.com"
               value={form.email}
-              onChange={onFieldChange("email")}
+              onChange={onContactFieldChange("email")}
+              onInput={autoResizeNameField}
             />
           </div>
           <div className="kp-page__field-row kp-page__field-row--last">
             <label className="kp-page__label" htmlFor="kp-address">
               Адрес офиса:
             </label>
-            <input
+            <textarea
               id="kp-address"
               className="kp-page__input"
-              type="text"
+              rows={1}
               autoComplete="street-address"
               value={form.officeAddress}
-              onChange={onFieldChange("officeAddress")}
+              onChange={onContactFieldChange("officeAddress")}
+              onInput={autoResizeNameField}
             />
           </div>
         </section>
@@ -1161,24 +1213,38 @@ const KpPage = () => {
           >
             {materialRows.map((row) => {
               const rowKey = `mat-${row.id}`;
-              const nameCell = (
+              const removeRowButton = (
+                <button
+                  type="button"
+                  className="kp-page__service-row-remove"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    removeMaterialRow(row.id);
+                  }}
+                  aria-label="Удалить строку"
+                >
+                  ×
+                </button>
+              );
+              const nameTextarea = (
+                <textarea
+                  className="kp-page__services-input kp-page__services-textarea"
+                  value={row.name}
+                  onChange={(e) => {
+                    updateMaterialRow(row.id, "name")(e);
+                    syncTextareaHeight(e.target);
+                  }}
+                  onInput={autoResizeNameField}
+                  aria-label="Название материала"
+                  rows={1}
+                />
+              );
+              const nameCell = isKpNarrow ? (
+                <div className="kp-page__service-name-cell">{nameTextarea}</div>
+              ) : (
                 <div className="kp-page__service-name-cell">
-                  <button
-                    type="button"
-                    className="kp-page__service-row-remove"
-                    onClick={() => removeMaterialRow(row.id)}
-                    aria-label="Удалить строку"
-                  >
-                    ×
-                  </button>
-                  <textarea
-                    className="kp-page__services-input kp-page__services-textarea"
-                    value={row.name}
-                    onChange={updateMaterialRow(row.id, "name")}
-                    onInput={autoResizeNameField}
-                    aria-label="Название материала"
-                    rows={1}
-                  />
+                  {removeRowButton}
+                  {nameTextarea}
                 </div>
               );
               const priceInput = (
@@ -1186,6 +1252,7 @@ const KpPage = () => {
                   type="text"
                   className="kp-page__services-input"
                   value={row.price}
+                  placeholder={KP_DECIMAL_PLACEHOLDER}
                   onChange={updateMaterialRow(row.id, "price")}
                   aria-label={`Цена, ${row.name || "материал"}`}
                 />
@@ -1195,6 +1262,7 @@ const KpPage = () => {
                   type="text"
                   className="kp-page__services-input"
                   value={row.quantity}
+                  placeholder={KP_DECIMAL_PLACEHOLDER}
                   onChange={updateMaterialRow(row.id, "quantity")}
                   aria-label={`Количество, ${row.name || "материал"}`}
                 />
@@ -1227,15 +1295,18 @@ const KpPage = () => {
               const rowCells = isKpNarrow ? (
                 <>
                   <td>
-                    <span className="kp-narrow-row-summary-name">
-                      {row.name?.trim() ? row.name : "—"}
-                    </span>
+                    <div className="kp-page__service-name-cell kp-narrow-row-summary-cell">
+                      {removeRowButton}
+                      <span className="kp-narrow-row-summary-name">
+                        {row.name?.trim() ? row.name : "—"}
+                      </span>
+                    </div>
                   </td>
                   <td />
                   <td />
                   <td />
                   <td className="kp-narrow-row-summary-sum">
-                    {serviceRowSum(row.price, row.quantity) || "—"}
+                    {serviceRowSum(row.price, row.quantity)}
                   </td>
                 </>
               ) : (
@@ -1298,26 +1369,40 @@ const KpPage = () => {
           >
             {serviceRows.map((row) => {
               const rowKey = `svc-${row.id}`;
+              const removeRowButton = row.preset ? null : (
+                <button
+                  type="button"
+                  className="kp-page__service-row-remove"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    removeServiceRow(row.id);
+                  }}
+                  aria-label="Удалить строку"
+                >
+                  ×
+                </button>
+              );
+              const nameTextarea = row.preset ? null : (
+                <textarea
+                  className="kp-page__services-input kp-page__services-textarea"
+                  value={row.name}
+                  onChange={(e) => {
+                    updateServiceRow(row.id, "name")(e);
+                    syncTextareaHeight(e.target);
+                  }}
+                  onInput={autoResizeNameField}
+                  aria-label="Название услуги"
+                  rows={1}
+                />
+              );
               const nameCell = row.preset ? (
                 row.name
+              ) : isKpNarrow ? (
+                <div className="kp-page__service-name-cell">{nameTextarea}</div>
               ) : (
                 <div className="kp-page__service-name-cell">
-                  <button
-                    type="button"
-                    className="kp-page__service-row-remove"
-                    onClick={() => removeServiceRow(row.id)}
-                    aria-label="Удалить строку"
-                  >
-                    ×
-                  </button>
-                  <textarea
-                    className="kp-page__services-input kp-page__services-textarea"
-                    value={row.name}
-                    onChange={updateServiceRow(row.id, "name")}
-                    onInput={autoResizeNameField}
-                    aria-label="Название услуги"
-                    rows={1}
-                  />
+                  {removeRowButton}
+                  {nameTextarea}
                 </div>
               );
               const priceInput = (
@@ -1326,6 +1411,7 @@ const KpPage = () => {
                   type="text"
                   className="kp-page__services-input"
                   value={row.price}
+                  placeholder={KP_DECIMAL_PLACEHOLDER}
                   onChange={updateServiceRow(row.id, "price")}
                   aria-label={`Цена, ${row.name || "услуга"}`}
                 />
@@ -1338,6 +1424,7 @@ const KpPage = () => {
                   type="text"
                   className="kp-page__services-input"
                   value={row.quantity}
+                  placeholder={KP_DECIMAL_PLACEHOLDER}
                   onChange={updateServiceRow(row.id, "quantity")}
                   aria-label={`Количество, ${row.name || "услуга"}`}
                 />
@@ -1375,15 +1462,24 @@ const KpPage = () => {
               const rowCells = isKpNarrow ? (
                 <>
                   <td className={nameTdClass}>
-                    <span className="kp-narrow-row-summary-name">
-                      {row.name?.trim() ? row.name : "—"}
-                    </span>
+                    {row.preset ? (
+                      <span className="kp-narrow-row-summary-name">
+                        {row.name?.trim() ? row.name : "—"}
+                      </span>
+                    ) : (
+                      <div className="kp-page__service-name-cell kp-narrow-row-summary-cell">
+                        {removeRowButton}
+                        <span className="kp-narrow-row-summary-name">
+                          {row.name?.trim() ? row.name : "—"}
+                        </span>
+                      </div>
+                    )}
                   </td>
                   <td />
                   <td />
                   <td />
                   <td className="kp-narrow-row-summary-sum">
-                    {serviceRowSum(row.price, row.quantity) || "—"}
+                    {serviceRowSum(row.price, row.quantity)}
                   </td>
                 </>
               ) : (
@@ -1433,9 +1529,6 @@ const KpPage = () => {
               )}
               additionalMaterialsGrandTotalRub={additionalMaterialsGrandTotalRubForKp(
                 materialRows
-              )}
-              totalWeightKg={computeTotalWeightKgForConstructions(
-                calcTables.ConstrToCalc
               )}
               wrapClassName="kp-page__construction-grand-total"
             />

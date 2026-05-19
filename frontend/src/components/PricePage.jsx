@@ -9,6 +9,7 @@ import {
 import { setPriceRegion, usePriceData } from "../services/priceApi";
 import { filterPriceRows } from "./priceSearch";
 import { useOfferEditSession } from "../stores/offerEditSessionStore.js";
+import { usePriceNarrowViewport } from "../hooks/usePriceNarrowViewport";
 import "./PricePage.css";
 
 const getDefaultRegionOption = (availableRegionKeys) =>
@@ -88,6 +89,7 @@ const PricePage = () => {
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
   const [expandedRowKey, setExpandedRowKey] = useState(null);
+  const isPriceNarrow = usePriceNarrowViewport();
   const {
     isEditingDraft,
     activeOfferId,
@@ -323,7 +325,21 @@ const PricePage = () => {
                     >
                       <td className="price-page__article">{row.article}</td>
                       <td className="price-page__name">
-                        {row.name?.trim() ? row.name : "—"}
+                        <span className="price-page__name-cell">
+                          {isPriceNarrow ? (
+                            <span
+                              className={`price-page__row-trigger${
+                                isExpanded
+                                  ? " price-page__row-trigger--expanded"
+                                  : ""
+                              }`}
+                              aria-hidden
+                            />
+                          ) : null}
+                          <span className="price-page__name-text">
+                            {row.name?.trim() ? row.name : "—"}
+                          </span>
+                        </span>
                       </td>
                       <td>
                         {formatPriceCell(

@@ -162,7 +162,7 @@ const MaterialsList = ({
         <span>{sectionTitle}</span>
       </span>
       <span className="kp-collapsible-title-sum" aria-hidden>
-        {hasData ? formatRub(totalSumRub) : "—"}
+        {formatRub(hasData ? totalSumRub : 0)}
       </span>
     </span>
   ) : null;
@@ -269,7 +269,7 @@ const MaterialsList = ({
                       )
                     }
                     placeholder={
-                      pricePerM2 != null ? formatRub(pricePerM2) : "—"
+                      pricePerM2 != null ? formatRub(pricePerM2) : formatRub(0)
                     }
                     aria-label={`Цена за м², ${materialName}`}
                   />
@@ -294,7 +294,7 @@ const MaterialsList = ({
                       )
                     }
                     placeholder={
-                      pricePerUnit != null ? formatRub(pricePerUnit) : "—"
+                      pricePerUnit != null ? formatRub(pricePerUnit) : formatRub(0)
                     }
                     aria-label={`Цена за единицу, ${materialName}`}
                   />

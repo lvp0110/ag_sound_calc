@@ -12,7 +12,6 @@ import "./ConstructionList.css";
 export function ConstructionGrandTotalBlock({
   readOnly,
   grandTotalRub,
-  totalWeightKg,
   /** Итог монтажа по КП (передаётся только на странице КП). */
   montageGrandTotalRub,
   /** Итог блока доп. материалов по КП. */
@@ -54,9 +53,6 @@ export function ConstructionGrandTotalBlock({
   const lineAmountClass = readOnly
     ? "construction-grand-total__line-amount"
     : "construction-grand-total__line-amount construction-grand-total__line-amount--calc";
-  const showTotalWeightInfo =
-    typeof totalWeightKg === "number" && !Number.isNaN(totalWeightKg);
-
   return (
     <div
       className={`tbl-in construction-grand-total-wrap${grandTotalCardClass}${
@@ -140,11 +136,6 @@ export function ConstructionGrandTotalBlock({
           </tr>
         </tbody>
       </table>
-      {showTotalWeightInfo && (
-        <div className="construction-grand-total__weight-info">
-          Общий вес всех конструкций: {totalWeightKg.toFixed(1)} кг
-        </div>
-      )}
     </div>
   );
 }
@@ -193,21 +184,6 @@ function formatConstructionAreaM2(item) {
   const area = constructionAreaM2(item);
   if (Number.isNaN(area)) return "—";
   return area.toFixed(1);
-}
-
-function constructionWeightKg(item) {
-  const area = constructionAreaM2(item);
-  const mass = parseConstructionNumber(item.weight);
-  if (Number.isNaN(area) || Number.isNaN(mass)) return 0;
-  return area * mass;
-}
-
-export function computeTotalWeightKgForConstructions(constructions) {
-  if (!Array.isArray(constructions)) return 0;
-  return constructions.reduce(
-    (sum, item) => sum + constructionWeightKg(item),
-    0
-  );
 }
 
 function constructionDisplayTitle({ title, type }) {
@@ -507,7 +483,6 @@ const ConstructionList = ({
               constructions,
               materialsByConstruction
             )}
-            totalWeightKg={computeTotalWeightKgForConstructions(constructions)}
           />
         )}
       </div>

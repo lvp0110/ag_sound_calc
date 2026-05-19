@@ -1,14 +1,14 @@
 import { useEffect, useState } from "react";
 
-/** Совпадает с `@media (max-width: 767px)` в KpPage.css — узкий режим ниже 768px */
-export const KP_NARROW_VIEWPORT_MAX_PX = 767;
+/** Совпадает с `@media (max-width: 569px)` в PricePage.css — узкий прайс ниже 570px */
+export const PRICE_NARROW_VIEWPORT_MAX_PX = 569;
 
-export function useKpNarrowViewport() {
+export function usePriceNarrowViewport() {
   const [narrow, setNarrow] = useState(false);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia(
-      `(max-width: ${KP_NARROW_VIEWPORT_MAX_PX}px)`,
+      `(max-width: ${PRICE_NARROW_VIEWPORT_MAX_PX}px)`,
     );
     const handleChange = () => setNarrow(mediaQuery.matches);
     handleChange();
