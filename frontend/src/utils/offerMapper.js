@@ -18,6 +18,7 @@ export function buildCreateOfferPayload({
   constrToCalc,
   form = null,
   services = [],
+  kpSettings = null,
 }) {
   const constructions = constrToCalcToSent.map((calcParams, i) => ({
     calc_params: calcParams,
@@ -39,6 +40,7 @@ export function buildCreateOfferPayload({
       // доп. материалы при создании обычно пустые — пользователь добавит их на /kp/:id;
       // но если уже есть — сразу сохраним.
       additional_materials: [],
+      ...(kpSettings ? { kp_settings: normalizeKpSettings(kpSettings) } : {}),
     },
   };
 }
@@ -93,8 +95,14 @@ export function mapOfferResponseToKpView(offer, { titleByCode = new Map() } = {}
     // одну строку «Монтаж» → берём первую.
     const first = montageArr[0];
     if (first) {
+      // price === 0 (или null/undefined) трактуем как «не задано» — на бэк
+      // пустое поле уходит как parseNumber("") === 0, и при следующей загрузке
+      // мы должны заново подставить ставку из kpSettings, а не показать "0".
+      const rawPrice = first.price;
+      const price =
+        rawPrice == null || Number(rawPrice) === 0 ? "" : String(rawPrice);
       montageByKeyId[c.id] = {
-        price: first.price !== undefined && first.price !== null ? String(first.price) : "",
+        price,
         quantity:
           first.count !== undefined && first.count !== null ? String(first.count) : "",
         unit: first.unit || "",
@@ -109,6 +117,7 @@ export function mapOfferResponseToKpView(offer, { titleByCode = new Map() } = {}
     montageByKeyId,
     serviceRows: mapServicesToRows(offer.services),
     materialRows: mapAdditionalMaterialsToRows(offer.additional_materials),
+    kpSettings: mapKpSettingsFromApi(offer.kp_settings),
   };
 }
 
@@ -139,6 +148,7 @@ export function buildDraftSyncFromCalculator({
   materialsByConstruction,
   kpSnapshot = null,
 }) {
+  const snapshotKpSettings = kpSnapshot?.kpSettings;
   const oldKeyIds = kpSnapshot?.calcTables?.ConstrToCalc?.map((c) => c.key_id) || [];
   const montageByKeyId = kpSnapshot?.montageByKeyId || {};
 
@@ -172,6 +182,9 @@ export function buildDraftSyncFromCalculator({
       .map(mapMaterialRowToApi)
       .filter(Boolean);
   }
+  if (snapshotKpSettings) {
+    payload.kp_settings = normalizeKpSettings(snapshotKpSettings);
+  }
 
   return payload;
 }
@@ -190,6 +203,7 @@ export function buildUpdateOfferPayload({
   montageByKeyId,             // { key_id: { price, quantity, unit } }
   serviceRows,                // [{ id, preset, name, price, quantity, unit }]
   materialRows,               // [{ id, name, price, quantity, unit }] — доп. материалы
+  kpSettings = null,          // { floor, ceiling, cladding, partition } | null
   originalConstructionsFromOffer, // Offer.constructions из getOffer — чтобы достать calc_params
 }) {
   const calcParamsById = new Map(
@@ -224,6 +238,7 @@ export function buildUpdateOfferPayload({
     additional_materials: (materialRows || [])
       .map(mapMaterialRowToApi)
       .filter(Boolean),
+    kp_settings: kpSettings ? normalizeKpSettings(kpSettings) : null,
     constructions: constructionsPayload,
   };
 }
@@ -329,6 +344,38 @@ function mapServicesToRows(services) {
     });
   }
   return rows;
+}
+
+const KP_SETTINGS_KEYS = ["floor", "ceiling", "cladding", "partition"];
+
+/**
+ * Нормализуем kpSettings перед отправкой: на фронте поля хранятся строками
+ * (значение <input type="number">) — кладём их в payload как есть, отсутствующие
+ * поля заполняем пустой строкой. Backend хранит JSON «как есть».
+ */
+function normalizeKpSettings(kpSettings) {
+  if (!kpSettings || typeof kpSettings !== "object") return null;
+  const out = {};
+  for (const key of KP_SETTINGS_KEYS) {
+    const value = kpSettings[key];
+    out[key] = value === undefined || value === null ? "" : String(value);
+  }
+  return out;
+}
+
+/**
+ * kp_settings из ответа API → состояние KpPage (строки для контролируемых
+ * input'ов). Если поле отсутствует, ставим "" — чтобы input был controlled.
+ */
+function mapKpSettingsFromApi(apiKpSettings) {
+  const src =
+    apiKpSettings && typeof apiKpSettings === "object" ? apiKpSettings : {};
+  const out = {};
+  for (const key of KP_SETTINGS_KEYS) {
+    const value = src[key];
+    out[key] = value === undefined || value === null ? "" : String(value);
+  }
+  return out;
 }
 
 function parseNumber(s) {

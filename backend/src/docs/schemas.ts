@@ -182,6 +182,22 @@ export const OfferConstructionInputSchema = z
  */
 export const AdditionalMaterialSchema = ServiceSchema.openapi("AdditionalMaterial");
 
+/**
+ * Настройки КП (KP_SETTINGS_FIELDS на фронте): ставки монтажа за м² для
+ * типовых конструкций. Каждое поле опционально и может быть строкой ("" или
+ * число строкой — фронт хранит как строку из <input type="number">) или числом.
+ * `.passthrough()` оставляет место под будущие ключи без миграции схемы.
+ */
+export const KpSettingsSchema = z
+  .object({
+    floor: z.union([z.string(), z.number()]).nullish(),
+    ceiling: z.union([z.string(), z.number()]).nullish(),
+    cladding: z.union([z.string(), z.number()]).nullish(),
+    partition: z.union([z.string(), z.number()]).nullish(),
+  })
+  .passthrough()
+  .openapi("KpSettings");
+
 export const OfferDraftSchema = z
   .object({
     // Пустой массив допустим — сценарий «создать пустое КП» (кнопка «Новое КП»
@@ -189,6 +205,7 @@ export const OfferDraftSchema = z
     constructions: z.array(OfferConstructionInputSchema),
     services: z.array(ServiceSchema).optional(),
     additional_materials: z.array(AdditionalMaterialSchema).optional(),
+    kp_settings: KpSettingsSchema.optional(),
   })
   .openapi("OfferDraft");
 
@@ -204,6 +221,7 @@ export const UpdateOfferRequestSchema = z
     form: OfferFormSchema.optional(),
     services: z.array(ServiceSchema).optional(),
     additional_materials: z.array(AdditionalMaterialSchema).optional(),
+    kp_settings: KpSettingsSchema.nullish(),
     constructions: z.array(OfferConstructionInputSchema).optional(),
     total_cost: z.number().optional(),
   })
@@ -248,6 +266,7 @@ export const OfferSchema = z
     discount_percent: z.number().nullable(),
     services: z.array(ServiceSchema).nullable(),
     additional_materials: z.array(AdditionalMaterialSchema).nullable(),
+    kp_settings: KpSettingsSchema.nullable(),
     constructions: z.array(OfferConstructionSchema),
     created_at: z.string().datetime(),
     updated_at: z.string().datetime(),

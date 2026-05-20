@@ -109,6 +109,7 @@ const toOfferDto = (offer: Offer, constructions: ConstructionForDto[]) => ({
   discount_percent: decimalToNumber(offer.discountPercent),
   services: offer.services ?? null,
   additional_materials: offer.additionalMaterials ?? null,
+  kp_settings: offer.kpSettings ?? null,
   constructions: constructions
     .slice()
     .sort((a, b) => a.position - b.position)
@@ -154,6 +155,12 @@ router.post(
           services: (parsed.offerDraft.services ?? []) as unknown as Prisma.InputJsonValue,
           additionalMaterials:
             (parsed.offerDraft.additional_materials ?? []) as unknown as Prisma.InputJsonValue,
+          ...(parsed.offerDraft.kp_settings !== undefined
+            ? {
+                kpSettings:
+                  parsed.offerDraft.kp_settings as unknown as Prisma.InputJsonValue,
+              }
+            : {}),
         },
       });
 
@@ -282,6 +289,12 @@ router.patch(
                   parsed.additional_materials as unknown as Prisma.InputJsonValue,
               }
             : {}),
+          ...(parsed.kp_settings !== undefined
+            ? {
+                kpSettings:
+                  (parsed.kp_settings ?? null) as unknown as Prisma.InputJsonValue,
+              }
+            : {}),
         },
       });
 
@@ -368,6 +381,11 @@ router.post(
           services: (source.services ?? []) as unknown as Prisma.InputJsonValue,
           additionalMaterials:
             (source.additionalMaterials ?? []) as unknown as Prisma.InputJsonValue,
+          ...(source.kpSettings !== null
+            ? {
+                kpSettings: source.kpSettings as unknown as Prisma.InputJsonValue,
+              }
+            : {}),
         },
       });
 

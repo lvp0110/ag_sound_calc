@@ -31,7 +31,6 @@ import { useKpNarrowViewport } from "../hooks/useKpNarrowViewport";
 import "./Calculator.css";
 import "./KpPage.css";
 
-
 const initialForm = {
   manager: "",
   phone: "",
@@ -196,7 +195,9 @@ function KpCollapsibleExtraTable({
                 <tr className="kp-page__section-total-row">
                   <td colSpan={5} className="kp-page__section-total-cell">
                     <div className="kp-card-sections-total__inner">
-                      <span className="kp-card-sections-total__label">Итого</span>
+                      <span className="kp-card-sections-total__label">
+                        Итого
+                      </span>
                       <span className="kp-card-sections-total__amount">
                         {formatRub(totalRub)}
                       </span>
@@ -261,7 +262,9 @@ function formatMontageQuantity(areaM2) {
 }
 
 function kpSettingKeyByConstructionType(type) {
-  const upperType = String(type ?? "").trim().toUpperCase();
+  const upperType = String(type ?? "")
+    .trim()
+    .toUpperCase();
   if (upperType === "ПОЛ") return "floor";
   if (upperType === "ПОТОЛОК") return "ceiling";
   if (upperType === "ОБЛИЦОВКА") return "cladding";
@@ -297,11 +300,14 @@ const KpPage = () => {
   const [montageSectionOpenByKeyId, setMontageSectionOpenByKeyId] = useState(
     () => ({}),
   );
-  const [materialRows, setMaterialRows] = useState(() => [newCustomMaterialRow()]);
+  const [materialRows, setMaterialRows] = useState(() => [
+    newCustomMaterialRow(),
+  ]);
   const [serviceRows, setServiceRows] = useState(INITIAL_SERVICE_ROWS);
-  // kpSettings — пользовательские настройки шифров по умолчанию для конструкций.
-  // На main персистились в sessionStorage; в текущей offer-first архитектуре
-  // ephemeral (сбрасываются при обновлении), миграция в Offer DTO — на будущее.
+  // kpSettings — пользовательские ставки монтажа по типам конструкций. Хранятся
+  // в Offer.kp_settings (JSONB), приходят в DTO под ключом `kp_settings`.
+  // Снимок отдаётся через useOfferEditSession при возврате из калькулятора, чтобы
+  // не сбрасывать локальные правки до сохранения.
   const [kpSettings, setKpSettings] = useState({
     floor: "",
     ceiling: "",
@@ -315,7 +321,7 @@ const KpPage = () => {
   const isKpNarrow = useKpNarrowViewport();
   const { expandedKey, toggleRow } = useKpExpandedRow();
   const [manualMontagePriceByKeyId, setManualMontagePriceByKeyId] = useState(
-    () => ({})
+    () => ({}),
   );
   const visibleRegionOptions = useMemo(
     () => filterVisibleRegionOptions(regions),
@@ -375,8 +381,7 @@ const KpPage = () => {
         const view = mapOfferResponseToKpView(offer, { titleByCode });
         originalConstructionsRef.current = offer.constructions || [];
 
-        const snap =
-          kpSnapshot && activeOfferId === id ? kpSnapshot : null;
+        const snap = kpSnapshot && activeOfferId === id ? kpSnapshot : null;
 
         setForm(snap?.form ?? view.form);
         setCalcTables({
@@ -397,9 +402,28 @@ const KpPage = () => {
               ? view.materialRows
               : [newCustomMaterialRow()]),
         );
-        if (snap?.kpSettings) setKpSettings(snap.kpSettings);
+        if (snap?.kpSettings) {
+          setKpSettings(snap.kpSettings);
+        } else if (view.kpSettings) {
+          setKpSettings(view.kpSettings);
+        }
         if (snap?.manualMontagePriceByKeyId) {
           setManualMontagePriceByKeyId(snap.manualMontagePriceByKeyId);
+        } else {
+          // Цена монтажа из БД (c.montage[0].price) приоритетнее ставки из
+          // настроек КП: помечаем такие key_id как «ручные», иначе авто-эффект
+          // ниже перезатрёт их значением из kpSettings.
+          const initialManual = {};
+          for (const [keyId, row] of Object.entries(view.montageByKeyId)) {
+            if (
+              row &&
+              typeof row.price === "string" &&
+              row.price.trim() !== ""
+            ) {
+              initialManual[keyId] = true;
+            }
+          }
+          setManualMontagePriceByKeyId(initialManual);
         }
         const rowsForArticles = snap?.materialRows ?? view.materialRows;
         const articles = rowsForArticles
@@ -425,7 +449,14 @@ const KpPage = () => {
     return () => {
       cancelled = true;
     };
-  }, [id, isAuthed, authStatus, kpSnapshot, activeOfferId, setSelectedPriceArticles]);
+  }, [
+    id,
+    isAuthed,
+    authStatus,
+    kpSnapshot,
+    activeOfferId,
+    setSelectedPriceArticles,
+  ]);
 
   // Режим черновика: КП «открыто» до «Сохранить», навигация только на /calc и /price.
   useEffect(() => {
@@ -450,17 +481,17 @@ const KpPage = () => {
 
       for (const item of constructions) {
         const typeKey = kpSettingKeyByConstructionType(item.type);
-        const montageRate = typeKey ? kpSettings[typeKey] ?? "" : "";
+        const montageRate = typeKey ? (kpSettings[typeKey] ?? "") : "";
         const areaM2 = constructionAreaM2(item);
         const quantity = formatMontageQuantity(areaM2);
         const prevRow = prev[item.key_id];
+        // «Ручная» цена закрепляется за пользователем целиком — в т.ч. пустое
+        // значение (пользователь явно очистил поле): подставлять ставку из
+        // kpSettings можно только если флаг manualMontagePriceByKeyId не взведён.
         const keepManualPrice =
-          manualMontagePriceByKeyId[item.key_id] === true &&
-          prevRow &&
-          typeof prevRow.price === "string" &&
-          prevRow.price.trim() !== "";
+          manualMontagePriceByKeyId[item.key_id] === true && prevRow;
         const normalizedRow = {
-          price: keepManualPrice ? prevRow.price : montageRate,
+          price: keepManualPrice ? (prevRow.price ?? "") : montageRate,
           quantity,
           unit: "м2",
         };
@@ -479,24 +510,28 @@ const KpPage = () => {
     });
   }, [calcTables.ConstrToCalc, kpSettings, manualMontagePriceByKeyId]);
 
-  const updateMontagePriceRow = useCallback((key_id) => (e) => {
-    const value = e.target.value;
-    const isManual = value.trim() !== "";
-    setManualMontagePriceByKeyId((prev) => {
-      if (!isManual && !prev[key_id]) return prev;
-      return { ...prev, [key_id]: isManual };
-    });
-    setMontageByKeyId((prev) => ({
-      ...prev,
-      [key_id]: {
-        price: "",
-        quantity: "",
-        unit: "м2",
-        ...prev[key_id],
-        price: value,
-      },
-    }));
-  }, []);
+  const updateMontagePriceRow = useCallback(
+    (key_id) => (e) => {
+      const value = e.target.value;
+      // Любое касание поля (в т.ч. полная очистка) «закрепляет» цену за
+      // пользователем: после этого авто-эффект не подставит ставку из kpSettings.
+      setManualMontagePriceByKeyId((prev) => {
+        if (prev[key_id] === true) return prev;
+        return { ...prev, [key_id]: true };
+      });
+      setMontageByKeyId((prev) => ({
+        ...prev,
+        [key_id]: {
+          price: "",
+          quantity: "",
+          unit: "м2",
+          ...prev[key_id],
+          price: value,
+        },
+      }));
+    },
+    [],
+  );
 
   const handleSave = async () => {
     if (!id || isSaving) return;
@@ -510,6 +545,7 @@ const KpPage = () => {
         montageByKeyId,
         serviceRows,
         materialRows,
+        kpSettings,
         originalConstructionsFromOffer: originalConstructionsRef.current,
       });
       await updateOffer(id, payload);
@@ -547,7 +583,7 @@ const KpPage = () => {
     const optionValue = e.target.value;
     setForm((prev) => ({ ...prev, region: optionValue }));
     const selectedOption = REGION_SELECT_OPTIONS.find(
-      (option) => option.value === optionValue
+      (option) => option.value === optionValue,
     );
     if (!selectedOption) return;
     setPriceRegion(selectedOption.regionKey, { cityValue: optionValue });
@@ -566,7 +602,7 @@ const KpPage = () => {
     if (!selectedRegion || form.region) return;
     const selectedRegionKey = String(selectedRegion).toLowerCase();
     const matchingOption = visibleRegionOptions.find(
-      (option) => option.regionKey === selectedRegionKey
+      (option) => option.regionKey === selectedRegionKey,
     );
     if (!matchingOption) return;
     setForm((prev) => ({ ...prev, region: matchingOption.value }));
@@ -663,7 +699,10 @@ const KpPage = () => {
 
   const stashAndLeaveKp = useCallback(() => {
     const calcParamsById = new Map(
-      (originalConstructionsRef.current || []).map((c) => [c.id, c.calc_params])
+      (originalConstructionsRef.current || []).map((c) => [
+        c.id,
+        c.calc_params,
+      ]),
     );
     const constrToCalcToSent = (calcTables.ConstrToCalc || [])
       .map((ui) => calcParamsById.get(ui.key_id))
@@ -733,7 +772,7 @@ const KpPage = () => {
       ...prev,
       ConstrToCalc: prev.ConstrToCalc.filter((item) => item.key_id !== key_id),
       materialsByConstruction: prev.materialsByConstruction.filter(
-        (entry) => entry.key_id !== key_id
+        (entry) => entry.key_id !== key_id,
       ),
     }));
 
@@ -1097,7 +1136,9 @@ const KpPage = () => {
               <span className="kp-page__settings-title-inner">
                 <span
                   className={`kp-collapsible-chevron${
-                    settingsSectionOpen ? " kp-collapsible-chevron--expanded" : ""
+                    settingsSectionOpen
+                      ? " kp-collapsible-chevron--expanded"
+                      : ""
                   }`}
                   aria-hidden
                 />
@@ -1145,9 +1186,7 @@ const KpPage = () => {
                 renderKpMontageSlot={renderKpMontageSlot}
                 montageByKeyId={montageByKeyId}
                 showGrandTotalInline={false}
-                onGeneralMaterialKpPriceChange={
-                  onGeneralMaterialKpPriceChange
-                }
+                onGeneralMaterialKpPriceChange={onGeneralMaterialKpPriceChange}
               />
             </>
           ) : (
@@ -1171,9 +1210,7 @@ const KpPage = () => {
             ariaLabel="Дополнительные материалы"
             title="Дополнительные материалы"
             sectionOpen={additionalMaterialsSectionOpen}
-            onToggleSection={() =>
-              setAdditionalMaterialsSectionOpen((v) => !v)
-            }
+            onToggleSection={() => setAdditionalMaterialsSectionOpen((v) => !v)}
             totalRub={additionalMaterialsTotalRub}
             colgroup={
               <colgroup>
@@ -1528,7 +1565,7 @@ const KpPage = () => {
                 serviceRows,
               )}
               additionalMaterialsGrandTotalRub={additionalMaterialsGrandTotalRubForKp(
-                materialRows
+                materialRows,
               )}
               wrapClassName="kp-page__construction-grand-total"
             />
