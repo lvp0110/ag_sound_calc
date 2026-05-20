@@ -23,7 +23,10 @@ import {
   findRegionOptionByValue,
 } from "../constants/regionSelectOptions.js";
 import { setPriceRegion, usePriceData } from "../services/priceApi";
-import { useOfferEditSession } from "../stores/offerEditSessionStore.js";
+import {
+  useOfferEditSession,
+  useOfferEditSessionStore,
+} from "../stores/offerEditSessionStore.js";
 import { useCalculatorStore } from "../stores/calculatorStore.js";
 import { KpNarrowExpandableRow } from "./kp/KpNarrowExpandableRow";
 import { useKpExpandedRow } from "../hooks/useKpExpandedRow";
@@ -384,11 +387,17 @@ const KpPage = () => {
         const snap = kpSnapshot && activeOfferId === id ? kpSnapshot : null;
 
         setForm(snap?.form ?? view.form);
-        setCalcTables({
-          tableConstrToCalc: view.constructions.length > 0 ? {} : null,
-          ConstrToCalc: view.constructions,
-          materialsByConstruction: view.materialsByConstruction,
-        });
+        // Сессия калькулятора/КП живёт в kpSnapshot — иначе после удаления
+        // в калькуляторе GET снова подставляет старый состав до PATCH.
+        setCalcTables(
+          snap?.calcTables
+            ? snap.calcTables
+            : {
+                tableConstrToCalc: view.constructions.length > 0 ? {} : null,
+                ConstrToCalc: view.constructions,
+                materialsByConstruction: view.materialsByConstruction,
+              },
+        );
         setMontageByKeyId(snap?.montageByKeyId ?? view.montageByKeyId);
         setServiceRows(
           snap?.serviceRows ??
@@ -768,13 +777,57 @@ const KpPage = () => {
   }, []);
 
   const removeConstructionFromKp = useCallback((key_id) => {
-    setCalcTables((prev) => ({
-      ...prev,
-      ConstrToCalc: prev.ConstrToCalc.filter((item) => item.key_id !== key_id),
-      materialsByConstruction: prev.materialsByConstruction.filter(
+    setCalcTables((prev) => {
+      const nextConstr = prev.ConstrToCalc.filter(
+        (item) => item.key_id !== key_id,
+      );
+      const nextMaterials = prev.materialsByConstruction.filter(
         (entry) => entry.key_id !== key_id,
-      ),
-    }));
+      );
+      const next = {
+        ...prev,
+        ConstrToCalc: nextConstr,
+        materialsByConstruction: nextMaterials,
+      };
+
+      const calcParamsById = new Map(
+        (originalConstructionsRef.current || []).map((c) => [c.id, c.calc_params]),
+      );
+      const constrToCalcToSent = nextConstr
+        .map((ui) => calcParamsById.get(ui.key_id))
+        .filter(Boolean);
+
+      const { setField } = useCalculatorStore.getState();
+      setField("ConstrToCalc", nextConstr);
+      setField("materialsByConstruction", nextMaterials);
+      setField("ConstrToCalcToSent", constrToCalcToSent);
+      if (nextConstr.length === 0) {
+        setField("tableConstrToCalc", null);
+      }
+
+      const sess = useOfferEditSessionStore.getState();
+      if (sess.activeOfferId === id) {
+        const prevSnap = sess.kpSnapshot || {};
+        const patch = {
+          ...prevSnap,
+          calcTables: next,
+          constrToCalcToSent,
+        };
+        if (prevSnap.montageByKeyId) {
+          const m = { ...prevSnap.montageByKeyId };
+          delete m[key_id];
+          patch.montageByKeyId = m;
+        }
+        if (prevSnap.manualMontagePriceByKeyId) {
+          const m = { ...prevSnap.manualMontagePriceByKeyId };
+          delete m[key_id];
+          patch.manualMontagePriceByKeyId = m;
+        }
+        sess.stashKpSnapshot(patch);
+      }
+
+      return next;
+    });
 
     setMontageByKeyId((prev) => {
       if (!(key_id in prev)) return prev;
@@ -796,7 +849,7 @@ const KpPage = () => {
       delete next[key_id];
       return next;
     });
-  }, []);
+  }, [id]);
 
   const renderKpMontageSlot = useCallback(
     ({ key_id, cardIndex }) => {

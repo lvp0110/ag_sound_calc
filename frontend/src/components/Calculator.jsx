@@ -29,8 +29,11 @@ import {
   mapOfferToCalculatorState,
 } from "../utils/offerMapper";
 import { useAuth } from "../context/AuthContext.jsx";
-import { useCalcField } from "../stores/calculatorStore.js";
-import { useOfferEditSession } from "../stores/offerEditSessionStore.js";
+import { useCalcField, useCalculatorStore } from "../stores/calculatorStore.js";
+import {
+  useOfferEditSession,
+  useOfferEditSessionStore,
+} from "../stores/offerEditSessionStore.js";
 import ItemsList from "./ItemsList";
 import SelectedItemForms from "./SelectedItemForms";
 import ConstructionList from "./tables/ConstructionList";
@@ -183,8 +186,8 @@ const Calculator = () => {
       try {
         const snap = kpSnapshot;
         if (
-          snap?.calcTables?.ConstrToCalc?.length &&
-          snap?.constrToCalcToSent?.length
+          snap?.calcTables?.ConstrToCalc?.length > 0 &&
+          snap?.constrToCalcToSent?.length > 0
         ) {
           if (cancelled) return;
           const { ConstrToCalc, materialsByConstruction } = snap.calcTables;
@@ -194,6 +197,23 @@ const Calculator = () => {
           setTableConstrToCalc(ConstrToCalc.length > 0 ? {} : null);
           hydratedOfferIdRef.current = activeOfferId;
           return;
+        }
+
+        // Пустой состав из снимка КП («В калькулятор») — без ожидания GET.
+        // Иначе поздний пустой ответ getOffer затирает результат расчёта.
+        if (snap?.calcTables) {
+          const cc = snap.calcTables.ConstrToCalc ?? [];
+          const sent = snap.constrToCalcToSent;
+          const sentLen = Array.isArray(sent) ? sent.length : 0;
+          if (cc.length === 0 && sentLen === 0) {
+            if (cancelled) return;
+            setConstrToCalc([]);
+            setConstrToCalcToSent([]);
+            setMaterialsByConstruction([]);
+            setTableConstrToCalc(null);
+            hydratedOfferIdRef.current = activeOfferId;
+            return;
+          }
         }
 
         const [offer, constrList] = await Promise.all([
@@ -213,6 +233,13 @@ const Calculator = () => {
         }
 
         const state = mapOfferToCalculatorState(offer, { titleByCode });
+        const storeNow = useCalculatorStore.getState();
+        const incomingEmpty = !state.constrToCalcToSent?.length;
+        if (incomingEmpty && storeNow.ConstrToCalcToSent.length > 0) {
+          hydratedOfferIdRef.current = activeOfferId;
+          return;
+        }
+
         setConstrToCalc(state.constrToCalc);
         setConstrToCalcToSent(state.constrToCalcToSent);
         setMaterialsByConstruction(state.materialsByConstruction);
@@ -369,19 +396,67 @@ const Calculator = () => {
     setOpening({ ...openingZero });
   };
 
-  const delConstrFromList = (idConstr) => {
-    const indexToDel = ConstrToCalc.findIndex((el) => el.key_id == idConstr);
-    if (indexToDel < 0) return;
-    const newConstrToCalc = [...ConstrToCalc];
-    const newConstrToCalcToSent = [...ConstrToCalcToSent];
-    newConstrToCalc.splice(indexToDel, 1);
-    newConstrToCalcToSent.splice(indexToDel, 1);
-    setConstrToCalc(newConstrToCalc);
-    setConstrToCalcToSent(newConstrToCalcToSent);
-    setMaterialsByConstruction((prev) =>
-      prev.filter((_, i) => i !== indexToDel)
-    );
-  };
+  const delConstrFromList = useCallback(
+    (idConstr) => {
+      const indexToDel = ConstrToCalc.findIndex((el) => el.key_id == idConstr);
+      if (indexToDel < 0) return;
+      const newConstrToCalc = [...ConstrToCalc];
+      const newConstrToCalcToSent = [...ConstrToCalcToSent];
+      newConstrToCalc.splice(indexToDel, 1);
+      newConstrToCalcToSent.splice(indexToDel, 1);
+      const newMaterials = materialsByConstruction.filter(
+        (_, i) => i !== indexToDel,
+      );
+
+      setConstrToCalc(newConstrToCalc);
+      setConstrToCalcToSent(newConstrToCalcToSent);
+      setMaterialsByConstruction(newMaterials);
+
+      if (newConstrToCalc.length === 0) {
+        setTableConstrToCalc(null);
+      }
+
+      if (isEditingDraft && activeOfferId) {
+        const sess = useOfferEditSessionStore.getState();
+        if (sess.activeOfferId !== activeOfferId) return;
+        const prevSnap = sess.kpSnapshot || {};
+        const nextCalcTables = {
+          tableConstrToCalc:
+            newConstrToCalc.length > 0 ? (tableConstrToCalc ?? {}) : null,
+          ConstrToCalc: newConstrToCalc,
+          materialsByConstruction: newMaterials,
+        };
+        const patch = {
+          ...prevSnap,
+          calcTables: nextCalcTables,
+          constrToCalcToSent: newConstrToCalcToSent,
+        };
+        if (prevSnap.montageByKeyId) {
+          const m = { ...prevSnap.montageByKeyId };
+          delete m[idConstr];
+          patch.montageByKeyId = m;
+        }
+        if (prevSnap.manualMontagePriceByKeyId) {
+          const m = { ...prevSnap.manualMontagePriceByKeyId };
+          delete m[idConstr];
+          patch.manualMontagePriceByKeyId = m;
+        }
+        sess.stashKpSnapshot(patch);
+      }
+    },
+    [
+      activeOfferId,
+      ConstrToCalc,
+      ConstrToCalcToSent,
+      isEditingDraft,
+      materialsByConstruction,
+      setConstrToCalc,
+      setConstrToCalcToSent,
+      setMaterialsByConstruction,
+      setTableConstrToCalc,
+      tableConstrToCalc,
+    ],
+  );
 
   /**
    * Сам запрос POST /api/offers и редирект на /kp/:id.

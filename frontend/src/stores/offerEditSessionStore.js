@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
+import { useCalculatorStore } from "./calculatorStore.js";
 
 /**
  * Сессия редактирования черновика КП (только для авторизованных).
@@ -24,6 +25,10 @@ export const useOfferEditSessionStore = create(
         set((state) => {
           if (state.isDraft && state.activeOfferId === offerId) {
             return state;
+          }
+          const prevId = state.activeOfferId;
+          if (prevId != null && prevId !== offerId) {
+            useCalculatorStore.getState().reset();
           }
           return {
             activeOfferId: offerId,
