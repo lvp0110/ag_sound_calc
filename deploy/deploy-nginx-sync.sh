@@ -21,10 +21,12 @@ source "$(dirname "$0")/_lib.sh"
 
 # strip trailing whitespace/CR — частый источник «No such file» при копипасте в GH-секрет.
 DEPLOY_DOMAIN="$(printf '%s' "$DEPLOY_DOMAIN" | tr -d '[:space:]')"
-# DEPLOY_CERT_NAME — имя cert'а в /etc/letsencrypt/live/. Может отличаться от
-# DEPLOY_DOMAIN (например, wildcard `*.constrtodo.ru` лежит в дире `constrtodo.ru`).
-# Если не задано — fallback на DEPLOY_DOMAIN (классический certbot-флоу).
-DEPLOY_CERT_NAME="$(printf '%s' "${DEPLOY_CERT_NAME:-$DEPLOY_DOMAIN}" | tr -d '[:space:]')"
+# DEPLOY_CERT_DIR — абсолютный путь к директории с fullchain.pem / privkey.pem.
+# Примеры:
+#   certbot, имя cert'а = домену:        /etc/letsencrypt/live/ag.example.com   (default)
+#   certbot, wildcard в корневом домене: /etc/letsencrypt/live/constrtodo.ru
+#   cert вне certbot:                    /home/leonidl/certs
+DEPLOY_CERT_DIR="$(printf '%s' "${DEPLOY_CERT_DIR:-/etc/letsencrypt/live/$DEPLOY_DOMAIN}" | tr -d '[:space:]')"
 
 LOCAL_TEMPLATE="$REPO_ROOT/deploy/nginx/ag_sound_calc.conf"
 LOCAL_RENDERED="$(mktemp -t ag_sound_calc.nginx.XXXXXX.conf)"
@@ -35,13 +37,13 @@ SYSTEM_LINK="/etc/nginx/sites-enabled/ag_sound_calc.conf"
 
 trap 'rm -f "$LOCAL_RENDERED"' EXIT
 
-info "рендерю шаблон: <domain>=$DEPLOY_DOMAIN, <cert_name>=$DEPLOY_CERT_NAME"
+info "рендерю шаблон: <domain>=$DEPLOY_DOMAIN, <cert_dir>=$DEPLOY_CERT_DIR"
 sed -e "s|<domain>|$DEPLOY_DOMAIN|g" \
-    -e "s|<cert_name>|$DEPLOY_CERT_NAME|g" \
+    -e "s|<cert_dir>|$DEPLOY_CERT_DIR|g" \
     "$LOCAL_TEMPLATE" > "$LOCAL_RENDERED"
 
 # Sanity-check: после подстановки в файле не осталось плейсхолдеров.
-if grep -Eq '<domain>|<cert_name>' "$LOCAL_RENDERED"; then
+if grep -Eq '<domain>|<cert_dir>' "$LOCAL_RENDERED"; then
   fail "в рендере остались неподставленные плейсхолдеры"
 fi
 

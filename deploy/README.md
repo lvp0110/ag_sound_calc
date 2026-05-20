@@ -221,7 +221,7 @@ Workflow [.github/workflows/prod-deploy.yml](../.github/workflows/prod-deploy.ym
 | `DEPLOY_HOST` | SSH-цель, формат `deploy@ag.example.com` |
 | `DEPLOY_DIR` | абсолютный путь репо на сервере (например `/srv/ag_sound_calc/ag_sound_calc`) |
 | `DEPLOY_DOMAIN` | домен (для curl-smoke и подстановки `<domain>` в `server_name` nginx) |
-| `DEPLOY_CERT_NAME` | **опционально.** Имя cert'а в `/etc/letsencrypt/live/<cert_name>/`. Если не задано — fallback на `DEPLOY_DOMAIN`. Нужно, когда cert wildcard/multi-SAN и лежит в дире, отличной от домена (например, `*.constrtodo.ru` лежит в `constrtodo.ru/`). |
+| `DEPLOY_CERT_DIR` | **опционально.** Абсолютный путь к директории с `fullchain.pem` / `privkey.pem`. Если не задано — fallback на `/etc/letsencrypt/live/$DEPLOY_DOMAIN`. Примеры: `/etc/letsencrypt/live/constrtodo.ru` (wildcard certbot), `/home/leonidl/certs` (cert вне certbot). |
 | `DEPLOY_SSH_KEY` | приватный ed25519-ключ deploy-юзера (полный PEM, включая `-----BEGIN…END-----`) |
 | `DEPLOY_KNOWN_HOSTS` | `ssh-keyscan -t ed25519 <host>` — отпечаток сервера, чтобы CI не цеплялся к TOFU |
 | `TELEGRAM_BOT_TOKEN` | токен бота для уведомлений |
