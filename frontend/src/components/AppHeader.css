@@ -60,6 +60,24 @@
   display: block;
   width: 1em;
   height: 1em;
+  object-fit: contain;
+}
+
+/* Remote SVG (calc/kp/price) как маска: цвет = currentColor у ссылки (#3d7a96 неактивно, hover/active как у остальных иконок). */
+.app-header__masked-icon {
+  flex-shrink: 0;
+  /* Выше специфичности глобального `span { color: #878181 }` из Calculator.css */
+  color: inherit;
+  background-color: currentColor;
+  object-fit: unset;
+  -webkit-mask-image: var(--app-header-mask-icon-src);
+  mask-image: var(--app-header-mask-icon-src);
+  -webkit-mask-size: contain;
+  mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+  mask-position: center;
 }
 
 /* Override global `span { font-size: 12px; display: flex; … }` from Calculator.css */

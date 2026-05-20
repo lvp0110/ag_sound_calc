@@ -44,6 +44,20 @@ const initialForm = {
   object: "",
 };
 
+/** Все обязательные поля блока «Контактные данные» (.kp-page__contact) заполнены. */
+function isKpContactFormComplete(form) {
+  if (!form) return false;
+  return [
+    form.date,
+    form.region,
+    form.object,
+    form.manager,
+    form.phone,
+    form.email,
+    form.officeAddress,
+  ].every((v) => String(v ?? "").trim() !== "");
+}
+
 function formatServiceSum(product) {
   return new Intl.NumberFormat("ru-RU", {
     minimumFractionDigits: 0,
@@ -544,6 +558,12 @@ const KpPage = () => {
 
   const handleSave = async () => {
     if (!id || isSaving) return;
+    if (!isKpContactFormComplete(form)) {
+      setSaveError(
+        "Заполните все поля в блоке «Контактные данные» (дата, регион, объект, менеджер, телефон, email, адрес офиса).",
+      );
+      return;
+    }
     setIsSaving(true);
     setSaveError(null);
     try {

@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
+import { getImageUrl } from "../services/api.js";
 import { useOfferEditSession } from "../stores/offerEditSessionStore.js";
 import "./AppHeader.css";
 
@@ -22,39 +23,13 @@ function HeaderIcon({ children }) {
   return <span className="app-header__icon">{children}</span>;
 }
 
-function IconCalc() {
+function MaskedNavIcon({ src }) {
   return (
-    <svg {...iconProps}>
-      <rect x="4" y="2" width="16" height="20" rx="2" />
-      <line x1="8" y1="6" x2="16" y2="6" />
-      <line x1="8" y1="10" x2="10" y2="10" />
-      <line x1="12" y1="10" x2="14" y2="10" />
-      <line x1="16" y1="10" x2="16" y2="10" />
-      <line x1="8" y1="14" x2="10" y2="14" />
-      <line x1="12" y1="14" x2="14" y2="14" />
-      <line x1="8" y1="18" x2="16" y2="18" />
-    </svg>
-  );
-}
-
-function IconOffers() {
-  return (
-    <svg {...iconProps}>
-      <path d="M8 4h11a1 1 0 0 1 1 1v15a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V8l4-4z" />
-      <path d="M8 4v4H4" />
-      <line x1="8" y1="12" x2="16" y2="12" />
-      <line x1="8" y1="16" x2="14" y2="16" />
-    </svg>
-  );
-}
-
-function IconPrice() {
-  return (
-    <svg {...iconProps}>
-      <path d="M12 3 4 7v6c0 5 3.5 8.5 8 10 4.5-1.5 8-5 8-10V7l-8-4z" />
-      <line x1="12" y1="9" x2="12" y2="15" />
-      <path d="M9.5 11.5h3a1.5 1.5 0 1 1 0 3h-1.5a1.5 1.5 0 1 0 0 3h3" />
-    </svg>
+    <span
+      className="app-header__icon-svg app-header__masked-icon"
+      style={{ "--app-header-mask-icon-src": `url("${src}")` }}
+      aria-hidden
+    />
   );
 }
 
@@ -84,6 +59,9 @@ function IconLogout() {
 export default function AppHeader() {
   const innerRef = useRef(null);
   const logoSrc = `${import.meta.env.BASE_URL}logo1.png`;
+  const calcIconSrc = getImageUrl("calc.svg");
+  const kpIconSrc = getImageUrl("kp.svg");
+  const priceIconSrc = getImageUrl("price.svg");
   const location = useLocation();
   const navigate = useNavigate();
   const { user, status, openLoginModal, logout } = useAuth();
@@ -146,7 +124,7 @@ export default function AppHeader() {
             onClick={(e) => guardDraftNav(e, "/calc")}
           >
             <HeaderIcon>
-              <IconCalc />
+              <MaskedNavIcon src={calcIconSrc} />
             </HeaderIcon>
             <span className="app-header__label">Калькулятор</span>
           </NavLink>
@@ -177,7 +155,7 @@ export default function AppHeader() {
               }
             >
               <HeaderIcon>
-                <IconOffers />
+                <MaskedNavIcon src={kpIconSrc} />
               </HeaderIcon>
               <span className="app-header__label">Мои КП</span>
               {isEditingDraft ? (
@@ -195,7 +173,7 @@ export default function AppHeader() {
             onClick={(e) => guardDraftNav(e, "/price")}
           >
             <HeaderIcon>
-              <IconPrice />
+              <MaskedNavIcon src={priceIconSrc} />
             </HeaderIcon>
             <span className="app-header__label">Прайс</span>
           </NavLink>
