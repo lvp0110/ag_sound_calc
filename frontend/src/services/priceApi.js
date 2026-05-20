@@ -361,8 +361,6 @@ export const getPriceName = (article) => {
   return row.name == null ? "" : String(row.name).trim();
 };
 
-export const getPriceList = () => cache.list;
-
 export const getRegionLabel = (region) => {
   const normalized = normalizeRegionName(region).toLowerCase();
   return REGION_LABELS[normalized] ?? normalizeRegionName(region);

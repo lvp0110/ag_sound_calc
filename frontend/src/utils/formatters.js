@@ -27,17 +27,6 @@ export const filterVariable = (variable) => {
   }
 };
 
-/**
- * Получает тип проема в текстовом виде
- */
-export const getOpeningType = (Type) => {
-  if (Type == "OST_Doors") return "дверь";
-  return "окно";
-};
-
-
-
-
 
 
 

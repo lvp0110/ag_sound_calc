@@ -24,7 +24,7 @@
   max-height: 90vh;
   padding: 0 0 1.25em;
   border: none;
-  border-radius: 0.3125em;
+  border-radius: 1.5em;
   background: #fff;
   font-family: inherit;
   font-size: 1rem;
@@ -75,10 +75,10 @@
 .modal-image {
   display: block;
   margin: 1.25em auto 0;
-  max-width: 25%;
+  max-width: 20%;
   height: auto;
   /* Responsive images support */
-  width: 25%;
+  width: 20%;
   object-fit: contain;
 }
 
@@ -256,7 +256,6 @@
   font-size: 1.125em;
   font-weight: 400;
   line-height: normal;
-  text-align: justify;
   hyphens: auto;
   word-wrap: break-word;
   word-break: break-word;
@@ -290,8 +289,8 @@
   color: #fff;
   font-size: 1em;
   /* padding: 0.625em 1.5em; */
-  width: 100px;
-  height: 100px;
+  width: 90px;
+  height: 90px;
   cursor: pointer;
   font-weight: 500;
   transition: background-color 0.2s;
@@ -318,8 +317,8 @@
     color: #fff;
     font-size: 0.8em;
     padding: 0.625em 1.5em;
-    width: 80px;
-    height: 80px;
+    width: 90px;
+    height: 90px;
     cursor: pointer;
     font-weight: 500;
     transition: background-color 0.2s;

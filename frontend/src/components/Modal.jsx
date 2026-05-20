@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 import './Modal.css';
 import { getResponsiveImageProps } from '../utils/responsiveImages';
 
-const Modal = ({ isOpen, onClose, title, html, icon, imageUrl, imageWidth, imageHeight, confirmButtonText = 'OK', confirmButtonColor = '#6cabc8' }) => {
+const Modal = ({ isOpen, onClose, title, html, icon, imageUrl, confirmButtonText = 'OK', confirmButtonColor = '#6cabc8' }) => {
   useEffect(() => {
     if (isOpen) {
       // Блокируем скролл body при открытом модальном окне

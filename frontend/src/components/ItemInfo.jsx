@@ -123,7 +123,7 @@ const ItemInfo = () => {
             setMaterials(list?.length ? list : null);
           }
         }
-      } catch (error) {
+      } catch {
         // Игнорируем ошибки загрузки
       } finally {
         setLoading(false);

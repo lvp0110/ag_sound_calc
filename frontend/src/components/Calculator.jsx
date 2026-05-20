@@ -21,7 +21,6 @@ import {
   isFacingTemplate,
 } from "../utils/validation";
 import { calculateAreaAndPerimeter, getConstructionCode } from "../utils/calculations";
-import { exportTablesToExcel, copyMaterialsToClipboard } from "../utils/excelExport";
 import { calculateConstruction } from "../services/constructionApi";
 import { createOffer, getOffer, updateOffer } from "../services/offersApi";
 import {
@@ -81,8 +80,6 @@ const Calculator = () => {
     html: null,
     icon: null,
     imageUrl: null,
-    imageWidth: null,
-    imageHeight: null,
     confirmButtonText: "OK",
     confirmButtonColor: "#6cabc8",
   });
@@ -92,7 +89,7 @@ const Calculator = () => {
       try {
         const enrichedItems = await getItemsWithApiImages();
         setItemsWithImages(enrichedItems);
-      } catch (error) {
+      } catch {
         setItemsWithImages(Items);
       }
     };
@@ -386,15 +383,6 @@ const Calculator = () => {
     );
   };
 
-  // Обработчики экспорта
-  const handleExportToExcel = async () => {
-    await exportTablesToExcel();
-  };
-
-  const handleCopyToClipboard = () => {
-    copyMaterialsToClipboard();
-  };
-
   /**
    * Сам запрос POST /api/offers и редирект на /kp/:id.
    * Вынесен отдельно, чтобы одинаково вызываться и из handleMakeKP, и из
@@ -460,10 +448,6 @@ const Calculator = () => {
     setPendingCreateKp(false);
     submitKp();
   }, [pendingCreateKp, isAuthed, submitKp]);
-
-  const handleOpenPrice = () => {
-    navigate("/price");
-  };
 
   const handleReturnToKp = useCallback(async () => {
     if (!activeOfferId || ConstrToCalcToSent.length === 0) {
@@ -534,8 +518,6 @@ const Calculator = () => {
         title: null,
         html: inputError,
         icon: null,
-        imageWidth: 60,
-        imageHeight: 50,
         imageUrl: `${import.meta.env.BASE_URL}logo1.png`,
         confirmButtonText: "OK",
         confirmButtonColor: "#6cabc8",
@@ -550,8 +532,6 @@ const Calculator = () => {
         title: null,
         html: floorError,
         icon: null,
-        imageWidth: 60,
-        imageHeight: 50,
         imageUrl: `${import.meta.env.BASE_URL}logo1.png`,
         confirmButtonText: "Ok",
         confirmButtonColor: "#6cabc8",
@@ -566,8 +546,6 @@ const Calculator = () => {
         title: null,
         html: floorMaxError,
         icon: null,
-        imageWidth: 60,
-        imageHeight: 50,
         imageUrl: `${import.meta.env.BASE_URL}logo1.png`,
         confirmButtonText: "Принять",
         confirmButtonColor: "#6cabc8",
@@ -667,8 +645,6 @@ const Calculator = () => {
         html: `Не удалось рассчитать материалы.<br><br>${errorMessage}<br><br>Проверьте консоль для деталей.`,
         icon: "error",
         imageUrl: null,
-        imageWidth: null,
-        imageHeight: null,
         confirmButtonText: "OK",
         confirmButtonColor: "#6cabc8",
       });
@@ -954,25 +930,6 @@ const Calculator = () => {
                             </div>
                           )}
 
-                          {template != null && (
-                            <div className="buttons-container">
-                              {/*
-                              <button
-                                onClick={handleCopyToClipboard}
-                                className="add_design_button"
-                              >
-                                экспорт в ERP
-                              </button>
-                              <button
-                                onClick={handleExportToExcel}
-                                className="add_design_button"
-                              >
-                                сохранить в Excel
-                              </button>
-                              */}
-                            </div>
-                          )}
-
                           <div className="tables-and-buttons-container">
                             {template != null && (
                               <div className="tables-and-buttons-header">
@@ -1035,8 +992,6 @@ const Calculator = () => {
         html={modal.html}
         icon={modal.icon}
         imageUrl={modal.imageUrl}
-        imageWidth={modal.imageWidth}
-        imageHeight={modal.imageHeight}
         confirmButtonText={modal.confirmButtonText}
         confirmButtonColor={modal.confirmButtonColor}
       />

@@ -247,8 +247,6 @@ export const getValidationMessage = (key) => {
   return `<span class="p1">${messageObj.title}</span> <br>${messageObj.message}`;
 };
 
-export default validationMessages;
-
 
 
 
