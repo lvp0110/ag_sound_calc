@@ -19,6 +19,13 @@ source "$(dirname "$0")/_lib.sh"
 
 : "${DEPLOY_DOMAIN:?DEPLOY_DOMAIN не задан в deploy/.env.deploy (нужен для подстановки <domain> в nginx-конфиг)}"
 
+# strip trailing whitespace/CR — частый источник «No such file» при копипасте в GH-секрет.
+DEPLOY_DOMAIN="$(printf '%s' "$DEPLOY_DOMAIN" | tr -d '[:space:]')"
+# DEPLOY_CERT_NAME — имя cert'а в /etc/letsencrypt/live/. Может отличаться от
+# DEPLOY_DOMAIN (например, wildcard `*.constrtodo.ru` лежит в дире `constrtodo.ru`).
+# Если не задано — fallback на DEPLOY_DOMAIN (классический certbot-флоу).
+DEPLOY_CERT_NAME="$(printf '%s' "${DEPLOY_CERT_NAME:-$DEPLOY_DOMAIN}" | tr -d '[:space:]')"
+
 LOCAL_TEMPLATE="$REPO_ROOT/deploy/nginx/ag_sound_calc.conf"
 LOCAL_RENDERED="$(mktemp -t ag_sound_calc.nginx.XXXXXX.conf)"
 REMOTE_STAGE_DIR="$DEPLOY_DIR/deploy/nginx"
@@ -28,8 +35,19 @@ SYSTEM_LINK="/etc/nginx/sites-enabled/ag_sound_calc.conf"
 
 trap 'rm -f "$LOCAL_RENDERED"' EXIT
 
-info "рендерю шаблон с DEPLOY_DOMAIN=$DEPLOY_DOMAIN"
-sed "s|<domain>|$DEPLOY_DOMAIN|g" "$LOCAL_TEMPLATE" > "$LOCAL_RENDERED"
+info "рендерю шаблон: <domain>=$DEPLOY_DOMAIN, <cert_name>=$DEPLOY_CERT_NAME"
+sed -e "s|<domain>|$DEPLOY_DOMAIN|g" \
+    -e "s|<cert_name>|$DEPLOY_CERT_NAME|g" \
+    "$LOCAL_TEMPLATE" > "$LOCAL_RENDERED"
+
+# Sanity-check: после подстановки в файле не осталось плейсхолдеров.
+if grep -Eq '<domain>|<cert_name>' "$LOCAL_RENDERED"; then
+  fail "в рендере остались неподставленные плейсхолдеры"
+fi
+
+# Покажем подставленные ssl_certificate-пути — самая частая причина падения nginx -t.
+info "ssl_certificate в рендере:"
+grep -E "ssl_certificate" "$LOCAL_RENDERED" || warn "ssl_certificate в шаблоне не найден"
 
 # Сабстрочный sanity-check: в результате не осталось плейсхолдеров.
 if grep -q '<domain>' "$LOCAL_RENDERED"; then

@@ -69,6 +69,7 @@ jobs:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_DIR: ${{ secrets.DEPLOY_DIR }}
           DEPLOY_DOMAIN: ${{ secrets.DEPLOY_DOMAIN }}
+          DEPLOY_CERT_NAME: ${{ secrets.DEPLOY_CERT_NAME }}
         run: |
           # DEPLOY_REV из override (если workflow_dispatch с rev) или origin/main.
           REV="${DEPLOY_REV_OVERRIDE:-origin/main}"
@@ -76,6 +77,7 @@ jobs:
           DEPLOY_HOST=$DEPLOY_HOST
           DEPLOY_DIR=$DEPLOY_DIR
           DEPLOY_DOMAIN=$DEPLOY_DOMAIN
+          DEPLOY_CERT_NAME=$DEPLOY_CERT_NAME
           DEPLOY_REMOTE=origin
           DEPLOY_REV=$REV
           EOF
