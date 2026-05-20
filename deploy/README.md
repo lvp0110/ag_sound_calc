@@ -123,7 +123,7 @@ make deploy-frontend
 | Изменились `server.js` / frontend Dockerfile | `REBUILD=1 make deploy-frontend` | Плюсом пересобирается frontend-контейнер и перезапускается `--no-deps`.                                               |
 | Нужно применить миграции               | `make deploy-migrate`            | `docker compose run --rm backend npx prisma migrate deploy` — одноразовый контейнер, работающий backend не трогает.    |
 | Откат backend на прошлую ревизию       | `REV=<commit> make deploy-backend` | Тот же скрипт, но `git checkout $REV` вместо `origin/main`.                                                            |
-| Правка nginx конфига на сервере        | `make deploy-nginx-reload`       | `nginx -t && systemctl reload nginx`.                                                                                  |
+| Правка nginx конфига на сервере        | `make deploy-nginx-sync && make deploy-nginx-reload` | Залить шаблон из репо на сервер, валидировать `nginx -t`, перечитать. |
 | Посмотреть статус прод-стека           | `make deploy-status`             | `docker compose ps` + `curl /health`.                                                                                  |
 
 ### Zero-downtime миграции (expand/contract)
@@ -182,6 +182,77 @@ nc -vz ag.example.com 5432
 ## Что НЕ делают скрипты
 
 - Не создают и не пишут TLS-сертификаты (их ставит certbot отдельно).
-- Не меняют nginx-конфиг автоматически — только перечитывают (`deploy-nginx-reload`).
 - Не перезапускают `postgres` никогда в обычном флоу.
 - Не пишут в `.env.prod` — он под контролем оператора.
+
+`deploy-nginx-sync.sh` синхронизирует шаблон `deploy/nginx/ag_sound_calc.conf` на сервер и валидирует `nginx -t`; `deploy-nginx-reload.sh` перечитывает конфиг — это разделение позволяет CI прогнать sync без reload, увидеть ошибку и не убить трафик.
+
+---
+
+## GitHub Actions auto-deploy (push в `main`)
+
+Workflow [.github/workflows/prod-deploy.yml](../.github/workflows/prod-deploy.yml) делает то же самое, что `make deploy-*` локально: SSH-ится на прод, дёргает скрипты из `deploy/`. CI работает как «удалённая dev-машина» — никакой особой логики дублирующей `deploy/*.sh` в workflow нет.
+
+### Триггеры
+
+- **push в `main`** — полный rollout (backend → миграции [если есть] → nginx [если менялся] → frontend → smoke + Telegram).
+- **workflow_dispatch** (`Actions → Prod deploy → Run workflow`) — те же шаги, плюс ручные входы:
+  - `force_migrate: auto|yes|no` — по умолчанию `auto` (по diff). `yes`/`no` принудительно вкл/выкл `deploy-migrate.sh`.
+  - `rev` — необязательная ревизия (тег, ветка или SHA), которая попадёт в `DEPLOY_REV` и будет передана в `deploy-backend.sh` / `deploy-migrate.sh`. **Используется для отката**: `Run workflow → rev = <previous-sha>`.
+
+### Условия запуска шагов (на `push` в `main`)
+
+| Шаг | Когда запускается |
+|-----|---------------------|
+| `deploy-backend.sh` | если менялись `backend/**` или `docker-compose.prod.yml` |
+| `deploy-migrate.sh` | если менялись `backend/prisma/migrations/**` |
+| `deploy-nginx-sync.sh` + `deploy-nginx-reload.sh` | если менялись `deploy/nginx/**` |
+| `deploy-frontend.sh` | если менялись `frontend/**` |
+| `deploy-status.sh` | всегда (smoke test) |
+
+На `workflow_dispatch` все четыре rollout-шага запускаются принудительно (use case — force redeploy или откат через `rev`); миграции — по input'у `force_migrate`.
+
+### Требуемые GitHub Secrets
+
+`Settings → Secrets and variables → Actions → Repository secrets`:
+
+| Секрет | Назначение |
+|--------|------------|
+| `DEPLOY_HOST` | SSH-цель, формат `deploy@ag.example.com` |
+| `DEPLOY_DIR` | абсолютный путь репо на сервере (например `/srv/ag_sound_calc/ag_sound_calc`) |
+| `DEPLOY_DOMAIN` | домен (для curl-smoke и подстановки `<domain>` в nginx) |
+| `DEPLOY_SSH_KEY` | приватный ed25519-ключ deploy-юзера (полный PEM, включая `-----BEGIN…END-----`) |
+| `DEPLOY_KNOWN_HOSTS` | `ssh-keyscan -t ed25519 <host>` — отпечаток сервера, чтобы CI не цеплялся к TOFU |
+| `TELEGRAM_BOT_TOKEN` | токен бота для уведомлений |
+| `TELEGRAM_CHAT_ID` | id чата (для группового чата с `-100…`) |
+
+Получить fingerprint сервера для `DEPLOY_KNOWN_HOSTS`:
+```bash
+ssh-keyscan -t ed25519 ag.example.com
+```
+
+### NOPASSWD-sudo на сервере (нужно для CI и для `make deploy-nginx-sync`)
+
+Файл `/etc/sudoers.d/deploy-nginx`:
+```
+deploy ALL=(root) NOPASSWD: /usr/bin/cp * /etc/nginx/sites-available/*, \
+                            /usr/bin/ln -sf /etc/nginx/sites-available/* /etc/nginx/sites-enabled/*, \
+                            /usr/sbin/nginx -t, \
+                            /bin/systemctl reload nginx
+```
+Для `make deploy-nginx-reload` достаточно последних двух строк (они уже могли быть).
+
+### Откат
+
+```bash
+# Найти последний рабочий SHA в гите (например, тег предыдущего релиза)
+gh workflow run prod-deploy.yml -f rev=<previous-sha> -f force_migrate=no
+```
+
+Через UI: `Actions → Prod deploy → Run workflow → rev = …`.
+
+### Что workflow НЕ делает
+
+- Не строит backend-образ в CI и не пушит в registry — `docker compose build backend` идёт **на сервере**, как и при ручном `make deploy-backend`. Это исключает необходимость в registry и сохраняет существующую модель «один источник правды — git на сервере».
+- Не управляет certbot/Let's Encrypt — systemd-timer на сервере.
+- Не трогает `.env.prod` — никогда.
