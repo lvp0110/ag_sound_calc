@@ -1,3 +1,8 @@
+import {
+  constructionTypeFromCalcParams,
+  sectionIdFromCode,
+} from "./constructionSection.js";
+
 /**
  * Маппинг между состоянием Calculator / KpPage и бэкендовым DTO Offer.
  *
@@ -67,11 +72,13 @@ export function mapOfferResponseToKpView(offer, { titleByCode = new Map() } = {}
     const cp = c.calc_params || {};
     const code = cp.Code || "";
     const meta = titleByCode.get(code) || {};
+    const sectionId = cp.SectionId || sectionIdFromCode(code);
     return {
       key_id: c.id,
       title: meta.Name || code || "—",
       description: meta.Description || "",
-      type: typeFromCode(code),
+      type: constructionTypeFromCalcParams(cp),
+      section_id: sectionId,
       ag_id: code,
       step: Number(cp.step) || 600,
       weight: null,
@@ -386,11 +393,3 @@ function parseNumber(s) {
   return Number.isFinite(n) ? n : 0;
 }
 
-function typeFromCode(code) {
-  if (!code) return "";
-  if (code.startsWith("AG.W")) return "Перегородка";
-  if (code.startsWith("AG.C")) return "Потолок";
-  if (code.startsWith("AG.F")) return "Пол";
-  if (code.startsWith("AG.L")) return "Облицовка";
-  return "";
-}

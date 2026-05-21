@@ -180,7 +180,7 @@ Backend — `backend/.env` (создаётся из `.env.example` через `m
 | `ACCESS_TOKEN_EXPIRES_IN` | `15m` | TTL access cookie |
 | `REFRESH_TOKEN_EXPIRES_IN` | `30d` | TTL refresh cookie |
 | `CALC_SERVICE_URL` | `https://dev3.constrtodo.ru:3005` | База внешнего сервиса расчёта |
-| `CALC_SERVICE_TIMEOUT_MS` | `15000` | Таймаут запроса к calc-сервису |
+| `CALC_SERVICE_TIMEOUT_MS` | `60000` | Таймаут запроса к calc-сервису (прайс `/api/v2/data` на dev3 часто >15s) |
 
 Frontend (опционально — через `frontend/.env.local`):
 

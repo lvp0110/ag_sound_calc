@@ -21,6 +21,7 @@ import {
   isFacingTemplate,
 } from "../utils/validation";
 import { calculateAreaAndPerimeter, getConstructionCode } from "../utils/calculations";
+import { sectionIdFromSubCategory } from "../utils/constructionSection";
 import { calculateConstruction } from "../services/constructionApi";
 import { createOffer, getOffer, updateOffer } from "../services/offersApi";
 import {
@@ -630,6 +631,7 @@ const Calculator = () => {
 
     const IconType = SubCategories.find((el) => el.id == currentSubCategory);
     const Constr = itemsWithImages.find((el) => el.id == currentItems);
+    const sectionId = sectionIdFromSubCategory(currentSubCategory);
 
     const newConstR = {
       ...constR,
@@ -638,6 +640,7 @@ const Calculator = () => {
       key_id: Date.now(),
       title: Constr?.title,
       type: IconType?.title,
+      section_id: sectionId,
       ag_id: Constr?.ag_id,
       step: Constr?.step,
       weight: Constr?.weight,
@@ -672,6 +675,8 @@ const Calculator = () => {
       Area: area,
       Perimeter: perimeter,
       Openings: openingsWithNumbers,
+      SectionId: sectionId,
+      SectionType: IconType?.title ?? "",
     };
 
     if (code == "AG.L401" || code == "AG.W101" || code == "AG.W105") {

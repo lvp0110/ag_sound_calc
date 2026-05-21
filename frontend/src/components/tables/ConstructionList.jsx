@@ -7,6 +7,7 @@ import MaterialsList, {
   formatRub,
   montageLineProductRub,
 } from "./MaterialsList";
+import { sectionLabelForConstruction } from "../../utils/constructionSection";
 import "./ConstructionList.css";
 
 /** Строка итога «Стоимость конструкций» (экспорт для КП: итог после блока «Услуги»). */
@@ -203,12 +204,23 @@ function constructionDisplayTitle({ title, type }) {
   return cleanTitle;
 }
 
-/** Заголовок карточки: название конструкции из строки таблицы. */
-function constructionCardHeading({ title, type, ag_id: code }) {
+/** Заголовок карточки: секция расчёта + название конструкции. */
+function constructionCardHeading(item) {
+  const { title, type, ag_id: code } = item;
   const displayTitle = constructionDisplayTitle({ title, type });
-  if (displayTitle !== "") return displayTitle;
-  if (code != null && String(code).trim() !== "") return String(code).trim();
-  return "Конструкция";
+  const constructionPart =
+    displayTitle !== ""
+      ? displayTitle
+      : code != null && String(code).trim() !== ""
+        ? String(code).trim()
+        : "Конструкция";
+  const sectionLabel = sectionLabelForConstruction(item);
+  if (!sectionLabel) return constructionPart;
+  const prefix = `${sectionLabel} `;
+  if (constructionPart.toLowerCase().startsWith(prefix.toLowerCase())) {
+    return constructionPart;
+  }
+  return `${sectionLabel} ${constructionPart}`;
 }
 
 /** Колонка «название» в legacy-таблице: не дублируем шифр, если title = ag_id. */
