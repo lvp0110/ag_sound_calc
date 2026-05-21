@@ -29,11 +29,11 @@ export const calculateConstruction = async (constrList) => {
       const errorData = await clonedResponse.json();
       errorText =
         errorData.error || errorData.message || JSON.stringify(errorData);
-    } catch (e) {
+    } catch {
       try {
         const clonedResponse = response.clone();
         errorText = await clonedResponse.text();
-      } catch (textError) {
+      } catch {
         errorText = `HTTP ${response.status}: ${response.statusText}`;
       }
     }
@@ -42,7 +42,7 @@ export const calculateConstruction = async (constrList) => {
     try {
       const errorJson = JSON.parse(errorText);
       errorMessage = errorJson.error || errorJson.message || errorText;
-    } catch (e) {
+    } catch {
       // Если не JSON, используем как есть
     }
 

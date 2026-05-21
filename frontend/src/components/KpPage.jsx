@@ -12,9 +12,13 @@ import {
 import { getOffer, updateOffer } from "../services/offersApi";
 import {
   buildUpdateOfferPayload,
+  enrichConstructionsWithTitles,
   mapOfferResponseToKpView,
 } from "../utils/offerMapper";
-import { getAllIsolationConstr } from "../services/api";
+import {
+  buildTitleByCodeMap,
+  getAllIsolationConstr,
+} from "../services/api";
 import { useAuth } from "../context/AuthContext.jsx";
 import {
   REGION_SELECT_OPTIONS,
@@ -360,7 +364,7 @@ const KpPage = () => {
   const [saveError, setSaveError] = useState(null);
   const originalConstructionsRef = useRef([]); // сырой Offer.constructions с calc_params — для PATCH
 
-  // Загрузка оффера по :id (+ мапа Code→Name из AllIsolationConstr для карточек).
+  // Загрузка оффера по :id. Каталог AllIsolationConstr — отдельно (может быть 25–35s).
   useEffect(() => {
     if (!id) return undefined;
     if (authStatus === "loading") return undefined;
@@ -380,22 +384,10 @@ const KpPage = () => {
 
     (async () => {
       try {
-        const [offer, constrList] = await Promise.all([
-          getOffer(id),
-          getAllIsolationConstr().catch(() => []),
-        ]);
+        const offer = await getOffer(id);
         if (cancelled) return;
 
-        const titleByCode = new Map();
-        for (const row of constrList || []) {
-          if (row?.Code)
-            titleByCode.set(row.Code, {
-              Name: row.Name,
-              Description: row.Description,
-            });
-        }
-
-        const view = mapOfferResponseToKpView(offer, { titleByCode });
+        const view = mapOfferResponseToKpView(offer);
         originalConstructionsRef.current = offer.constructions || [];
 
         const snap = kpSnapshot && activeOfferId === id ? kpSnapshot : null;
@@ -481,6 +473,34 @@ const KpPage = () => {
     setSelectedPriceArticles,
   ]);
 
+  // Подписи карточек из каталога — не блокируем первый рендер КП.
+  useEffect(() => {
+    if (!id || loadStatus !== "loaded") return undefined;
+    if (kpSnapshot && activeOfferId === id) return undefined;
+
+    let cancelled = false;
+    getAllIsolationConstr()
+      .then((constrList) => {
+        if (cancelled) return;
+        const titleByCode = buildTitleByCodeMap(constrList);
+        setCalcTables((prev) => {
+          if (!prev?.ConstrToCalc?.length) return prev;
+          return {
+            ...prev,
+            ConstrToCalc: enrichConstructionsWithTitles(
+              prev.ConstrToCalc,
+              titleByCode,
+            ),
+          };
+        });
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+  }, [id, loadStatus, kpSnapshot, activeOfferId]);
+
   // Режим черновика: КП «открыто» до «Сохранить», навигация только на /calc и /price.
   useEffect(() => {
     if (loadStatus === "loaded" && id && isAuthed) {
@@ -545,8 +565,6 @@ const KpPage = () => {
       setMontageByKeyId((prev) => ({
         ...prev,
         [key_id]: {
-          price: "",
-          quantity: "",
           unit: "м2",
           ...prev[key_id],
           price: value,

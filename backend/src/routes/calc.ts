@@ -1,5 +1,6 @@
 import { Router, type Request, type Response as ExpressResponse } from "express";
 import { env } from "../config/env.js";
+import { fetchUpstreamCached } from "../services/upstreamCache.js";
 
 /**
  * Прокси на внешний сервис расчёта конструкций.
@@ -62,9 +63,11 @@ const proxyRequest = async (
     return;
   }
 
-  console.log(
-    `[calc-proxy] ${req.method} ${req.originalUrl} → ${url} ${upstream.status} ${Date.now() - startedAt}ms`
-  );
+  if (env.nodeEnv !== "production") {
+    console.log(
+      `[calc-proxy] ${req.method} ${req.originalUrl} → ${url} ${upstream.status} ${Date.now() - startedAt}ms`
+    );
+  }
 
   res.status(upstream.status);
   const passThroughHeaders = ["content-type", "cache-control", "etag", "last-modified"];
@@ -94,12 +97,75 @@ const proxyRequest = async (
   }
 };
 
+const proxyGetCached = async (
+  req: Request,
+  res: ExpressResponse,
+  targetPath: string,
+  cacheKey: string
+): Promise<void> => {
+  const queryString = req.originalUrl.split("?")[1] ?? "";
+  const url = buildTargetUrl(targetPath, queryString);
+  const targetBase = getTargetBase();
+  const startedAt = Date.now();
+
+  try {
+    const cached = await fetchUpstreamCached(cacheKey, async () => {
+      const upstream = await fetch(url, {
+        method: "GET",
+        headers: {
+          accept: req.get("accept") ?? "*/*",
+          origin: targetBase,
+          referer: `${targetBase}/`,
+        },
+        signal: AbortSignal.timeout(env.calcServiceTimeoutMs),
+      });
+
+      const passThroughHeaders: Record<string, string> = {};
+      for (const name of ["content-type", "cache-control", "etag", "last-modified"]) {
+        const value = upstream.headers.get(name);
+        if (value) passThroughHeaders[name] = value;
+      }
+
+      const body = upstream.body
+        ? Buffer.from(await upstream.arrayBuffer())
+        : Buffer.alloc(0);
+
+      return {
+        status: upstream.status,
+        headers: passThroughHeaders,
+        body,
+      };
+    });
+
+    if (env.nodeEnv !== "production") {
+      console.log(
+        `[calc-proxy] GET ${req.originalUrl} → ${url} ${cached.status} (cache) ${Date.now() - startedAt}ms`
+      );
+    }
+
+    res.status(cached.status);
+    for (const [name, value] of Object.entries(cached.headers)) {
+      res.setHeader(name, value);
+    }
+    res.send(cached.body);
+  } catch (err) {
+    const message =
+      err instanceof Error && err.name === "TimeoutError"
+        ? `Calc service timeout after ${env.calcServiceTimeoutMs}ms`
+        : `Calc service request failed: ${err instanceof Error ? err.message : String(err)}`;
+    console.error(
+      `[calc-proxy] GET ${req.originalUrl} → ${url} FAIL ${Date.now() - startedAt}ms: ${message}`
+    );
+    res.status(502).json({ error: message });
+  }
+};
+
 router.post("/api/v1/calcIsolation/byProduct", (req, res) =>
   proxyRequest(req, res, "/api/v1/calcIsolation/byProduct")
 );
 
 router.get("/api/v1/AllIsolationConstr", (req, res) =>
-  proxyRequest(req, res, "/api/v1/AllIsolationConstr")
+  proxyGetCached(req, res, "/api/v1/AllIsolationConstr", "AllIsolationConstr")
 );
 
 router.get("/api/v1/IsolationConstrMaterials/:code", (req, res) =>
@@ -123,6 +189,8 @@ router.get("/api/v2/public/image/:filename", (req, res) =>
 );
 
 // Прайс из 1С: используется в frontend/src/services/priceApi.js (cache + поиск).
-router.get("/api/v2/data", (req, res) => proxyRequest(req, res, "/api/v2/data"));
+router.get("/api/v2/data", (req, res) =>
+  proxyGetCached(req, res, "/api/v2/data", "v2/data")
+);
 
 export default router;

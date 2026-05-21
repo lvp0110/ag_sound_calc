@@ -1,4 +1,8 @@
 import { env } from "../config/env.js";
+import {
+  getCachedCalcMaterials,
+  setCachedCalcMaterials,
+} from "./calcResultCache.js";
 
 export interface CalcParams {
   Code: string;
@@ -36,6 +40,9 @@ const CALC_PATH = "/api/v1/calcIsolation/byProduct";
  * Возвращает плоский массив материалов этой конструкции.
  */
 const calculateOne = async (params: CalcParams): Promise<CalcMaterial[]> => {
+  const cached = getCachedCalcMaterials(params);
+  if (cached) return cached;
+
   const url = `${env.calcServiceUrl.replace(/\/$/, "")}${CALC_PATH}`;
 
   let response: globalThis.Response;
@@ -75,7 +82,9 @@ const calculateOne = async (params: CalcParams): Promise<CalcMaterial[]> => {
     payload && typeof payload === "object" && "data" in payload
       ? (payload as { data: unknown }).data
       : payload;
-  return Array.isArray(raw) ? (raw as CalcMaterial[]) : [];
+  const materials = Array.isArray(raw) ? (raw as CalcMaterial[]) : [];
+  setCachedCalcMaterials(params, materials);
+  return materials;
 };
 
 /**

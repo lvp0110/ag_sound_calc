@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useMemo, useState } from "react";
 import { useCalcConstructionCardsViewport } from "../../hooks/useCalcConstructionCardsViewport";
 import { filterVariable } from "../../utils/formatters";
 import MaterialsList, {
@@ -309,36 +309,28 @@ const ConstructionList = ({
   showGrandTotalInline = true,
   onGeneralMaterialKpPriceChange,
 }) => {
-  const [collapsedCardsByKeyId, setCollapsedCardsByKeyId] = useState({});
+  const [collapseOverrides, setCollapseOverrides] = useState({});
   const [expandedLegacyKeyId, setExpandedLegacyKeyId] = useState(null);
   const legacyCardsLayout = useCalcConstructionCardsViewport();
 
-  useEffect(() => {
-    if (!Array.isArray(constructions) || constructions.length === 0) {
-      setCollapsedCardsByKeyId({});
-      return;
+  const collapsedCardsByKeyId = useMemo(() => {
+    if (!Array.isArray(constructions) || constructions.length === 0) return {};
+    const next = {};
+    for (const item of constructions) {
+      next[item.key_id] = collapseOverrides[item.key_id] ?? true;
     }
-    setCollapsedCardsByKeyId((prev) => {
-      const next = {};
-      for (const item of constructions) {
-        next[item.key_id] = prev[item.key_id] ?? true;
-      }
-      return next;
-    });
-  }, [constructions]);
+    return next;
+  }, [constructions, collapseOverrides]);
 
-  useEffect(() => {
-    if (
-      expandedLegacyKeyId == null ||
-      constructions.some((c) => c.key_id === expandedLegacyKeyId)
-    ) {
-      return;
-    }
-    setExpandedLegacyKeyId(null);
+  const expandedLegacyKeyIdActive = useMemo(() => {
+    if (expandedLegacyKeyId == null) return null;
+    return constructions.some((c) => c.key_id === expandedLegacyKeyId)
+      ? expandedLegacyKeyId
+      : null;
   }, [constructions, expandedLegacyKeyId]);
 
   const toggleCardCollapsed = useCallback((key_id) => {
-    setCollapsedCardsByKeyId((prev) => ({
+    setCollapseOverrides((prev) => ({
       ...prev,
       [key_id]: !(prev[key_id] ?? true),
     }));
@@ -566,7 +558,7 @@ const ConstructionList = ({
           aria-label="Список конструкций"
         >
           {constructions.map((constRItem, index) => {
-            const legacyExpanded = expandedLegacyKeyId === constRItem.key_id;
+            const legacyExpanded = expandedLegacyKeyIdActive === constRItem.key_id;
             const matEntry = materialsByConstruction?.find(
               (m) => m.key_id === constRItem.key_id,
             );
@@ -695,7 +687,7 @@ const ConstructionList = ({
           {constructions.map((constRItem, index) => {
             const legacyExpanded =
               legacyTableWithMaterials &&
-              expandedLegacyKeyId === constRItem.key_id;
+              expandedLegacyKeyIdActive === constRItem.key_id;
             const matEntry = legacyTableWithMaterials
               ? materialsByConstruction?.find(
                   (m) => m.key_id === constRItem.key_id,

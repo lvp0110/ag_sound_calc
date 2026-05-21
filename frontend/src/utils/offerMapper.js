@@ -25,7 +25,7 @@ export function buildCreateOfferPayload({
   services = [],
   kpSettings = null,
 }) {
-  const constructions = constrToCalcToSent.map((calcParams, i) => ({
+  const constructions = constrToCalcToSent.map((calcParams) => ({
     calc_params: calcParams,
     // materials серверная ручка пересчитает сама (POST всегда свежий calc),
     // montage пустой — пользователь заполнит на /kp/:id.
@@ -51,6 +51,27 @@ export function buildCreateOfferPayload({
 }
 
 // ─── load ───────────────────────────────────────────────────────────────────
+
+/** Обновляет title/description карточек после фоновой загрузки каталога. */
+export function enrichConstructionsWithTitles(constructions, titleByCode) {
+  if (!Array.isArray(constructions) || !(titleByCode instanceof Map)) {
+    return constructions;
+  }
+  return constructions.map((item) => {
+    const code = item?.ag_id || "";
+    const meta = titleByCode.get(code) || {};
+    const nextTitle = meta.Name || item.title || code || "—";
+    const nextDescription = meta.Description ?? item.description ?? "";
+    if (item.title === nextTitle && item.description === nextDescription) {
+      return item;
+    }
+    return {
+      ...item,
+      title: nextTitle,
+      description: nextDescription,
+    };
+  });
+}
 
 /**
  * Превращает ответ GET /api/offers/:id в объекты, которые потребляет KpPage:

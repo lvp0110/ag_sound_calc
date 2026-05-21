@@ -1,4 +1,4 @@
-import { useCallback, useSyncExternalStore } from "react";
+import { useCallback } from "react";
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 
@@ -38,7 +38,7 @@ const initialState = {
 
 export const useCalculatorStore = create(
   persist(
-    (set, get) => ({
+    (set) => ({
       ...initialState,
 
       /** Универсальный setter: принимает значение или (prev) => next — как useState. */
@@ -49,9 +49,6 @@ export const useCalculatorStore = create(
 
       /** Полный сброс состояния (например при «Сделать КП» если захотим очищать). */
       reset: () => set(initialState),
-
-      /** Для отладки из devtools. */
-      _debug: () => get(),
     }),
     {
       name: "ag_calc_store_v1",
@@ -69,19 +66,10 @@ export const useCalculatorStore = create(
  * Хук в стиле useState для поля стора — drop-in замена:
  *   const [currentGkla, setCurrentGkla] = useCalcField("currentGkla");
  *
- * Использует useSyncExternalStore, чтобы React корректно ре-рендерил
- * подписчиков при изменениях извне (в т.ч. из persist при гидратации).
+ * Подписка только на одно поле — изменение других ключей не ре-рендерит компонент.
  */
 export function useCalcField(key) {
-  const subscribe = useCallback(
-    (cb) => useCalculatorStore.subscribe(cb),
-    []
-  );
-  const getSnapshot = useCallback(
-    () => useCalculatorStore.getState()[key],
-    [key]
-  );
-  const value = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  const value = useCalculatorStore((state) => state[key]);
   const setValue = useCallback(
     (v) => useCalculatorStore.getState().setField(key, v),
     [key]

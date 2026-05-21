@@ -12,6 +12,12 @@ import { useOfferEditSession } from "../stores/offerEditSessionStore.js";
 import { usePriceNarrowViewport } from "../hooks/usePriceNarrowViewport";
 import "./PricePage.css";
 
+let additionalMaterialRowSeq = 0;
+function nextAdditionalMaterialRowId() {
+  additionalMaterialRowSeq += 1;
+  return `mat-${additionalMaterialRowSeq}`;
+}
+
 const getDefaultRegionOption = (availableRegionKeys) =>
   REGION_SELECT_OPTIONS.find((option) => availableRegionKeys.has(option.regionKey))?.value ??
   "";
@@ -192,7 +198,7 @@ const PricePage = () => {
       if (nextRows.length === 0) {
         nextRows = [
           {
-            id: `mat-${Date.now()}`,
+            id: nextAdditionalMaterialRowId(),
             name: "",
             price: "",
             quantity: "",

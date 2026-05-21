@@ -11,6 +11,12 @@ const API_BASE_URL = `${BASE_URL}/api/v1`;
 /** Каталог конструкций на внешнем calc-сервисе иногда отвечает 25–35s. */
 const ALL_ISOLATION_CONSTR_TIMEOUT_MS = 60000;
 
+const allIsolationConstrCache = {
+  list: null,
+  loaded: false,
+  loadingPromise: null,
+};
+
 const resolveConstrPreviewUrl = (processedImageName) => {
   return `${BASE_URL}/api/v2/public/image/${processedImageName}`;
 };
@@ -27,7 +33,7 @@ const parseAllIsolationConstrBody = (result) => {
  * Получает все конструкции изоляции из API (GET …/AllIsolationConstr, Accept: application/json)
  * @returns {Promise<Array>} Массив конструкций (Code, Name, Description, Img и др.)
  */
-export const getAllIsolationConstr = async () => {
+const fetchAllIsolationConstr = async () => {
   const url = `${API_BASE_URL}/AllIsolationConstr`;
 
   try {
@@ -50,9 +56,48 @@ export const getAllIsolationConstr = async () => {
 
     const result = await response.json();
     return parseAllIsolationConstrBody(result);
-  } catch (error) {
+  } catch {
     return [];
   }
+};
+
+/**
+ * Каталог конструкций с in-memory кэшем (как прайс).
+ * Повторные заходы на КП/калькулятор не ждут 25–35s ответа dev3.
+ */
+export const getAllIsolationConstr = async () => {
+  if (allIsolationConstrCache.loaded && Array.isArray(allIsolationConstrCache.list)) {
+    return allIsolationConstrCache.list;
+  }
+  if (allIsolationConstrCache.loadingPromise) {
+    return allIsolationConstrCache.loadingPromise;
+  }
+
+  allIsolationConstrCache.loadingPromise = fetchAllIsolationConstr()
+    .then((list) => {
+      allIsolationConstrCache.list = list;
+      allIsolationConstrCache.loaded = true;
+      return list;
+    })
+    .finally(() => {
+      allIsolationConstrCache.loadingPromise = null;
+    });
+
+  return allIsolationConstrCache.loadingPromise;
+};
+
+/** Code → { Name, Description } для подписей карточек на КП. */
+export const buildTitleByCodeMap = (constrList) => {
+  const titleByCode = new Map();
+  for (const row of constrList || []) {
+    if (row?.Code) {
+      titleByCode.set(row.Code, {
+        Name: row.Name,
+        Description: row.Description,
+      });
+    }
+  }
+  return titleByCode;
 };
 
 /**
@@ -159,7 +204,7 @@ export const getConstructionByCode = async (code) => {
     }
     
     return construction || null;
-  } catch (error) {
+  } catch {
     return null;
   }
 };
@@ -236,7 +281,7 @@ export const getIsolationConstrMaterials = async (isolationConstrCode) => {
 
     const result = await response.json();
     return result && typeof result === "object" ? result : null;
-  } catch (error) {
+  } catch {
     return null;
   }
 };
@@ -313,7 +358,7 @@ export const getConstructionProps = async (code) => {
     }
     
     return null;
-  } catch (error) {
+  } catch {
     return null;
   }
 };

@@ -483,22 +483,20 @@ const enrichItemsWithImages = (items, imagesMap) => {
   });
 };
 
-/**
- * Получает обогащенные items с изображениями из API
- * @returns {Promise<Array>} Promise с массивом items, обогащенных изображениями из API
- */
-export const getItemsWithApiImages = async () => {
+let itemsWithApiImagesCache = null;
+let itemsWithApiImagesInFlight = null;
+
+const loadItemsWithApiImages = async () => {
   try {
     const constructions = await getAllIsolationConstr();
     const withCatalog = mergeCatalogFromApi(ItemsBase, constructions);
     const imagesMap = buildImagesMapFromConstructions(constructions);
     return enrichItemsWithImages(withCatalog, imagesMap);
-  } catch (error) {
+  } catch {
     // В случае ошибки возвращаем items с преобразованными путями для элемента "P"
-    return ItemsBase.map(item => {
+    return ItemsBase.map((item) => {
       let img = null;
       if (item.id === "P") {
-        // Преобразуем путь /Img_constr/floor/c2k2_1.png в формат API
         const oldPath = "/Img_constr/floor/c2k2_1.png";
         img = getImageUrl(oldPath);
       }
@@ -508,6 +506,26 @@ export const getItemsWithApiImages = async () => {
       };
     });
   }
+};
+
+/**
+ * Получает обогащенные items с изображениями из API.
+ * Результат кэшируется на время сессии вкладки (повторные вызовы из Calculator и ItemInfo).
+ * @returns {Promise<Array>}
+ */
+export const getItemsWithApiImages = async () => {
+  if (itemsWithApiImagesCache) return itemsWithApiImagesCache;
+  if (!itemsWithApiImagesInFlight) {
+    itemsWithApiImagesInFlight = loadItemsWithApiImages()
+      .then((items) => {
+        itemsWithApiImagesCache = items;
+        return items;
+      })
+      .finally(() => {
+        itemsWithApiImagesInFlight = null;
+      });
+  }
+  return itemsWithApiImagesInFlight;
 };
 
 // Экспортируем базовый массив для обратной совместимости
