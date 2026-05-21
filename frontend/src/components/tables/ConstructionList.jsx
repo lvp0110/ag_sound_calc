@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useState } from "react";
+import { useCalcConstructionCardsViewport } from "../../hooks/useCalcConstructionCardsViewport";
 import { filterVariable } from "../../utils/formatters";
 import MaterialsList, {
   computeGrandTotalRubForConstructions,
@@ -240,6 +241,38 @@ function noArticleIndicesInMaterialsData(materials) {
   return idx;
 }
 
+function LegacyConstructionMaterialsPanels({
+  withArticle,
+  noArticle,
+  baseTableId,
+  showGeneralConstructionMaterials,
+}) {
+  return (
+    <>
+      {withArticle.length === 0 && noArticle.length === 0 && (
+        <MaterialsList data={[]} tableId={baseTableId} compositionOnly />
+      )}
+      {withArticle.length > 0 && (
+        <MaterialsList
+          data={withArticle}
+          tableId={baseTableId}
+          compositionOnly
+        />
+      )}
+      {showGeneralConstructionMaterials && noArticle.length > 0 && (
+        <MaterialsList
+          data={noArticle}
+          tableId={
+            withArticle.length > 0 ? `${baseTableId}-misc` : baseTableId
+          }
+          sectionTitle="Общестроительные материалы"
+          compositionOnly
+        />
+      )}
+    </>
+  );
+}
+
 /**
  * Таблица со списком конструкций
  * @param {boolean} [readOnly] — без колонки удаления (например, страница КП)
@@ -248,6 +281,7 @@ function noArticleIndicesInMaterialsData(materials) {
  * @param {(ctx: { key_id: number, cardIndex: number }) => import("react").ReactNode} [renderKpMontageSlot] — раздел «Монтаж» в каждой карточке конструкции на КП (не в «Услугах» и не в строке итога)
  * @param {Record<number, { price?: string, quantity?: string, unit?: string }>} [montageByKeyId] — монтаж по карточке (КП); для итога под карточкой
  * @param {(key_id: number, indexInFullMaterialsData: number, field: 'KpPricePerM2'|'KpPricePerUnit', value: string) => void} [onGeneralMaterialKpPriceChange] — правка цен «Общестроительные материалы»
+ * @param {boolean} [legacyTableWithMaterials] — таблица-список: по клику на название под строкой показываются материалы (калькулятор)
  */
 const ConstructionList = ({
   constructions,
@@ -255,6 +289,7 @@ const ConstructionList = ({
   readOnly = false,
   showHeadingDeleteButton = false,
   materialsByConstruction,
+  legacyTableWithMaterials = false,
   showGeneralConstructionMaterials = true,
   renderKpMontageSlot,
   montageByKeyId,
@@ -263,6 +298,8 @@ const ConstructionList = ({
   onGeneralMaterialKpPriceChange,
 }) => {
   const [collapsedCardsByKeyId, setCollapsedCardsByKeyId] = useState({});
+  const [expandedLegacyKeyId, setExpandedLegacyKeyId] = useState(null);
+  const legacyCardsLayout = useCalcConstructionCardsViewport();
 
   useEffect(() => {
     if (!Array.isArray(constructions) || constructions.length === 0) {
@@ -278,6 +315,16 @@ const ConstructionList = ({
     });
   }, [constructions]);
 
+  useEffect(() => {
+    if (
+      expandedLegacyKeyId == null ||
+      constructions.some((c) => c.key_id === expandedLegacyKeyId)
+    ) {
+      return;
+    }
+    setExpandedLegacyKeyId(null);
+  }, [constructions, expandedLegacyKeyId]);
+
   const toggleCardCollapsed = useCallback((key_id) => {
     setCollapsedCardsByKeyId((prev) => ({
       ...prev,
@@ -285,12 +332,17 @@ const ConstructionList = ({
     }));
   }, []);
 
+  const toggleLegacyMaterials = useCallback((key_id) => {
+    setExpandedLegacyKeyId((prev) => (prev === key_id ? null : key_id));
+  }, []);
+
   if (!constructions || constructions.length === 0) {
     return null;
   }
 
-  /** Режим «конструкция → под ней материалы» (массив может быть пустым при восстановлении сессии) */
-  const interleaved = materialsByConstruction != null;
+  /** Карточки КП: конструкция и материалы в одном блоке (не legacy-таблица калькулятора). */
+  const interleaved =
+    materialsByConstruction != null && !legacyTableWithMaterials;
 
   if (interleaved) {
     return (
@@ -489,6 +541,127 @@ const ConstructionList = ({
     );
   }
 
+  const legacyColSpan = readOnly ? 3 : 4;
+  const useLegacyCards =
+    legacyTableWithMaterials && legacyCardsLayout;
+
+  if (useLegacyCards) {
+    return (
+      <div className="tbl-in construction-list-legacy-cards-wrap">
+        <div
+          className="construction-list-legacy-cards"
+          role="list"
+          aria-label="Список конструкций"
+        >
+          {constructions.map((constRItem, index) => {
+            const legacyExpanded = expandedLegacyKeyId === constRItem.key_id;
+            const matEntry = materialsByConstruction?.find(
+              (m) => m.key_id === constRItem.key_id,
+            );
+            const materialsData = matEntry?.data ?? [];
+            const { withArticle, noArticle } =
+              splitMaterialsByArticleDisplay(materialsData);
+            const baseTableId = index === 0 ? "table2" : `table2-${index}`;
+            const legacyTitle =
+              constructionLegacyTitle(constRItem) || constRItem.ag_id || "";
+            const materialsPanelId = `construction-legacy-materials-${constRItem.key_id}`;
+
+            return (
+              <article
+                key={constRItem.key_id}
+                role="listitem"
+                className={`construction-list-legacy-card${
+                  legacyExpanded
+                    ? " construction-list-legacy-card--expanded"
+                    : ""
+                }`}
+              >
+                <div className="construction-list-legacy-card__header">
+                  <button
+                    type="button"
+                    className="construction-list-legacy-card__toggle"
+                    onClick={() => toggleLegacyMaterials(constRItem.key_id)}
+                    aria-expanded={legacyExpanded}
+                    aria-controls={materialsPanelId}
+                    title={
+                      legacyExpanded ? "Скрыть материалы" : "Показать материалы"
+                    }
+                  >
+                    <span
+                      className={`construction-list-legacy__title-chevron${
+                        legacyExpanded
+                          ? " construction-list-legacy__title-chevron--expanded"
+                          : ""
+                      }`}
+                      aria-hidden
+                    />
+                    <span className="construction-list-legacy-card__body">
+                      <span className="construction-list-legacy-card__title">
+                        {legacyTitle}
+                      </span>
+                      <span className="construction-list-legacy-card__meta">
+                        <span className="construction-list-legacy-card__meta-item">
+                          <span className="construction-list-legacy-card__meta-label">
+                            шифр
+                          </span>
+                          <span className="construction-list-legacy-card__meta-value">
+                            {constRItem.ag_id ?? "—"}
+                          </span>
+                        </span>
+                        <span className="construction-list-legacy-card__meta-item">
+                          <span className="construction-list-legacy-card__meta-label">
+                            размеры, мм
+                          </span>
+                          <span className="construction-list-legacy-card__meta-value">
+                            {constructionDimensionsMm(constRItem)}
+                          </span>
+                        </span>
+                      </span>
+                    </span>
+                  </button>
+                  {!readOnly && (
+                    <button
+                      type="button"
+                      className="construction-list-legacy-card__delete"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDelete(constRItem.key_id);
+                      }}
+                      aria-label={`Удалить конструкцию ${legacyTitle}`}
+                    >
+                      <img
+                        src={`${import.meta.env.BASE_URL}delete-icon.jpg`}
+                        alt=""
+                        className="construction-card__delete-icon"
+                        loading="lazy"
+                        decoding="async"
+                      />
+                    </button>
+                  )}
+                </div>
+                {legacyExpanded && (
+                  <div
+                    id={materialsPanelId}
+                    className="construction-list-legacy-card__materials"
+                  >
+                    <LegacyConstructionMaterialsPanels
+                      withArticle={withArticle}
+                      noArticle={noArticle}
+                      baseTableId={baseTableId}
+                      showGeneralConstructionMaterials={
+                        showGeneralConstructionMaterials
+                      }
+                    />
+                  </div>
+                )}
+              </article>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       className={
@@ -507,36 +680,97 @@ const ConstructionList = ({
           </tr>
         </thead>
         <tbody>
-          {constructions.map((constRItem) => (
-            <tr key={constRItem.key_id}>
-              {!readOnly && (
-                <td className="construction-card__delete-col">
-                  <input
-                    type="button"
-                    className="counter__button_minus"
-                    onClick={() => onDelete(constRItem.key_id)}
-                  />
-                  <img
-                    src={`${import.meta.env.BASE_URL}delete-icon.jpg`}
-                    alt=""
-                    className="construction-card__delete-icon"
-                    loading="lazy"
-                    decoding="async"
-                    onClick={() => onDelete(constRItem.key_id)}
-                  />
-                </td>
-              )}
-              <td className="construction-list-legacy__code-td tbl-in__cipher-col">
-                {constRItem.ag_id}
-              </td>
-              <td className="construction-list-legacy__title-td">
-                {constructionLegacyTitle(constRItem)}
-              </td>
-              <td className="construction-list-legacy__dim-td">
-                {constructionDimensionsMm(constRItem)}
-              </td>
-            </tr>
-          ))}
+          {constructions.map((constRItem, index) => {
+            const legacyExpanded =
+              legacyTableWithMaterials &&
+              expandedLegacyKeyId === constRItem.key_id;
+            const matEntry = legacyTableWithMaterials
+              ? materialsByConstruction?.find(
+                  (m) => m.key_id === constRItem.key_id,
+                )
+              : null;
+            const materialsData = matEntry?.data ?? [];
+            const { withArticle, noArticle } =
+              splitMaterialsByArticleDisplay(materialsData);
+            const baseTableId = index === 0 ? "table2" : `table2-${index}`;
+            const legacyTitle =
+              constructionLegacyTitle(constRItem) || constRItem.ag_id || "";
+            const titleExpandable = legacyTableWithMaterials && legacyTitle !== "";
+
+            return (
+              <Fragment key={constRItem.key_id}>
+                <tr>
+                  {!readOnly && (
+                    <td className="construction-card__delete-col">
+                      <input
+                        type="button"
+                        className="counter__button_minus"
+                        onClick={() => onDelete(constRItem.key_id)}
+                      />
+                      <img
+                        src={`${import.meta.env.BASE_URL}delete-icon.jpg`}
+                        alt=""
+                        className="construction-card__delete-icon"
+                        loading="lazy"
+                        decoding="async"
+                        onClick={() => onDelete(constRItem.key_id)}
+                      />
+                    </td>
+                  )}
+                  <td className="construction-list-legacy__code-td tbl-in__cipher-col">
+                    {constRItem.ag_id}
+                  </td>
+                  <td className="construction-list-legacy__title-td">
+                    {titleExpandable ? (
+                      <button
+                        type="button"
+                        className="construction-list-legacy__title-button"
+                        onClick={() => toggleLegacyMaterials(constRItem.key_id)}
+                        aria-expanded={legacyExpanded}
+                        aria-controls={`construction-legacy-materials-${constRItem.key_id}`}
+                        title={legacyExpanded ? "Скрыть материалы" : "Показать материалы"}
+                      >
+                        <span
+                          className={`construction-list-legacy__title-chevron${
+                            legacyExpanded
+                              ? " construction-list-legacy__title-chevron--expanded"
+                              : ""
+                          }`}
+                          aria-hidden
+                        />
+                        {legacyTitle}
+                      </button>
+                    ) : (
+                      constructionLegacyTitle(constRItem)
+                    )}
+                  </td>
+                  <td className="construction-list-legacy__dim-td">
+                    {constructionDimensionsMm(constRItem)}
+                  </td>
+                </tr>
+                {legacyExpanded && (
+                  <tr
+                    id={`construction-legacy-materials-${constRItem.key_id}`}
+                    className="construction-list-legacy__materials-row"
+                  >
+                    <td
+                      colSpan={legacyColSpan}
+                      className="construction-list-legacy__materials-cell"
+                    >
+                      <LegacyConstructionMaterialsPanels
+                        withArticle={withArticle}
+                        noArticle={noArticle}
+                        baseTableId={baseTableId}
+                        showGeneralConstructionMaterials={
+                          showGeneralConstructionMaterials
+                        }
+                      />
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
+            );
+          })}
         </tbody>
       </table>
     </div>

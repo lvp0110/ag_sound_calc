@@ -11,6 +11,7 @@ import {
   usePriceData,
 } from "../../services/priceApi";
 import { KpNarrowExpandableRow } from "../kp/KpNarrowExpandableRow";
+import { useCalcConstructionCardsViewport } from "../../hooks/useCalcConstructionCardsViewport";
 import { useKpExpandedRow } from "../../hooks/useKpExpandedRow";
 import { useKpNarrowViewport } from "../../hooks/useKpNarrowViewport";
 import "./MaterialsList.css";
@@ -111,6 +112,7 @@ export function computeGrandTotalRubForConstructions(
  * @param {boolean} [collapsible=false] — на КП: таблица свёрнута, раскрытие по клику на заголовок
  * @param {boolean} [editablePriceCells=false] — ячейки «цена ₽/м²» и «цена ₽/ед.» как поля ввода (блок общестроительных материалов)
  * @param {(rowIndex: number, field: 'KpPricePerM2'|'KpPricePerUnit', value: string) => void} [onKpMaterialPriceChange]
+ * @param {boolean} [compositionOnly=false] — только артикул, название, ед.изм и кол-во (без цен и сумм)
  */
 const MaterialsList = ({
   calculatedMaterials,
@@ -120,9 +122,11 @@ const MaterialsList = ({
   collapsible = false,
   editablePriceCells = false,
   onKpMaterialPriceChange,
+  compositionOnly = false,
 }) => {
   const [sectionOpen, setSectionOpen] = useState(false);
   const isNarrowScreen = useKpNarrowViewport();
+  const calcCardsViewport = useCalcConstructionCardsViewport();
   const { expandedKey, toggleRow } = useKpExpandedRow();
   usePriceData();
 
@@ -144,11 +148,21 @@ const MaterialsList = ({
   const totalSumRub = computeTotalRubForMaterialsData(data);
 
   const showBody = !collapsible || sectionOpen;
+  /** Состав конструкции в калькуляторе: < 430px без колонки «артикул». */
+  const compositionNarrow = compositionOnly && calcCardsViewport;
   /** Калькулятор: на узком экране убираем колонки из DOM. КП (collapsible): все колонки в DOM, скрытие через CSS. */
-  const legacyNarrow = !collapsible && isNarrowScreen;
-  const colInDom = collapsible || !legacyNarrow;
+  const legacyNarrow = !collapsible && !compositionOnly && isNarrowScreen;
+  const colSpan = compositionOnly
+    ? compositionNarrow
+      ? 3
+      : 4
+    : legacyNarrow
+      ? 4
+      : 8;
+  const colInDom = compositionOnly || collapsible || !legacyNarrow;
+  const showArticleCol = compositionOnly ? !compositionNarrow : colInDom;
   const hideOnKpNarrow = collapsible ? " kp-data-col--hide-narrow" : "";
-  const kpNarrowDetail = collapsible && isNarrowScreen;
+  const kpNarrowDetail = collapsible && isNarrowScreen && !compositionOnly;
 
   const collapsibleTitle = collapsible ? (
     <span className="kp-collapsible-title-row">
@@ -195,7 +209,7 @@ const MaterialsList = ({
             {!collapsible && (
               <tr>
                 <th
-                  colSpan={legacyNarrow ? 4 : 8}
+                  colSpan={colSpan}
                   className="materials-list__section-title-th"
                 >
                   {sectionTitle}
@@ -204,32 +218,37 @@ const MaterialsList = ({
             )}
             {showBody && (
               <tr>
-                {colInDom && (
+                {showArticleCol && (
                   <th className={hideOnKpNarrow.trim() || undefined}>артикул</th>
                 )}
                 <th className={collapsible ? "kp-data-col--name" : undefined}>
                   название
                 </th>
-                <th
-                  className={`materials-list__col--hidden${hideOnKpNarrow}`}
-                />
-                {colInDom && (
-                  <th className={hideOnKpNarrow.trim() || undefined}>кол-во</th>
+                {!compositionOnly && (
+                  <th
+                    className={`materials-list__col--hidden${hideOnKpNarrow}`}
+                  />
                 )}
-                {colInDom && (
+                {colInDom && compositionOnly && (
                   <th className={hideOnKpNarrow.trim() || undefined}>ед.изм</th>
                 )}
                 {colInDom && (
+                  <th className={hideOnKpNarrow.trim() || undefined}>кол-во</th>
+                )}
+                {colInDom && !compositionOnly && (
+                  <th className={hideOnKpNarrow.trim() || undefined}>ед.изм</th>
+                )}
+                {colInDom && !compositionOnly && (
                   <th className={hideOnKpNarrow.trim() || undefined}>
                     цена, ₽/м²
                   </th>
                 )}
-                {colInDom && (
+                {colInDom && !compositionOnly && (
                   <th className={hideOnKpNarrow.trim() || undefined}>
                     цена, ₽/ед.
                   </th>
                 )}
-                {colInDom && (
+                {colInDom && !compositionOnly && (
                   <th className={collapsible ? "kp-data-col--sum" : undefined}>
                     сумма, ₽
                   </th>
@@ -244,7 +263,7 @@ const MaterialsList = ({
               rowModels.map(({ Material, pricePerM2, pricePerUnit, sumRub }, index) => {
                 const codeRaw =
                   Material.Code != null ? String(Material.Code).trim() : "";
-                const priceName = getPriceName(codeRaw);
+                const priceName = compositionOnly ? "" : getPriceName(codeRaw);
                 const materialName =
                   priceName !== ""
                     ? priceName
@@ -321,14 +340,14 @@ const MaterialsList = ({
                         children: filterVariable(Material.Code),
                       },
                       {
-                        id: "qty",
-                        label: "Кол-во",
-                        children: convertUnits(Material),
-                      },
-                      {
                         id: "units",
                         label: "Ед.изм",
                         children: Material.Units ?? "—",
+                      },
+                      {
+                        id: "qty",
+                        label: "Кол-во",
+                        children: convertUnits(Material),
                       },
                       {
                         id: "priceM2",
@@ -347,7 +366,26 @@ const MaterialsList = ({
                       },
                     ]
                   : [];
-                const rowCells = (
+                const rowCells = compositionOnly ? (
+                  <>
+                    {showArticleCol && (
+                      <td className={hideOnKpNarrow.trim() || undefined}>
+                        {filterVariable(Material.Code)}
+                      </td>
+                    )}
+                    <td>{materialName}</td>
+                    {colInDom && (
+                      <td className={hideOnKpNarrow.trim() || undefined}>
+                        {Material.Units ?? "—"}
+                      </td>
+                    )}
+                    {colInDom && (
+                      <td className={hideOnKpNarrow.trim() || undefined}>
+                        {convertUnits(Material)}
+                      </td>
+                    )}
+                  </>
+                ) : (
                   <>
                     {colInDom && (
                       <td className={hideOnKpNarrow.trim() || undefined}>
@@ -418,10 +456,7 @@ const MaterialsList = ({
               })
             ) : (
               <tr>
-                <td
-                  colSpan={legacyNarrow ? 4 : 8}
-                  className="materials-list__empty-message"
-                >
+                <td colSpan={colSpan} className="materials-list__empty-message">
                   {calculatedMaterials != null || dataProp !== undefined
                     ? "Нет данных для отображения"
                     : "Загрузка..."}
@@ -430,13 +465,10 @@ const MaterialsList = ({
             )}
           </tbody>
         )}
-        {showBody && hasData && (
+        {showBody && hasData && !compositionOnly && (
           <tfoot>
             <tr>
-              <td
-                colSpan={legacyNarrow ? 4 : 8}
-                className="materials-list__footer-cell"
-              >
+              <td colSpan={colSpan} className="materials-list__footer-cell">
                 <div className="materials-list__footer-inner">
                   <span>Стоимость</span>
                   <span className="materials-list__footer-sum">
