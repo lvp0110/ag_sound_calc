@@ -1264,8 +1264,8 @@ button::-moz-focus-inner {
 
 }
 
-/* Адаптивность для экранов менее 375px - два столбца */
-@media screen and (max-width: 375px) {
+/* Экран < 468px (до ~375): плитки в два столбца */
+@media screen and (max-width: 467px) {
   .items.content-item {
     max-width: 100% !important;
     width: 100% !important;
