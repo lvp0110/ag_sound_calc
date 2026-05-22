@@ -815,57 +815,67 @@ const KpPage = () => {
   }, []);
 
   const removeConstructionFromKp = useCallback((key_id) => {
+    let nextConstr;
+    let nextMaterials;
+    let nextCalcTables;
+    let constrToCalcToSent;
+
     setCalcTables((prev) => {
-      const nextConstr = prev.ConstrToCalc.filter(
+      nextConstr = prev.ConstrToCalc.filter(
         (item) => item.key_id !== key_id,
       );
-      const nextMaterials = prev.materialsByConstruction.filter(
+      nextMaterials = prev.materialsByConstruction.filter(
         (entry) => entry.key_id !== key_id,
       );
-      const next = {
+      nextCalcTables = {
         ...prev,
         ConstrToCalc: nextConstr,
         materialsByConstruction: nextMaterials,
+        tableConstrToCalc:
+          nextConstr.length === 0 ? null : prev.tableConstrToCalc,
       };
 
       const calcParamsById = new Map(
-        (originalConstructionsRef.current || []).map((c) => [c.id, c.calc_params]),
+        (originalConstructionsRef.current || []).map((c) => [
+          c.id,
+          c.calc_params,
+        ]),
       );
-      const constrToCalcToSent = nextConstr
+      constrToCalcToSent = nextConstr
         .map((ui) => calcParamsById.get(ui.key_id))
         .filter(Boolean);
 
-      const { setField } = useCalculatorStore.getState();
-      setField("ConstrToCalc", nextConstr);
-      setField("materialsByConstruction", nextMaterials);
-      setField("ConstrToCalcToSent", constrToCalcToSent);
-      if (nextConstr.length === 0) {
-        setField("tableConstrToCalc", null);
-      }
-
-      const sess = useOfferEditSessionStore.getState();
-      if (sess.activeOfferId === id) {
-        const prevSnap = sess.kpSnapshot || {};
-        const patch = {
-          ...prevSnap,
-          calcTables: next,
-          constrToCalcToSent,
-        };
-        if (prevSnap.montageByKeyId) {
-          const m = { ...prevSnap.montageByKeyId };
-          delete m[key_id];
-          patch.montageByKeyId = m;
-        }
-        if (prevSnap.manualMontagePriceByKeyId) {
-          const m = { ...prevSnap.manualMontagePriceByKeyId };
-          delete m[key_id];
-          patch.manualMontagePriceByKeyId = m;
-        }
-        sess.stashKpSnapshot(patch);
-      }
-
-      return next;
+      return nextCalcTables;
     });
+
+    const { setField } = useCalculatorStore.getState();
+    setField("ConstrToCalc", nextConstr);
+    setField("materialsByConstruction", nextMaterials);
+    setField("ConstrToCalcToSent", constrToCalcToSent);
+    if (nextConstr.length === 0) {
+      setField("tableConstrToCalc", null);
+    }
+
+    const sess = useOfferEditSessionStore.getState();
+    if (sess.activeOfferId === id) {
+      const prevSnap = sess.kpSnapshot || {};
+      const patch = {
+        ...prevSnap,
+        calcTables: nextCalcTables,
+        constrToCalcToSent,
+      };
+      if (prevSnap.montageByKeyId) {
+        const m = { ...prevSnap.montageByKeyId };
+        delete m[key_id];
+        patch.montageByKeyId = m;
+      }
+      if (prevSnap.manualMontagePriceByKeyId) {
+        const m = { ...prevSnap.manualMontagePriceByKeyId };
+        delete m[key_id];
+        patch.manualMontagePriceByKeyId = m;
+      }
+      sess.stashKpSnapshot(patch);
+    }
 
     setMontageByKeyId((prev) => {
       if (!(key_id in prev)) return prev;
