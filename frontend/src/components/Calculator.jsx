@@ -1003,7 +1003,7 @@ const Calculator = () => {
                                 type="button"
                                 onMouseDown={(e) => e.preventDefault()}
                                 onClick={addConstrToCalc}
-                                className="counter__button_plus"
+                                className="counter__button_plus counter__button_plus--shadow"
                               >
                                 расчет конструкции
                               </button>
@@ -1037,7 +1037,7 @@ const Calculator = () => {
                                     type="button"
                                     onMouseDown={(e) => e.preventDefault()}
                                     onClick={handleReturnToKp}
-                                    className="counter__button_plus"
+                                    className="counter__button_plus counter__button_plus--shadow"
                                     disabled={isSubmittingKp}
                                   >
                                     {isSubmittingKp

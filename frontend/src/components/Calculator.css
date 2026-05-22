@@ -344,11 +344,36 @@ h4 {
 .counter__button_plus {
   width: 100%;
   height: 50px;
+  margin: 0;
+  box-sizing: border-box;
   border-radius: 8px;
   border: solid 1px rgb(255, 255, 255);
   box-shadow: none;
   filter: drop-shadow(0px 0px 2px black);
   touch-action: manipulation;
+}
+
+.selected-item-container .selected-item-calc-action,
+.selected-item-container .tables-and-buttons-footer {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 2px;
+}
+
+.selected-item-container .counter__button_plus {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  height: 50px;
+  position: static;
+  filter: none;
+  box-shadow: none;
+}
+
+.selected-item-container .counter__button_plus--shadow {
+  filter: drop-shadow(0px 0px 2px black);
 }
 
 .counter__button_param {
@@ -370,6 +395,7 @@ h4 {
   height: 50px;
   border-radius: 8px;
   border: solid 1px rgb(184, 178, 178);
+  filter: drop-shadow(0px 0px 2px black);
 }
 
 .items {
@@ -587,6 +613,12 @@ button::-moz-focus-inner {
   box-sizing: border-box;
   min-width: 0;
   overflow-x: hidden;
+}
+
+.items.content-item > .selected-item-container {
+  flex: 1 1 100%;
+  min-width: 0;
+  align-self: stretch;
 }
 
 .selected-item-panel {
@@ -812,6 +844,12 @@ button::-moz-focus-inner {
   text-align: center;
 }
 
+@media screen and (max-width: 767px) {
+  .item-info-header h1 {
+    font-size: clamp(16px, 3.5vw, 28px);
+  }
+}
+
 .item-info-layout {
   display: flex;
   flex-direction: column;
@@ -923,9 +961,12 @@ button::-moz-focus-inner {
   border-bottom: none;
 }
 
+.item-info-content h3 {
+  font-size: clamp(16px, 3.5vw, 20px);
+}
+
 .item-info-section h3 {
   font-family: "Montserrat", sans-serif;
-  font-size: 20px;
   color: #6cabc8;
   margin-bottom: 10px;
 }
@@ -947,7 +988,6 @@ button::-moz-focus-inner {
 
 .item-info-materials h3 {
   font-family: "Montserrat", sans-serif;
-  font-size: 20px;
   color: #6cabc8;
 }
 
