@@ -68,6 +68,10 @@ RUN npm ci --omit=dev --ignore-scripts
 COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=build /app/node_modules/@prisma ./node_modules/@prisma
 
+# Native-биндинги модулей, чей postinstall был выключен `--ignore-scripts`.
+# bcrypt'у нужен .node-файл, который собирается/скачивается postinstall'ом.
+COPY --from=build /app/node_modules/bcrypt ./node_modules/bcrypt
+
 # Chromium из puppeteer-postinstall build-стадии.
 COPY --from=build /app/.cache/puppeteer ./.cache/puppeteer
 
