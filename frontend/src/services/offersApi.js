@@ -1,4 +1,4 @@
-import { request } from "./apiClient.js";
+import { BASE_URL, request } from "./apiClient.js";
 
 /**
  * POST /api/offers — { form, offerDraft } → полный Offer DTO c пересчитанными materials.
@@ -25,3 +25,65 @@ export const cloneOffer = (id) =>
 /** DELETE /api/offers/:id — удалить оффер. 204 без тела. */
 export const deleteOffer = (id) =>
   request(`/api/offers/${encodeURIComponent(id)}`, { method: "DELETE" });
+
+/**
+ * GET /api/offers/:id/pdf — генерирует PDF КП на бэке и инициирует скачивание.
+ *
+ * Не идём через общий request()/parseResponse: тот ждёт JSON, а нам нужен
+ * Blob. credentials: 'include' — httpOnly cookie уйдут как обычно. Имя файла
+ * берём из Content-Disposition (RFC 5987 filename* для кириллицы); если бэк
+ * не отдал — используем дефолт.
+ */
+export async function downloadOfferPdf(id, fallbackFilename = "КП.pdf") {
+  const url = `${BASE_URL}/api/offers/${encodeURIComponent(id)}/pdf`;
+  const response = await fetch(url, {
+    method: "GET",
+    credentials: "include",
+    headers: { accept: "application/pdf" },
+  });
+  if (!response.ok) {
+    const text = await response.text().catch(() => "");
+    const error = new Error(
+      text ? `PDF generation failed: ${text}` : `PDF generation failed (HTTP ${response.status})`
+    );
+    error.status = response.status;
+    throw error;
+  }
+  const blob = await response.blob();
+  const filename = parseFilenameFromContentDisposition(
+    response.headers.get("content-disposition")
+  ) || fallbackFilename;
+  triggerBlobDownload(blob, filename);
+}
+
+function parseFilenameFromContentDisposition(header) {
+  if (!header) return "";
+  // RFC 5987: filename*=UTF-8''<url-encoded>
+  const star = /filename\*=([^;]+)/i.exec(header);
+  if (star) {
+    const value = star[1].trim();
+    const m = /^[Uu][Tt][Ff]-8''(.+)$/.exec(value);
+    if (m) {
+      try {
+        return decodeURIComponent(m[1]);
+      } catch {
+        return m[1];
+      }
+    }
+  }
+  const plain = /filename="?([^";]+)"?/i.exec(header);
+  return plain ? plain[1] : "";
+}
+
+function triggerBlobDownload(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.style.display = "none";
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  // Освобождаем URL чуть позже — некоторые браузеры дёргают его асинхронно.
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}

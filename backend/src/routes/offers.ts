@@ -14,6 +14,7 @@ import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/requireAuth.js";
 import { CalcServiceError, calculateByProduct } from "../services/calcService.js";
 import { recalcConstructionsMaterials } from "../services/offerRecalc.js";
+import { OfferPdfError, renderOfferPdf } from "../services/offerPdf.js";
 
 const router = Router();
 
@@ -204,6 +205,39 @@ router.get(
 );
 
 /**
+ * Загружает оффер пользователя, пересчитывает материалы и собирает DTO в том
+ * виде, в котором его потребляет фронт. Общий код для GET /:id и /:id/pdf —
+ * единый источник правды.
+ */
+const loadOfferDto = async (
+  userId: string,
+  offerId: string
+): Promise<ReturnType<typeof toOfferDto> | null> => {
+  const offer = await prisma.offer.findFirst({
+    where: { id: offerId, userId },
+    include: { constructions: true },
+  });
+  if (!offer) return null;
+
+  const recalc = await recalcConstructionsMaterials(
+    offer.constructions.map((c) => ({
+      id: c.id,
+      position: c.position,
+      calcParams: c.calcParams,
+      materials: c.materials,
+    }))
+  );
+  const materialsById = new Map(recalc.map((r) => [r.id, r.materials]));
+
+  const constructionsWithFreshMaterials = offer.constructions.map((c) => ({
+    ...c,
+    materials: (materialsById.get(c.id) ?? c.materials ?? []) as unknown,
+  }));
+
+  return toOfferDto(offer, constructionsWithFreshMaterials);
+};
+
+/**
  * GET /api/offers/:id — загрузить оффер, пересчитать материалы, наложить override.
  */
 router.get(
@@ -212,28 +246,59 @@ router.get(
     const userId = req.auth?.userId;
     if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
-    const offer = await prisma.offer.findFirst({
-      where: { id: req.params.id, userId },
-      include: { constructions: true },
-    });
-    if (!offer) return res.status(404).json({ error: "Offer not found" });
+    const dto = await loadOfferDto(userId, req.params.id);
+    if (!dto) return res.status(404).json({ error: "Offer not found" });
+    return res.json(dto);
+  })
+);
 
-    const recalc = await recalcConstructionsMaterials(
-      offer.constructions.map((c) => ({
+/**
+ * GET /api/offers/:id/pdf — PDF КП в формате «Шуманет Шоп» (Puppeteer).
+ * Те же данные, что и /:id, рендерятся в шаблон и возвращаются как
+ * application/pdf с attachment-загрузкой.
+ */
+router.get(
+  "/:id/pdf",
+  asyncHandler(async (req, res) => {
+    const userId = req.auth?.userId;
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+    const dto = await loadOfferDto(userId, req.params.id);
+    if (!dto) return res.status(404).json({ error: "Offer not found" });
+
+    const pdf = await renderOfferPdf({
+      id: dto.id,
+      manager_name: dto.manager_name,
+      phone: dto.phone,
+      email: dto.email,
+      kp_date: dto.kp_date,
+      object_name: dto.object_name,
+      region: dto.region,
+      services: (Array.isArray(dto.services) ? dto.services : null) as Array<
+        Record<string, unknown>
+      > | null,
+      additional_materials: (Array.isArray(dto.additional_materials)
+        ? dto.additional_materials
+        : null) as Array<Record<string, unknown>> | null,
+      constructions: dto.constructions.map((c) => ({
         id: c.id,
         position: c.position,
-        calcParams: c.calcParams,
-        materials: c.materials,
-      }))
+        calc_params: (c.calc_params as Record<string, unknown> | null) ?? null,
+        materials: (c.materials as Array<Record<string, unknown>>) ?? [],
+        montage: (c.montage as Array<Record<string, unknown>> | null) ?? null,
+      })),
+    });
+
+    // RFC 5987 для кириллицы в имени файла.
+    const objectPart = (dto.object_name ?? "").trim() || dto.id;
+    const filename = `КП ${objectPart}.pdf`;
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="KP.pdf"; filename*=UTF-8''${encodeURIComponent(filename)}`
     );
-    const materialsById = new Map(recalc.map((r) => [r.id, r.materials]));
-
-    const constructionsWithFreshMaterials = offer.constructions.map((c) => ({
-      ...c,
-      materials: (materialsById.get(c.id) ?? c.materials ?? []) as unknown,
-    }));
-
-    return res.json(toOfferDto(offer, constructionsWithFreshMaterials));
+    res.setHeader("Content-Length", String(pdf.length));
+    return res.send(pdf);
   })
 );
 
@@ -431,6 +496,9 @@ router.use((err: unknown, _req: Request, res: Response, next: NextFunction) => {
   if (err instanceof CalcServiceError) {
     const status = err.status && err.status >= 500 ? 502 : 502;
     return res.status(status).json({ error: err.message });
+  }
+  if (err instanceof OfferPdfError) {
+    return res.status(500).json({ error: err.message });
   }
   return next(err);
 });

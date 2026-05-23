@@ -9,7 +9,7 @@ import {
   montageLineProductRub,
   parseKpDecimal,
 } from "./tables/MaterialsList";
-import { getOffer, updateOffer } from "../services/offersApi";
+import { downloadOfferPdf, getOffer, updateOffer } from "../services/offersApi";
 import {
   buildUpdateOfferPayload,
   enrichConstructionsWithTitles,
@@ -362,6 +362,7 @@ const KpPage = () => {
   const [loadError, setLoadError] = useState(null);
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const originalConstructionsRef = useRef([]); // сырой Offer.constructions с calc_params — для PATCH
 
   // Загрузка оффера по :id. Каталог AllIsolationConstr — отдельно (может быть 25–35s).
@@ -573,6 +574,20 @@ const KpPage = () => {
     },
     [],
   );
+
+  const handleDownloadPdf = async () => {
+    if (!id || isDownloadingPdf) return;
+    setIsDownloadingPdf(true);
+    setSaveError(null);
+    try {
+      const objectPart = form.object?.trim() || id;
+      await downloadOfferPdf(id, `КП ${objectPart}.pdf`);
+    } catch (err) {
+      setSaveError(err?.message || "Не удалось сгенерировать PDF.");
+    } finally {
+      setIsDownloadingPdf(false);
+    }
+  };
 
   const handleSave = async () => {
     if (!id || isSaving) return;
@@ -1685,6 +1700,14 @@ const KpPage = () => {
             disabled={isSaving || loadStatus !== "loaded"}
           >
             {isSaving ? "Сохранение..." : "Сохранить"}
+          </button>
+          <button
+            type="button"
+            className="add_design_button kp-page__save-btn kp-page__pdf-btn"
+            onClick={handleDownloadPdf}
+            disabled={isDownloadingPdf || loadStatus !== "loaded"}
+          >
+            {isDownloadingPdf ? "Готовим PDF..." : "Скачать PDF"}
           </button>
         </div>
       </main>

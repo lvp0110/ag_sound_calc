@@ -1,0 +1,248 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<title>КП {{TITLE}}</title>
+<style>
+  @page { size: A4; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: "Liberation Sans", "DejaVu Sans", "Arial", sans-serif;
+    font-size: 9.5pt;
+    color: #1c1c1c;
+    line-height: 1.4;
+  }
+  .doc { padding: 0; }
+
+  /* ─── шапка ─── */
+  .head {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 10mm;
+    padding-bottom: 2mm;
+  }
+  .head .logo { width: 55mm; }
+  .head .logo .brand {
+    color: #00a3e0;
+    font-weight: 700;
+    font-size: 14pt;
+    letter-spacing: .3pt;
+  }
+  .head .logo .brand-sub {
+    color: #6a6a6a;
+    font-size: 6.5pt;
+    margin-top: 2mm;
+    line-height: 1.25;
+  }
+  .head .recipient {
+    text-align: right;
+    font-size: 10pt;
+    padding-top: 2mm;
+  }
+
+  .meta {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 6mm;
+  }
+  .meta .left { font-size: 9.5pt; }
+  .meta .left div { margin-bottom: 2mm; }
+  .meta .left div:last-child { margin-bottom: 0; }
+
+  h1.title {
+    text-align: center;
+    font-size: 14pt;
+    font-weight: 700;
+    margin: 6mm 0 5mm;
+    letter-spacing: .3pt;
+  }
+  .intro {
+    text-indent: 10mm;
+    text-align: justify;
+    margin: 0 0 6mm;
+    padding: 0 2mm;
+  }
+
+  /* ─── главная таблица ─── */
+  table.items {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+  }
+  table.items th, table.items td {
+    border: 1px solid #4a4a4a;
+    padding: 2mm 2.5mm;
+    vertical-align: top;
+  }
+  table.items thead th {
+    background: #f1f1f1;
+    text-align: center;
+    font-weight: 700;
+    font-size: 8.5pt;
+    padding: 2.5mm 2mm;
+  }
+  table.items col.c-num { width: 7mm; }
+  table.items col.c-name { width: auto; }
+  table.items col.c-lead { width: 18mm; }
+  table.items col.c-unit { width: 13mm; }
+  table.items col.c-qty { width: 14mm; }
+  table.items col.c-price { width: 22mm; }
+  table.items col.c-sum { width: 26mm; }
+  table.items td.num { text-align: center; white-space: nowrap; }
+  table.items td.name { text-align: left; line-height: 1.35; }
+  table.items td.unit { text-align: center; }
+  table.items td.qty { text-align: right; }
+  table.items td.price { text-align: right; }
+  table.items td.sum { text-align: right; white-space: nowrap; }
+  tr.section-row { background: #e6e6e6; break-after: avoid; }
+  tr.section-row td { padding-top: 2.5mm; padding-bottom: 2.5mm; }
+  tr.item-row { break-inside: avoid; }
+  tr.item-row td.num { background: #ffffff; }
+
+  /* ─── итог ─── */
+  .totals {
+    margin-top: 5mm;
+    display: flex;
+    justify-content: flex-end;
+  }
+  .totals table {
+    border-collapse: collapse;
+  }
+  .totals td {
+    padding: 1.5mm 4mm;
+    font-weight: 700;
+    font-size: 10pt;
+  }
+  .totals td.label { text-align: right; }
+  .totals td.value { text-align: right; min-width: 30mm; }
+
+  .summary-line { margin-top: 5mm; font-size: 10pt; }
+  .summary-line.bold { font-weight: 700; margin-top: 2mm; }
+
+  /* ─── условия ─── */
+  .conditions {
+    margin-top: 8mm;
+    font-size: 10pt;
+  }
+  .conditions h3 {
+    font-size: 10.5pt;
+    font-weight: 700;
+    margin: 0 0 4mm;
+  }
+  .conditions table { border-collapse: collapse; }
+  .conditions td { padding: 1mm 6mm 1mm 0; vertical-align: top; }
+  .conditions td.k { width: 50mm; }
+
+  /* ─── подпись + дисклеймер ─── */
+  .disclaimer {
+    margin-top: 8mm;
+    color: #777;
+    font-style: italic;
+    font-weight: 600;
+    font-size: 8.5pt;
+    line-height: 1.45;
+  }
+  .signature { margin-top: 10mm; }
+  .signature .who { font-weight: 700; margin-top: 2mm; }
+  .signature .email { margin-top: 3mm; color: #1a1a1a; }
+  .signature .email:empty { display: none; }
+</style>
+</head>
+<body>
+<div class="doc">
+
+  <div class="head">
+    <div class="logo">
+      <div class="brand">ACOUSTIC GROUP</div>
+      <div class="brand-sub">ПРОВЕРЕНО ИНЖЕНЕРАМИ<br/>ДОКАЗАНО ВРЕМЕНЕМ</div>
+    </div>
+    <div class="recipient"></div>
+  </div>
+
+  <div class="meta">
+    <div class="left">
+      <div><b>Исх. №:</b> {{ISSUE_DATE}}</div>
+      <div><b>Объект:</b> {{OBJECT_NAME}}</div>
+    </div>
+  </div>
+
+  <h1 class="title">КОММЕРЧЕСКОЕ ПРЕДЛОЖЕНИЕ</h1>
+
+  <div class="intro">
+    Уважаемый(-ая), Компания ООО «Шуманет Шоп» предлагает Вам ознакомиться с
+    предложением по следующим позициям:
+  </div>
+
+  <table class="items">
+    <colgroup>
+      <col class="c-num" />
+      <col class="c-name" />
+      <col class="c-lead" />
+      <col class="c-unit" />
+      <col class="c-qty" />
+      <col class="c-price" />
+      <col class="c-sum" />
+    </colgroup>
+    <thead>
+      <tr>
+        <th>№</th>
+        <th>Наименование товаров/работ/услуг</th>
+        <th>Срок поставки в рабочих днях</th>
+        <th>Ед. изм</th>
+        <th>Кол-во</th>
+        <th>Цена с НДС, RUB</th>
+        <th>Сумма с НДС, RUB</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{SECTIONS}}
+    </tbody>
+  </table>
+
+  <div class="totals">
+    <table>
+      <tr>
+        <td class="label">Сумма НДС, RUB</td>
+        <td class="value">{{NDS_AMOUNT}}</td>
+      </tr>
+      <tr>
+        <td class="label">Всего с НДС, RUB</td>
+        <td class="value">{{GRAND_TOTAL}}</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="summary-line">
+    Всего {{ITEMS_NOUN}} {{ITEMS_COUNT}} ({{ITEMS_COUNT_WORDS}}) на сумму {{GRAND_TOTAL}} RUB
+  </div>
+  <div class="summary-line bold">
+    Всего на сумму {{GRAND_TOTAL_WORDS}}
+  </div>
+
+  <div class="conditions">
+    <h3>Также предлагаем Вам ознакомиться с остальными условиями нашего предложения:</h3>
+    <table>
+      <tr><td class="k">График оплаты</td><td>100% Оплата до отгрузки</td></tr>
+      <tr><td class="k">Способ доставки</td><td></td></tr>
+      <tr><td class="k">Склад</td><td>142000, Московская обл, г Домодедово, мкр. Северный, ул Логистическая, стр. 8</td></tr>
+      <tr><td class="k">Срок действия предложения</td><td>{{VALIDITY}}</td></tr>
+    </table>
+  </div>
+
+  <div class="disclaimer">
+    Настоящий документ не является акустической рекомендацией и не гарантирует
+    выполнение требований по звукоизоляции и акустическому комфорту помещений.
+    Для подтверждения требуемой эффективности необходим акустический расчёт,
+    выполненный специализированной организацией.
+  </div>
+
+  <div class="signature">
+    <div>С Уважением,</div>
+    <div class="who">{{MANAGER_NAME}}</div>
+    <div class="email">{{MANAGER_EMAIL}}</div>
+  </div>
+
+</div>
+</body>
+</html>

@@ -6,6 +6,7 @@ import {
   cloneOffer,
   createOffer,
   deleteOffer,
+  downloadOfferPdf,
   listOffers,
 } from "../services/offersApi";
 import { getRegionCityLabel } from "../constants/regionSelectOptions.js";
@@ -41,6 +42,7 @@ export default function KpList() {
   const [cloningId, setCloningId] = useState(null);
   const [deletingId, setDeletingId] = useState(null);
   const [creatingNew, setCreatingNew] = useState(false);
+  const [downloadingId, setDownloadingId] = useState(null);
 
   const load = useCallback(async () => {
     setLoadStatus("loading");
@@ -91,6 +93,20 @@ export default function KpList() {
       setError(err?.message || "Не удалось скопировать оффер.");
     } finally {
       setCloningId(null);
+    }
+  };
+
+  const handleDownloadPdf = async (offer) => {
+    if (downloadingId) return;
+    setDownloadingId(offer.id);
+    setError(null);
+    try {
+      const objectPart = offer.object_name?.trim() || offer.id;
+      await downloadOfferPdf(offer.id, `КП ${objectPart}.pdf`);
+    } catch (err) {
+      setError(err?.message || "Не удалось сгенерировать PDF.");
+    } finally {
+      setDownloadingId(null);
     }
   };
 
@@ -146,6 +162,16 @@ export default function KpList() {
 
   const renderOfferActions = (o) => (
     <>
+      <button
+        type="button"
+        className="kp-list__action-btn"
+        onClick={() => handleDownloadPdf(o)}
+        disabled={
+          downloadingId === o.id || cloningId === o.id || deletingId === o.id
+        }
+      >
+        {downloadingId === o.id ? "PDF..." : "Скачать PDF"}
+      </button>
       <button
         type="button"
         className="kp-list__action-btn"
