@@ -8,14 +8,20 @@ WORKDIR /app
 # Кэш Chromium кладём внутри /app, чтобы переехать в runtime-стадию COPY-ем.
 ENV PUPPETEER_CACHE_DIR=/app/.cache/puppeteer
 
+# tar + unzip нужны postinstall'у puppeteer для распаковки chrome-headless-shell;
+# в slim-образе их нет. ca-certificates — для HTTPS-загрузки.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      ca-certificates \
+      tar \
+      unzip \
+    && rm -rf /var/lib/apt/lists/*
+
 # Все зависимости (включая dev) — нужны tsc, prisma, @types/*.
+# package.json postinstall запускает `prisma generate` — поэтому схема нужна ДО npm ci.
 # postinstall у puppeteer выкачает Chromium в PUPPETEER_CACHE_DIR.
 COPY package.json package-lock.json ./
-RUN npm ci
-
-# Сначала prisma-схема — RUN prisma generate сделает код клиента.
 COPY prisma ./prisma
-RUN npx prisma generate
+RUN npm ci
 
 COPY tsconfig.json ./
 COPY src ./src
@@ -52,11 +58,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       libasound2 \
     && rm -rf /var/lib/apt/lists/*
 
-# Только prod-зависимости. Puppeteer postinstall попытается выкачать Chromium
-# заново — пропускаем, бинарь приедет COPY-ем из build-стадии.
+# Только prod-зависимости. `--ignore-scripts` отключает postinstall'ы
+# (prisma generate здесь не нужен — клиент COPY-нем из build-стадии;
+# puppeteer-postinstall не должен снова качать Chromium — бинарь тоже из build).
 COPY package.json package-lock.json ./
-ENV PUPPETEER_SKIP_DOWNLOAD=true
-RUN npm ci --omit=dev
+RUN npm ci --omit=dev --ignore-scripts
 
 # Сгенерированный Prisma-клиент из build-стадии (чтобы не тащить prisma CLI в prod).
 COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
