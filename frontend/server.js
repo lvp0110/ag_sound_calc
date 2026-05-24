@@ -36,14 +36,20 @@ app.set("trust proxy", "loopback");
 // Используем pathFilter — path сохраняется один-в-один.
 // `/health` тоже проксируем: это backend-ручка, её используют nginx-healthcheck'и
 // и мониторинг.
+// `/uploads/*` — статика, которую отдаёт сам backend (логотипы и прочие
+// пользовательские загрузки из named volume ag_sound_calc_uploads). Без этой
+// строки фронт перехватывает их SPA-фолбэком и возвращает index.html.
 const backendProxy = createProxyMiddleware({
   target: BACKEND_URL,
   changeOrigin: true,
   xfwd: true,
-  // Явная функция вместо glob-массива — однозначно отлавливает /api и /health
-  // на любой глубине, не полагается на поведение micromatch в разных версиях.
+  // Явная функция вместо glob-массива — однозначно отлавливает /api, /health
+  // и /uploads на любой глубине, не полагается на поведение micromatch в разных версиях.
   pathFilter: (pathname) =>
-    pathname === "/health" || pathname.startsWith("/api/") || pathname === "/api",
+    pathname === "/health" ||
+    pathname === "/api" ||
+    pathname.startsWith("/api/") ||
+    pathname.startsWith("/uploads/"),
 });
 app.use(backendProxy);
 
