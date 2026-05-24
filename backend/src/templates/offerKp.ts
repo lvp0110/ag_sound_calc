@@ -1,9 +1,11 @@
 import { readFileSync } from "node:fs";
+import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { CatalogEntry } from "../services/catalogData.js";
 import type { PriceLookup } from "../services/priceData.js";
 import { formatDateRu } from "../utils/formatDateRu.js";
 import { numberToWordsRu, pluralRu, rublesToWordsRu } from "../utils/numberToWordsRu.js";
+import { UPLOADS_DIR } from "../routes/uploads.js";
 
 /**
  * HTML-шаблон коммерческого предложения «Шуманет Шоп».
@@ -77,6 +79,7 @@ export type OfferForRender = {
   kp_date: string | null;
   object_name: string | null;
   region: string | null;
+  logo_url: string | null;
   services: ServiceLike[] | null;
   additional_materials: ServiceLike[] | null;
   constructions: ConstructionLike[];
@@ -192,6 +195,45 @@ const fmtQty = (v: number): string => {
   // Целые без знаков после запятой, дробные с двумя.
   if (Math.abs(v - Math.round(v)) < 1e-9) return String(Math.round(v));
   return v.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+};
+
+/**
+ * Дефолтный «брендовый» блок шапки КП. Используется когда у оффера нет своего
+ * логотипа или файл недоступен — сохраняет визуальную сетку шаблона.
+ */
+const DEFAULT_LOGO_BLOCK = `
+  <div class="brand">ACOUSTIC GROUP</div>
+  <div class="brand-sub">ПРОВЕРЕНО ИНЖЕНЕРАМИ<br/>ДОКАЗАНО ВРЕМЕНЕМ</div>`;
+
+const MIME_BY_EXT: Record<string, string> = {
+  ".png": "image/png",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".webp": "image/webp",
+};
+
+/**
+ * Собирает HTML для шапки КП. Если в оффере есть logo_url и файл существует —
+ * вставляем картинку как data: URI (puppeteer рендерит без сети, локальные
+ * пути или http-запросы внутри `setContent`-страницы ненадёжны). При любой
+ * проблеме (нет URL, файл не читается, неподходящее расширение) — fallback
+ * на дефолтный брендовый блок.
+ */
+const buildLogoBlockHtml = (logoUrl: string | null | undefined): string => {
+  if (!logoUrl) return DEFAULT_LOGO_BLOCK;
+  // Защита от path traversal — берём только basename. loadOfferDto уже
+  // прогоняет verifyLogoFile, но шаблон может рендериться и в других кейсах.
+  const filename = path.basename(logoUrl);
+  const ext = path.extname(filename).toLowerCase();
+  const mime = MIME_BY_EXT[ext];
+  if (!mime) return DEFAULT_LOGO_BLOCK;
+  try {
+    const buf = readFileSync(path.join(UPLOADS_DIR, filename));
+    const b64 = buf.toString("base64");
+    return `<img class="logo-img" src="data:${mime};base64,${b64}" alt="">`;
+  } catch {
+    return DEFAULT_LOGO_BLOCK;
+  }
 };
 
 const esc = (s: unknown): string => {
@@ -379,6 +421,8 @@ export function renderOfferKpHtml({ offer, priceLookup, catalog }: RenderInput):
     VALIDITY: dateStr ? "действует с даты КП" : "",
     MANAGER_NAME: esc(offer.manager_name ?? ""),
     MANAGER_EMAIL: esc(offer.email ?? ""),
+    // HTML, не esc(): либо <img data: URI>, либо дефолтный брендовый блок.
+    LOGO_BLOCK: buildLogoBlockHtml(offer.logo_url),
   };
 
   return applyPlaceholders(loadTemplate(), placeholders);

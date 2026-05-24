@@ -46,3 +46,7 @@ backend/.env.prod
 
 # Local docker-compose overrides (port mappings for parallel projects, etc.)
 docker-compose.override.yml
+
+# Uploaded user files (логотипы КП и т.п.). Локально живут в backend/uploads/,
+# на проде — в named volume ag_sound_calc_uploads. В git не коммитим.
+backend/uploads/

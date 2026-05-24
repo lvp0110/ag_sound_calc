@@ -30,6 +30,11 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    volumes:
+      # Загруженные пользователями файлы (логотипы КП и т.п.) живут в named
+      # volume, чтобы переживать rebuild контейнера. Express.static в backend
+      # отдаёт их по /uploads/*, host nginx проксирует на 127.0.0.1:3004.
+      - ag_sound_calc_uploads:/app/uploads
     # НЕТ секции ports — backend доступен только из frontend-контейнера через docker network.
     healthcheck:
       test: ["CMD", "wget", "-qO-", "--tries=1", "http://localhost:3006/health"]
@@ -64,3 +69,5 @@ services:
 volumes:
   ag_sound_calc_pg_data:
     name: ag_sound_calc_pg_data
+  ag_sound_calc_uploads:
+    name: ag_sound_calc_uploads

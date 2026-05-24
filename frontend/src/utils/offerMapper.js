@@ -282,6 +282,9 @@ function mapFormToApi(form) {
     region: form.region || null,
     kp_date: form.date || null,
     object_name: form.object || null,
+    // logoUrl на фронте — относительный путь вида `/uploads/<filename>` (см.
+    // backend/src/routes/uploads.ts). null = логотип не выбран / удалён.
+    logo_url: form.logoUrl || null,
   };
 }
 
@@ -294,6 +297,7 @@ function mapApiToForm(offer) {
     region: offer.region || "",
     date: offer.kp_date || "",
     object: offer.object_name || "",
+    logoUrl: offer.logo_url || "",
   };
 }
 

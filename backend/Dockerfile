@@ -79,6 +79,11 @@ COPY --from=build /app/.cache/puppeteer ./.cache/puppeteer
 COPY --from=build /app/dist ./dist
 COPY prisma ./prisma
 
+# Mount-point для пользовательских загрузок (логотипы КП). Реальные данные
+# подъедут из named volume ag_sound_calc_uploads, но директория должна
+# существовать в образе, чтобы node-юзер мог писать в неё на первом старте.
+RUN mkdir -p /app/uploads && chown node:node /app/uploads
+
 # Backend доступен только во внутренней docker network — порт на хост не публикуется.
 EXPOSE 3006
 

@@ -27,6 +27,23 @@ export const deleteOffer = (id) =>
   request(`/api/offers/${encodeURIComponent(id)}`, { method: "DELETE" });
 
 /**
+ * POST /api/uploads/logo — загрузка картинки логотипа на бэк.
+ *
+ * Параметр `file` — `File` (из `<input type="file">` или drag-n-drop).
+ * Бэк применяет content-addressed дедуп: одинаковые байты → один и тот же URL.
+ * Возвращает `{ url }` — относительный путь вида `/uploads/<filename>`.
+ * Этот URL нужно положить в `form.logoUrl` и сохранить КП через updateOffer.
+ *
+ * apiClient уже умеет FormData (см. apiClient.js: instanceof FormData), так что
+ * не указываем Content-Type вручную — fetch выставит multipart boundary сам.
+ */
+export const uploadLogo = (file) => {
+  const fd = new FormData();
+  fd.append("file", file);
+  return request("/api/uploads/logo", { method: "POST", body: fd });
+};
+
+/**
  * GET /api/offers/:id/pdf — генерирует PDF КП на бэке и инициирует скачивание.
  *
  * Не идём через общий request()/parseResponse: тот ждёт JSON, а нам нужен

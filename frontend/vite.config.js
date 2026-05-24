@@ -24,5 +24,15 @@ export default defineConfig({
   ],
   server: {
     port: 5173,
+    proxy: {
+      // Логотипы и прочие пользовательские загрузки лежат на backend (Express.static),
+      // фронт получает относительные URL вида `/uploads/<filename>`. В dev vite иначе
+      // ловит их своим SPA-фолбэком и отдаёт index.html — поэтому проксируем на :3006.
+      // (Запросы `/api/*` идут с явным `http://localhost:3006` через apiClient, см. DEFAULT_BASE_URL.)
+      '/uploads': {
+        target: 'http://localhost:3006',
+        changeOrigin: true,
+      },
+    },
   },
 })
