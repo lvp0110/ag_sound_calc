@@ -57,13 +57,19 @@ const ConstructionParameters = ({
 
     return (
       <div className="selected-item-forms__stack">
-        <button type="button" className="counter__button_param selected-item-forms__param-btn" onClick={onToggleVisible}>
+        <button
+          type="button"
+          className="counter__button_param selected-item-forms__param-btn"
+          onClick={onToggleVisible}
+        >
           изменить параметры конструкции
         </button>
 
         {unvisible && (
           <>
-            <h4 className="selected-item-forms__group-heading">выбрать тип гипсокартона</h4>
+            <h4 className="selected-item-forms__group-heading">
+              выбрать тип гипсокартона
+            </h4>
             <div className="radio-option">
               <input
                 className="radio"
@@ -78,7 +84,7 @@ const ConstructionParameters = ({
                 className="label"
                 htmlFor={`ceiling_gkla_default_${selectedItem.id}`}
               >
-                AKU-line 2500x1200x12,5 мм
+                Ветонит АКУ-лайн 2500х1200х12,5 мм
               </label>
             </div>
             <div className="radio-option">
@@ -95,7 +101,7 @@ const ConstructionParameters = ({
                 className="label"
                 htmlFor={`ceiling_gkla_2500P_${selectedItem.id}`}
               >
-                AKU-line Pro 2500x1200x12,5 мм
+                Ветонит АКУ-лайн Про 2500х1200х12,5 мм
               </label>
             </div>
             <div className="radio-option">
@@ -112,13 +118,15 @@ const ConstructionParameters = ({
                 className="label"
                 htmlFor={`ceiling_gkla_2000_${selectedItem.id}`}
               >
-                AKU-line 2000x1200x12,5 мм
+                Ветонит АКУ-лайн 2000х1200х12,5 мм
               </label>
             </div>
 
             {isSuspendedCeiling && (
               <>
-                <h4 className="selected-item-forms__group-heading">выбрать тип минваты</h4>
+                <h4 className="selected-item-forms__group-heading">
+                  выбрать тип минваты
+                </h4>
                 <div className="radio-option">
                   <input
                     className="radio"
@@ -210,7 +218,11 @@ const ConstructionParameters = ({
     return (
       <div className="selected-item-forms__stack">
         {needsToggle && (
-          <button type="button" className="counter__button_param selected-item-forms__param-btn" onClick={onToggleVisible}>
+          <button
+            type="button"
+            className="counter__button_param selected-item-forms__param-btn"
+            onClick={onToggleVisible}
+          >
             изменить параметры конструкции
           </button>
         )}
@@ -227,8 +239,13 @@ const ConstructionParameters = ({
                 value={selectedItem.ag_id}
                 checked={currentConstr === selectedItem.ag_id}
               />
-              <label className="label" htmlFor={`floor_default_${selectedItem.id}`}>
-                {currentTemplate == 2.1 ? "Акуфлор S20 по периметру" : "К2 по периметру"}
+              <label
+                className="label"
+                htmlFor={`floor_default_${selectedItem.id}`}
+              >
+                {currentTemplate == 2.1
+                  ? "Акуфлор S20 по периметру"
+                  : "К2 по периметру"}
               </label>
             </div>
             <div className="radio-option">
@@ -241,7 +258,10 @@ const ConstructionParameters = ({
                 value={`${selectedItem.ag_id}_vibrostek`}
                 checked={currentConstr === `${selectedItem.ag_id}_vibrostek`}
               />
-              <label className="label" htmlFor={`floor_vibro_${selectedItem.id}`}>
+              <label
+                className="label"
+                htmlFor={`floor_vibro_${selectedItem.id}`}
+              >
                 Вибростек по периметру
               </label>
             </div>
@@ -268,7 +288,10 @@ const ConstructionParameters = ({
                     value="AG.F615"
                     checked={currentConstr === "AG.F615"}
                   />
-                  <label className="label" htmlFor={`lags_silomer_${selectedItem.id}`}>
+                  <label
+                    className="label"
+                    htmlFor={`lags_silomer_${selectedItem.id}`}
+                  >
                     с применением материала Silomer
                   </label>
                 </div>
@@ -304,7 +327,10 @@ const ConstructionParameters = ({
                     value="400"
                     checked={lagProfileStep === 400}
                   />
-                  <label className="label" htmlFor={`lags_step400_${selectedItem.id}`}>
+                  <label
+                    className="label"
+                    htmlFor={`lags_step400_${selectedItem.id}`}
+                  >
                     шаг профиля 400 мм
                   </label>
                 </div>
@@ -318,7 +344,10 @@ const ConstructionParameters = ({
                     value="300"
                     checked={lagProfileStep === 300}
                   />
-                  <label className="label" htmlFor={`lags_step300_${selectedItem.id}`}>
+                  <label
+                    className="label"
+                    htmlFor={`lags_step300_${selectedItem.id}`}
+                  >
                     шаг профиля 300 мм
                   </label>
                 </div>
@@ -416,7 +445,10 @@ const ConstructionParameters = ({
                 value="AG.F612_1200"
                 checked={currentConstr === "AG.F612_1200"}
               />
-              <label className="label" htmlFor={`tehno_1200_${selectedItem.id}`}>
+              <label
+                className="label"
+                htmlFor={`tehno_1200_${selectedItem.id}`}
+              >
                 Шумостоп-Техно 1200
               </label>
             </div>
@@ -428,7 +460,9 @@ const ConstructionParameters = ({
 
   return (
     <div className="selected-item-forms__stack">
-      <h4 className="selected-item-forms__group-heading">выбрать тип гипсокартона</h4>
+      <h4 className="selected-item-forms__group-heading">
+        выбрать тип гипсокартона
+      </h4>
       <div className="radio-option">
         <input
           className="radio"
@@ -440,7 +474,7 @@ const ConstructionParameters = ({
           checked={currentGkla == "default"}
         />
         <label className="label" htmlFor={`gkla_default_${selectedItem.id}`}>
-          AKU-line 2500x1200x12,5 мм
+          Ветонит АКУ-лайн 2500х1200х12,5 мм
         </label>
       </div>
       <div className="radio-option">
@@ -454,7 +488,7 @@ const ConstructionParameters = ({
           checked={currentGkla == "2500P"}
         />
         <label className="label" htmlFor={`gkla_2500P_${selectedItem.id}`}>
-          AKU-line Pro 2500x1200x12,5 мм
+          Ветонит АКУ-лайн Про 2500x1200x12,5 мм
         </label>
       </div>
       <div className="radio-option">
@@ -468,13 +502,15 @@ const ConstructionParameters = ({
           checked={currentGkla == "2000"}
         />
         <label className="label" htmlFor={`gkla_2000_${selectedItem.id}`}>
-          AKU-line 2000x1200x12,5 мм
+          Ветонит АКУ-лайн 2000х1200х12,5 мм
         </label>
       </div>
 
       {!isZIPSFacing && (
         <>
-          <h4 className="selected-item-forms__group-heading">выбрать тип минваты</h4>
+          <h4 className="selected-item-forms__group-heading">
+            выбрать тип минваты
+          </h4>
           <div className="radio-option">
             <input
               className="radio"
@@ -485,7 +521,10 @@ const ConstructionParameters = ({
               value="default"
               checked={currentWool == "default"}
             />
-            <label className="label" htmlFor={`wool_default_${selectedItem.id}`}>
+            <label
+              className="label"
+              htmlFor={`wool_default_${selectedItem.id}`}
+            >
               Шуманет-Эко
             </label>
           </div>
@@ -760,10 +799,3 @@ const ConstructionParameters = ({
 };
 
 export default ConstructionParameters;
-
-
-
-
-
-
-
