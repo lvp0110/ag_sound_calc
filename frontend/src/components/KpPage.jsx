@@ -956,38 +956,30 @@ const KpPage = () => {
   }, []);
 
   const removeConstructionFromKp = useCallback((key_id) => {
-    let nextConstr;
-    let nextMaterials;
-    let nextCalcTables;
-    let constrToCalcToSent;
+    const nextConstr = (calcTables.ConstrToCalc || []).filter(
+      (item) => item.key_id !== key_id,
+    );
+    const nextMaterials = (calcTables.materialsByConstruction || []).filter(
+      (entry) => entry.key_id !== key_id,
+    );
+    const nextCalcTables = {
+      ...calcTables,
+      ConstrToCalc: nextConstr,
+      materialsByConstruction: nextMaterials,
+      tableConstrToCalc:
+        nextConstr.length === 0 ? null : calcTables.tableConstrToCalc,
+    };
+    const calcParamsById = new Map(
+      (originalConstructionsRef.current || []).map((c) => [
+        c.id,
+        c.calc_params,
+      ]),
+    );
+    const constrToCalcToSent = nextConstr
+      .map((ui) => calcParamsById.get(ui.key_id))
+      .filter(Boolean);
 
-    setCalcTables((prev) => {
-      nextConstr = prev.ConstrToCalc.filter(
-        (item) => item.key_id !== key_id,
-      );
-      nextMaterials = prev.materialsByConstruction.filter(
-        (entry) => entry.key_id !== key_id,
-      );
-      nextCalcTables = {
-        ...prev,
-        ConstrToCalc: nextConstr,
-        materialsByConstruction: nextMaterials,
-        tableConstrToCalc:
-          nextConstr.length === 0 ? null : prev.tableConstrToCalc,
-      };
-
-      const calcParamsById = new Map(
-        (originalConstructionsRef.current || []).map((c) => [
-          c.id,
-          c.calc_params,
-        ]),
-      );
-      constrToCalcToSent = nextConstr
-        .map((ui) => calcParamsById.get(ui.key_id))
-        .filter(Boolean);
-
-      return nextCalcTables;
-    });
+    setCalcTables(nextCalcTables);
 
     const { setField } = useCalculatorStore.getState();
     setField("ConstrToCalc", nextConstr);
@@ -1038,7 +1030,7 @@ const KpPage = () => {
       delete next[key_id];
       return next;
     });
-  }, [id]);
+  }, [id, calcTables]);
 
   const renderKpMontageSlot = useCallback(
     ({ key_id, cardIndex }) => {

@@ -2,6 +2,7 @@ import {
   constructionTypeFromCalcParams,
   sectionIdFromCode,
 } from "./constructionSection.js";
+import { resolveDisplayCipher } from "./calculations.js";
 import { calculateAreaAndPerimeter } from "./calculations.js";
 
 /**
@@ -59,15 +60,26 @@ export function enrichConstructionsWithTitles(constructions, titleByCode) {
     return constructions;
   }
   return constructions.map((item) => {
-    const code = item?.ag_id || "";
-    const meta = titleByCode.get(code) || {};
-    const nextTitle = meta.Name || item.title || code || "—";
+    const stored = item?.ag_id || "";
+    const cipher = resolveDisplayCipher(stored, titleByCode);
+    const meta = titleByCode.get(cipher) || {};
+    const keepHumanTitle =
+      item.title &&
+      item.title !== stored &&
+      item.title !== cipher &&
+      item.title !== meta.Name;
+    const nextTitle = meta.Name || (keepHumanTitle ? item.title : "") || cipher || "—";
     const nextDescription = meta.Description ?? item.description ?? "";
-    if (item.title === nextTitle && item.description === nextDescription) {
+    if (
+      item.ag_id === cipher &&
+      item.title === nextTitle &&
+      item.description === nextDescription
+    ) {
       return item;
     }
     return {
       ...item,
+      ag_id: cipher,
       title: nextTitle,
       description: nextDescription,
     };
@@ -93,15 +105,16 @@ export function mapOfferResponseToKpView(offer, { titleByCode = new Map() } = {}
   const constructions = (offer.constructions || []).map((c) => {
     const cp = c.calc_params || {};
     const code = cp.Code || "";
-    const meta = titleByCode.get(code) || {};
+    const cipher = resolveDisplayCipher(code, titleByCode);
+    const meta = titleByCode.get(cipher) || {};
     const sectionId = cp.SectionId || sectionIdFromCode(code);
     return {
       key_id: c.id,
-      title: meta.Name || code || "—",
+      title: meta.Name || cipher || "—",
       description: meta.Description || "",
       type: constructionTypeFromCalcParams(cp),
       section_id: sectionId,
-      ag_id: code,
+      ag_id: cipher,
       step: Number(cp.step) || 600,
       weight: null,
       imgBlack: null,

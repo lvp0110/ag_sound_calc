@@ -643,7 +643,7 @@ const Calculator = () => {
       title: Constr?.title,
       type: IconType?.title,
       section_id: sectionId,
-      ag_id: code,
+      ag_id: Constr?.ag_id ?? code,
       step: Constr?.step,
       weight: Constr?.weight,
     };

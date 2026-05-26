@@ -3,6 +3,7 @@
  */
 
 import { BASE_URL } from './apiClient';
+import { getMaterialsListViaCalc } from './constructionApi';
 
 // Все calc-запросы идут на backend (calc.ts proxy → внешний calcService).
 // В dev BASE_URL=http://localhost:3006, в prod — '' (тот же origin, что и страница).
@@ -284,6 +285,24 @@ export const getIsolationConstrMaterials = async (isolationConstrCode) => {
   } catch {
     return null;
   }
+};
+
+/**
+ * Список материалов для страницы «Инфо»: v1 IsolationConstrMaterials (200),
+ * затем calc byProduct, затем v2 props (часто 404 на dev3).
+ */
+export const loadInfoPageMaterialsList = async (code) => {
+  if (!code) return null;
+
+  const isolation = await getIsolationConstrMaterials(code);
+  const fromIsolation = Array.isArray(isolation?.data) ? isolation.data : null;
+  if (fromIsolation?.length) return fromIsolation;
+
+  const fromCalc = await getMaterialsListViaCalc(code);
+  if (fromCalc?.length) return fromCalc;
+
+  const props = await getConstructionProps(code);
+  return extractMaterialsFromProps(props);
 };
 
 export const getConstructionProps = async (code) => {

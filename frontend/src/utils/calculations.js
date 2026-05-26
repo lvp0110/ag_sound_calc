@@ -36,6 +36,29 @@ export const getConstructionCode = (currentConstr, currentGkla, currentWool) => 
   return currentConstr + "_" + currentGkla + "_" + currentWool;
 };
 
+/**
+ * Базовый шифр для колонки «шифр» в UI (AG.L401), если в расчёт ушёл вариант
+ * с суффиксом материалов (AG.L401_2500P). Сопоставление — по каталогу AllIsolationConstr.
+ */
+export const resolveDisplayCipher = (calcCode, titleByCode) => {
+  const code = String(calcCode ?? "").trim();
+  if (!code) return "";
+  if (!(titleByCode instanceof Map) || titleByCode.size === 0) {
+    return code;
+  }
+  if (titleByCode.has(code)) return code;
+
+  let best = "";
+  for (const key of titleByCode.keys()) {
+    const base = String(key ?? "").trim();
+    if (!base) continue;
+    if (code === base || code.startsWith(`${base}_`)) {
+      if (base.length > best.length) best = base;
+    }
+  }
+  return best || code;
+};
+
 
 
 

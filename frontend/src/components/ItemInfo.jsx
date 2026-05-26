@@ -4,11 +4,9 @@ import Items, { getItemsWithApiImages } from "../data/items";
 import {
   getImageUrl,
   getConstructionByCode,
-  getConstructionProps,
-  extractMaterialsFromProps,
   getIsolationConstrMaterials,
+  loadInfoPageMaterialsList,
 } from "../services/api";
-import { getMaterialsListViaCalc } from "../services/constructionApi";
 import { getResponsiveImageProps } from "../utils/responsiveImages";
 import "./Calculator.css";
 
@@ -115,11 +113,7 @@ const ItemInfo = () => {
           // Загружаем материалы конструкции: шифр из загруженной конструкции или ag_id элемента
           const codeToUse = constructionRecord?.Code || foundItem.ag_id || id;
           if (codeToUse) {
-            const props = await getConstructionProps(codeToUse);
-            let list = extractMaterialsFromProps(props);
-            if (!list?.length) {
-              list = await getMaterialsListViaCalc(codeToUse);
-            }
+            const list = await loadInfoPageMaterialsList(codeToUse);
             setMaterials(list?.length ? list : null);
           }
         }
