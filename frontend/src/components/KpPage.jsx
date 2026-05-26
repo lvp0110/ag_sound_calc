@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import ConstructionList, {
   ConstructionGrandTotalBlock,
@@ -19,6 +26,7 @@ import {
   buildUpdateOfferPayload,
   enrichConstructionsWithTitles,
   mapOfferResponseToKpView,
+  pickConstrToCalcToSentForSave,
 } from "../utils/offerMapper";
 import {
   buildTitleByCodeMap,
@@ -313,9 +321,15 @@ const KpPage = () => {
     kpSnapshot,
     startDraft,
     stashKpSnapshot,
-    clearSession,
+    markDraftSaved,
+    markDraftDirty,
+    requestExitToList,
+    isOfferPdfExportBlocked,
     setSelectedPriceArticles,
   } = useOfferEditSession();
+
+  const isPdfExportBlocked =
+    Boolean(id) && isOfferPdfExportBlocked(id);
 
   const [form, setForm] = useState(initialForm);
   const [calcTables, setCalcTables] = useState({
@@ -375,6 +389,8 @@ const KpPage = () => {
   const [logoUploadError, setLogoUploadError] = useState(null);
   const logoInputRef = useRef(null);
   const originalConstructionsRef = useRef([]); // сырой Offer.constructions с calc_params — для PATCH
+  /** Не помечать dirty при первой подстановке данных после загрузки / сохранения. */
+  const ignoreDirtyTrackingRef = useRef(true);
 
   // Загрузка оффера по :id. Каталог AllIsolationConstr — отдельно (может быть 25–35s).
   useEffect(() => {
@@ -513,12 +529,36 @@ const KpPage = () => {
     };
   }, [id, loadStatus, kpSnapshot, activeOfferId]);
 
-  // Режим черновика: КП «открыто» до «Сохранить», навигация только на /calc и /price.
   useEffect(() => {
-    if (loadStatus === "loaded" && id && isAuthed) {
+    ignoreDirtyTrackingRef.current = true;
+  }, [id]);
+
+  // Черновик включаем до отрисовки, чтобы PDF не мигал доступным до startDraft.
+  useLayoutEffect(() => {
+    if (id && isAuthed && authStatus !== "loading") {
       startDraft(id);
     }
-  }, [loadStatus, id, isAuthed, startDraft]);
+  }, [id, isAuthed, authStatus, startDraft]);
+
+  useEffect(() => {
+    if (loadStatus !== "loaded" || !id) return;
+    if (ignoreDirtyTrackingRef.current) {
+      ignoreDirtyTrackingRef.current = false;
+      return;
+    }
+    markDraftDirty();
+  }, [
+    form,
+    calcTables,
+    montageByKeyId,
+    serviceRows,
+    materialRows,
+    kpSettings,
+    manualMontagePriceByKeyId,
+    loadStatus,
+    id,
+    markDraftDirty,
+  ]);
 
   // Авто-заполнение montage по kpSettings и площади конструкций (фича из main).
   // После загрузки оффера или ручной правки kpSettings/конструкций пересчитываем
@@ -588,6 +628,12 @@ const KpPage = () => {
 
   const handleDownloadPdf = async () => {
     if (!id || isDownloadingPdf) return;
+    if (isPdfExportBlocked) {
+      setSaveError(
+        "Сначала сохраните КП — PDF строится по данным в базе, а не по несохранённым правкам на экране.",
+      );
+      return;
+    }
     setIsDownloadingPdf(true);
     setSaveError(null);
     try {
@@ -611,6 +657,7 @@ const KpPage = () => {
     setIsSaving(true);
     setSaveError(null);
     try {
+      const calcState = useCalculatorStore.getState();
       const payload = buildUpdateOfferPayload({
         form,
         constructions: calcTables.ConstrToCalc,
@@ -620,13 +667,34 @@ const KpPage = () => {
         materialRows,
         kpSettings,
         originalConstructionsFromOffer: originalConstructionsRef.current,
+        constrToCalcToSent: pickConstrToCalcToSentForSave({
+          constructions: calcTables.ConstrToCalc,
+          originalConstructionsFromOffer: originalConstructionsRef.current,
+          calculatorSent: calcState.ConstrToCalcToSent,
+          snapshotSent: kpSnapshot?.constrToCalcToSent,
+        }),
       });
-      await updateOffer(id, payload);
-      clearSession();
-      useCalculatorStore.getState().reset();
-      navigate("/kp/list");
+      const updated = await updateOffer(id, payload);
+      if (updated?.constructions) {
+        originalConstructionsRef.current = updated.constructions;
+        const sent = updated.constructions
+          .map((c) => c.calc_params)
+          .filter(Boolean);
+        useCalculatorStore.getState().setField("ConstrToCalcToSent", sent);
+      }
+      markDraftSaved();
+      ignoreDirtyTrackingRef.current = true;
     } catch (err) {
-      setSaveError(err?.message || "Не удалось сохранить.");
+      const issues = err?.body?.issues;
+      if (Array.isArray(issues) && issues.length > 0) {
+        setSaveError(
+          issues
+            .map((i) => (i.path ? `${i.path}: ${i.message}` : i.message))
+            .join("; "),
+        );
+      } else {
+        setSaveError(err?.message || "Не удалось сохранить.");
+      }
     } finally {
       setIsSaving(false);
     }
@@ -838,6 +906,16 @@ const KpPage = () => {
     manualMontagePriceByKeyId,
     kpSettings,
   ]);
+
+  const handleExit = useCallback(() => {
+    if (!id) return;
+    stashAndLeaveKp();
+    requestExitToList();
+    navigate("/kp/list", {
+      replace: true,
+      state: { kpExit: true },
+    });
+  }, [id, stashAndLeaveKp, requestExitToList, navigate]);
 
   const openPriceForMaterialSelection = () => {
     const articles = materialRows
@@ -1797,22 +1875,39 @@ const KpPage = () => {
               {saveError}
             </div>
           )}
-          <button
-            type="button"
-            className="add_design_button kp-page__save-btn"
-            onClick={handleSave}
-            disabled={isSaving || loadStatus !== "loaded"}
-          >
-            {isSaving ? "Сохранение..." : "Сохранить"}
-          </button>
-          <button
-            type="button"
-            className="add_design_button kp-page__save-btn kp-page__pdf-btn"
-            onClick={handleDownloadPdf}
-            disabled={isDownloadingPdf || loadStatus !== "loaded"}
-          >
-            {isDownloadingPdf ? "Готовим PDF..." : "Скачать PDF"}
-          </button>
+          <div className="kp-page__save-bar-actions">
+            <button
+              type="button"
+              className="add_design_button kp-page__save-btn"
+              onClick={handleSave}
+              disabled={isSaving || loadStatus !== "loaded"}
+            >
+              {isSaving ? "Сохранение..." : "Сохранить"}
+            </button>
+            <button
+              type="button"
+              className="add_design_button kp-page__save-btn kp-page__exit-btn"
+              onClick={handleExit}
+              disabled={loadStatus !== "loaded"}
+            >
+              Выйти
+            </button>
+            <button
+              type="button"
+              className="add_design_button kp-page__save-btn kp-page__pdf-btn"
+              onClick={handleDownloadPdf}
+              disabled={
+                isDownloadingPdf || loadStatus !== "loaded" || isPdfExportBlocked
+              }
+              title={
+                isPdfExportBlocked
+                  ? "Сначала нажмите «Сохранить» — PDF формируется по сохранённым данным"
+                  : undefined
+              }
+            >
+              {isDownloadingPdf ? "Готовим PDF..." : "Скачать PDF"}
+            </button>
+          </div>
         </div>
       </main>
     </div>

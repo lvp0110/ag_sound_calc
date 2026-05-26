@@ -2,6 +2,7 @@ import {
   constructionTypeFromCalcParams,
   sectionIdFromCode,
 } from "./constructionSection.js";
+import { calculateAreaAndPerimeter } from "./calculations.js";
 
 /**
  * Маппинг между состоянием Calculator / KpPage и бэкендовым DTO Offer.
@@ -233,13 +234,19 @@ export function buildUpdateOfferPayload({
   materialRows,               // [{ id, name, price, quantity, unit }] — доп. материалы
   kpSettings = null,          // { floor, ceiling, cladding, partition } | null
   originalConstructionsFromOffer, // Offer.constructions из getOffer — чтобы достать calc_params
+  /** Параллельный массив calc_params (калькулятор / kpSnapshot.constrToCalcToSent). */
+  constrToCalcToSent = null,
 }) {
   const calcParamsById = new Map(
     (originalConstructionsFromOffer || []).map((c) => [c.id, c.calc_params])
   );
+  const sentList = Array.isArray(constrToCalcToSent) ? constrToCalcToSent : [];
 
-  const constructionsPayload = (constructions || []).map((ui) => {
-    const calcParams = calcParamsById.get(ui.key_id);
+  const constructionsPayload = (constructions || []).map((ui, index) => {
+    const calcParams = resolveCalcParamsForConstruction(ui, index, {
+      calcParamsById,
+      sentList,
+    });
     const materials =
       materialsByConstruction.find((m) => m.key_id === ui.key_id)?.data || [];
     const montageRow = montageByKeyId?.[ui.key_id];
@@ -272,6 +279,77 @@ export function buildUpdateOfferPayload({
 }
 
 // ─── helpers ────────────────────────────────────────────────────────────────
+
+/**
+ * calc_params для PATCH: БД по key_id → массив из калькулятора по индексу/Code → UI-карточка.
+ */
+function resolveCalcParamsForConstruction(ui, index, { calcParamsById, sentList }) {
+  const fromDb = calcParamsById.get(ui.key_id);
+  if (fromDb) return fromDb;
+
+  if (sentList[index]) return sentList[index];
+
+  const code = String(ui.ag_id ?? "").trim();
+  if (code) {
+    const fromSent = sentList.find((p) => p && String(p.Code) === code);
+    if (fromSent) return fromSent;
+  }
+
+  return uiCardToCalcParams(ui);
+}
+
+/** Минимальный calc_params из полей карточки KpPage (если нет снимка калькулятора). */
+function uiCardToCalcParams(ui) {
+  const lenX = Number(ui.lenX) || 0;
+  const lenY = Number(ui.lenY) || 0;
+  const lenZ = Number(ui.lenZ) || 0;
+  const sectionId = ui.section_id || sectionIdFromCode(ui.ag_id) || "F";
+  const { area, perimeter } = calculateAreaAndPerimeter(
+    lenX,
+    lenY,
+    lenZ,
+    sectionId,
+  );
+  return {
+    Code: String(ui.ag_id ?? "").trim(),
+    LenX: lenX,
+    LenY: lenY,
+    LenZ: lenZ,
+    AddCeilShift: Number(ui.AddCeilShift) || 0,
+    step: Number(ui.step) || 600,
+    dframe: false,
+    Area: area,
+    Perimeter: perimeter,
+    Openings: [],
+    SectionId: sectionId,
+  };
+}
+
+/** Собирает constrToCalcToSent для save: калькулятор, snapshot, затем ref оффера. */
+export function pickConstrToCalcToSentForSave({
+  constructions,
+  originalConstructionsFromOffer,
+  calculatorSent,
+  snapshotSent,
+}) {
+  const list = constructions || [];
+  const n = list.length;
+  if (n === 0) return [];
+
+  const pick = (sent) =>
+    Array.isArray(sent) && sent.length === n ? sent : null;
+
+  const fromCalc = pick(calculatorSent);
+  if (fromCalc) return fromCalc;
+
+  const fromSnap = pick(snapshotSent);
+  if (fromSnap) return fromSnap;
+
+  const byId = new Map(
+    (originalConstructionsFromOffer || []).map((c) => [c.id, c.calc_params]),
+  );
+  return list.map((ui) => byId.get(ui.key_id) ?? null);
+}
 
 function mapFormToApi(form) {
   return {

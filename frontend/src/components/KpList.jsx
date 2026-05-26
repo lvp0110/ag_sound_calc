@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
-import { useOfferEditSession } from "../stores/offerEditSessionStore.js";
+import {
+  useOfferEditSession,
+  useOfferEditSessionStore,
+} from "../stores/offerEditSessionStore.js";
 import {
   cloneOffer,
   createOffer,
@@ -35,7 +38,9 @@ export default function KpList() {
   const navigate = useNavigate();
   const location = useLocation();
   const { isAuthed, status } = useAuth();
-  const { isEditingDraft, activeOfferId, startDraft } = useOfferEditSession();
+  const { isEditingDraft, activeOfferId, startDraft, isOfferPdfExportBlocked } =
+    useOfferEditSession();
+  const allowExitToList = useOfferEditSessionStore((s) => s.allowExitToList);
   const [offers, setOffers] = useState([]);
   const [loadStatus, setLoadStatus] = useState("idle");
   const [error, setError] = useState(null);
@@ -62,13 +67,22 @@ export default function KpList() {
   }, []);
 
   useEffect(() => {
+    // После «Выйти» не открывать КП снова (kpExit в state или allowExitToList).
+    if (allowExitToList || location.state?.kpExit === true) return;
+
     const autoOpenId =
       location.state?.autoOpenOfferId ||
       (isEditingDraft ? activeOfferId : null);
     if (autoOpenId) {
       navigate(`/kp/${autoOpenId}`, { replace: true });
     }
-  }, [location.state, isEditingDraft, activeOfferId, navigate]);
+  }, [
+    location.state,
+    isEditingDraft,
+    activeOfferId,
+    allowExitToList,
+    navigate,
+  ]);
 
   useEffect(() => {
     if (status === "loading") return;
@@ -96,8 +110,16 @@ export default function KpList() {
     }
   };
 
+  const isOfferPdfBlocked = (offerId) => isOfferPdfExportBlocked(offerId);
+
   const handleDownloadPdf = async (offer) => {
     if (downloadingId) return;
+    if (isOfferPdfBlocked(offer.id)) {
+      setError(
+        "Сначала сохраните это КП — у него есть несохранённые изменения.",
+      );
+      return;
+    }
     setDownloadingId(offer.id);
     setError(null);
     try {
@@ -167,7 +189,15 @@ export default function KpList() {
         className="kp-list__action-btn"
         onClick={() => handleDownloadPdf(o)}
         disabled={
-          downloadingId === o.id || cloningId === o.id || deletingId === o.id
+          downloadingId === o.id ||
+          cloningId === o.id ||
+          deletingId === o.id ||
+          isOfferPdfBlocked(o.id)
+        }
+        title={
+          isOfferPdfBlocked(o.id)
+            ? "Сначала сохраните КП с несохранёнными изменениями"
+            : undefined
         }
       >
         {downloadingId === o.id ? "PDF..." : "Скачать PDF"}

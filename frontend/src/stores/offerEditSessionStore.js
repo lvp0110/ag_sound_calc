@@ -4,16 +4,21 @@ import { useCalculatorStore } from "./calculatorStore.js";
 
 /**
  * Сессия редактирования черновика КП (только для авторизованных).
- * Пока isDraft === true, закрыть КП можно только через «Сохранить».
+ * isDraft + activeOfferId — открытая сессия КП (в т.ч. после «Выйти» в список).
+ * hasUnsavedChanges — несохранённые правки (бейдж в шапке, блок PDF).
+ * Уход в список: кнопка «Выйти» (requestExitToList). «Сохранить» остаётся на КП.
  * Разрешена навигация на /calc и /price для добавления позиций.
  */
 const initialState = {
   activeOfferId: null,
   isDraft: false,
-  /** Снимок KpPage при уходе в калькулятор/прайс (форма, услуги, доп. материалы, монтаж). */
+  hasUnsavedChanges: false,
+  /** Снимок KpPage при уходе в калькулятор/прайс/список без сохранения. */
   kpSnapshot: null,
   /** Артикулы, выбранные в прайсе (подсветка строк). */
   selectedPriceArticles: [],
+  /** Одноразовый пропуск OfferDraftGuard для /kp/list (кнопка «Выйти»). */
+  allowExitToList: false,
 };
 
 export const useOfferEditSessionStore = create(
@@ -33,6 +38,7 @@ export const useOfferEditSessionStore = create(
           return {
             activeOfferId: offerId,
             isDraft: true,
+            hasUnsavedChanges: true,
             kpSnapshot: null,
             selectedPriceArticles: [],
           };
@@ -69,6 +75,30 @@ export const useOfferEditSessionStore = create(
 
       clearSession: () => set(initialState),
 
+      markDraftSaved: () => set({ hasUnsavedChanges: false }),
+
+      markDraftDirty: () =>
+        set((state) =>
+          state.hasUnsavedChanges ? state : { hasUnsavedChanges: true }
+        ),
+
+      /** Кнопка «Выйти» на KpPage — разрешить переход в список без PATCH. */
+      requestExitToList: () => set({ allowExitToList: true }),
+
+      consumeExitToList: () =>
+        set((state) =>
+          state.allowExitToList ? { allowExitToList: false } : state
+        ),
+
+      /** PDF только если нет несохранённых правок этого оффера. */
+      isOfferPdfExportBlocked: (offerId) => {
+        const { hasUnsavedChanges, activeOfferId } = get();
+        if (!hasUnsavedChanges || activeOfferId == null || offerId == null) {
+          return false;
+        }
+        return String(activeOfferId) === String(offerId);
+      },
+
       isPathAllowedDuringDraft: (pathname) => {
         const { activeOfferId, isDraft } = get();
         if (!isDraft || !activeOfferId) return true;
@@ -86,6 +116,7 @@ export const useOfferEditSessionStore = create(
       partialize: (state) => ({
         activeOfferId: state.activeOfferId,
         isDraft: state.isDraft,
+        hasUnsavedChanges: state.hasUnsavedChanges,
         kpSnapshot: state.kpSnapshot,
         selectedPriceArticles: state.selectedPriceArticles,
       }),
@@ -96,12 +127,19 @@ export const useOfferEditSessionStore = create(
 export function useOfferEditSession() {
   const activeOfferId = useOfferEditSessionStore((s) => s.activeOfferId);
   const isDraft = useOfferEditSessionStore((s) => s.isDraft);
+  const hasUnsavedChanges = useOfferEditSessionStore((s) => s.hasUnsavedChanges);
   const kpSnapshot = useOfferEditSessionStore((s) => s.kpSnapshot);
-  const selectedPriceArticles = useOfferEditSessionStore((s) => s.selectedPriceArticles);
+  const selectedPriceArticles = useOfferEditSessionStore(
+    (s) => s.selectedPriceArticles
+  );
   const startDraft = useOfferEditSessionStore((s) => s.startDraft);
   const stashKpSnapshot = useOfferEditSessionStore((s) => s.stashKpSnapshot);
   const clearKpSnapshot = useOfferEditSessionStore((s) => s.clearKpSnapshot);
   const clearSession = useOfferEditSessionStore((s) => s.clearSession);
+  const markDraftSaved = useOfferEditSessionStore((s) => s.markDraftSaved);
+  const markDraftDirty = useOfferEditSessionStore((s) => s.markDraftDirty);
+  const requestExitToList = useOfferEditSessionStore((s) => s.requestExitToList);
+  const consumeExitToList = useOfferEditSessionStore((s) => s.consumeExitToList);
   const togglePriceArticle = useOfferEditSessionStore((s) => s.togglePriceArticle);
   const setSelectedPriceArticles = useOfferEditSessionStore(
     (s) => s.setSelectedPriceArticles
@@ -112,20 +150,34 @@ export function useOfferEditSession() {
   const isPathAllowedDuringDraft = useOfferEditSessionStore(
     (s) => s.isPathAllowedDuringDraft
   );
+  const isOfferPdfExportBlocked = useOfferEditSessionStore(
+    (s) => s.isOfferPdfExportBlocked
+  );
+
+  const isEditingDraft = isDraft && Boolean(activeOfferId);
+  const hasUnsavedKpEdits =
+    isEditingDraft && hasUnsavedChanges;
 
   return {
     activeOfferId,
     isDraft,
-    isEditingDraft: isDraft && Boolean(activeOfferId),
+    hasUnsavedChanges,
+    hasUnsavedKpEdits,
+    isEditingDraft,
     kpSnapshot,
     selectedPriceArticles,
     startDraft,
     stashKpSnapshot,
     clearKpSnapshot,
     clearSession,
+    markDraftSaved,
+    markDraftDirty,
+    requestExitToList,
+    consumeExitToList,
     togglePriceArticle,
     setSelectedPriceArticles,
     updateKpSnapshotMaterialRows,
     isPathAllowedDuringDraft,
+    isOfferPdfExportBlocked,
   };
 }

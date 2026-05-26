@@ -65,8 +65,12 @@ export default function AppHeader() {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, status, openLoginModal, logout } = useAuth();
-  const { isEditingDraft, activeOfferId, isPathAllowedDuringDraft } =
-    useOfferEditSession();
+  const {
+    isEditingDraft,
+    hasUnsavedKpEdits,
+    activeOfferId,
+    isPathAllowedDuringDraft,
+  } = useOfferEditSession();
 
   const guardDraftNav = (event, targetPath) => {
     if (!isEditingDraft || !activeOfferId) return;
@@ -132,16 +136,16 @@ export default function AppHeader() {
             <NavLink
               to={isEditingDraft && activeOfferId ? `/kp/${activeOfferId}` : "/kp/list"}
               className={`app-header__link${kpNavActive ? " app-header__link--active" : ""}${
-                isEditingDraft ? " app-header__link--unsaved" : ""
+                hasUnsavedKpEdits ? " app-header__link--unsaved" : ""
               }`}
               end={isEditingDraft}
               title={
-                isEditingDraft
+                hasUnsavedKpEdits
                   ? "Мои КП — есть несохранённые изменения"
                   : "Мои КП"
               }
               aria-label={
-                isEditingDraft
+                hasUnsavedKpEdits
                   ? "Мои КП, несохранённые изменения"
                   : "Мои КП"
               }
@@ -158,7 +162,7 @@ export default function AppHeader() {
                 <MaskedNavIcon src={kpIconSrc} />
               </HeaderIcon>
               <span className="app-header__label">Мои КП</span>
-              {isEditingDraft ? (
+              {hasUnsavedKpEdits ? (
                 <span className="app-header__unsaved-badge" aria-hidden="true">
                   !
                 </span>

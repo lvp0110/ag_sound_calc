@@ -883,6 +883,14 @@ textarea.kp-page__input {
   width: 100%;
 }
 
+.kp-page__save-bar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+  width: 100%;
+}
+
 .kp-page__save-error {
   color: #b91c1c;
   background: #fef2f2;
@@ -900,6 +908,15 @@ textarea.kp-page__input {
   margin: 0 !important;
   box-shadow: none !important;
   filter: drop-shadow(0px 0px 2px black);
+}
+
+.kp-page__save-btn:disabled,
+.kp-page__exit-btn:disabled,
+.kp-page__pdf-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  filter: none;
+  pointer-events: none;
 }
 
 .kp-page__link-btn {

@@ -633,6 +633,8 @@ const Calculator = () => {
     const Constr = itemsWithImages.find((el) => el.id == currentItems);
     const sectionId = sectionIdFromSubCategory(currentSubCategory);
 
+    const code = getConstructionCode(currentConstr, currentGkla, currentWool);
+
     const newConstR = {
       ...constR,
       imgBlack: IconType?.imgBlack ? getImageUrl(IconType.imgBlack) : undefined,
@@ -641,12 +643,10 @@ const Calculator = () => {
       title: Constr?.title,
       type: IconType?.title,
       section_id: sectionId,
-      ag_id: Constr?.ag_id,
+      ag_id: code,
       step: Constr?.step,
       weight: Constr?.weight,
     };
-
-    const code = getConstructionCode(currentConstr, currentGkla, currentWool);
 
     const lenX = +constR.lenX || 0;
     const lenY = +constR.lenY || 0;

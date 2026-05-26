@@ -1,6 +1,9 @@
 import { useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { useOfferEditSession } from "../stores/offerEditSessionStore.js";
+import {
+  useOfferEditSession,
+  useOfferEditSessionStore,
+} from "../stores/offerEditSessionStore.js";
 
 /**
  * Блокирует уход с черновика КП на посторонние страницы (без useBlocker —
@@ -9,22 +12,40 @@ import { useOfferEditSession } from "../stores/offerEditSessionStore.js";
 export default function OfferDraftGuard() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { isEditingDraft, activeOfferId, isPathAllowedDuringDraft } =
-    useOfferEditSession();
+  const {
+    isEditingDraft,
+    activeOfferId,
+    isPathAllowedDuringDraft,
+    consumeExitToList,
+  } = useOfferEditSession();
+  const allowExitToList = useOfferEditSessionStore((s) => s.allowExitToList);
 
   useEffect(() => {
+    const path = location.pathname;
+    const exitingToList =
+      path === "/kp/list" &&
+      (allowExitToList || location.state?.kpExit === true);
+
+    // Кнопка «Выйти»: не возвращать на /kp/:id (state.kpExit — до обновления zustand).
+    if (exitingToList) {
+      consumeExitToList();
+      return;
+    }
+
     if (!isEditingDraft || !activeOfferId) return;
 
-    const path = location.pathname;
     if (path === "/kp/list" || !isPathAllowedDuringDraft(path)) {
       navigate(`/kp/${activeOfferId}`, { replace: true });
     }
   }, [
+    allowExitToList,
     isEditingDraft,
     activeOfferId,
     location.pathname,
+    location.state,
     navigate,
     isPathAllowedDuringDraft,
+    consumeExitToList,
   ]);
 
   return null;
