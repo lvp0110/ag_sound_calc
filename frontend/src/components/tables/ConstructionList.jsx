@@ -304,6 +304,9 @@ const ConstructionList = ({
   legacyTableWithMaterials = false,
   showGeneralConstructionMaterials = true,
   renderKpMontageSlot,
+  renderKpAdditionalMaterialsSlot,
+  /** { [key_id]: number } — суммы доп. материалов по конструкциям для итоговой строки карточки. */
+  additionalMaterialsRubByKeyId,
   montageByKeyId,
   /** На КП итог выводится отдельным блоком ниже «Услуги». */
   showGrandTotalInline = true,
@@ -313,14 +316,17 @@ const ConstructionList = ({
   const [expandedLegacyKeyId, setExpandedLegacyKeyId] = useState(null);
   const legacyCardsLayout = useCalcConstructionCardsViewport();
 
+  // Если есть renderKpAdditionalMaterialsSlot — карточки развёрнуты по умолчанию.
+  const defaultCollapsed = !renderKpAdditionalMaterialsSlot;
+
   const collapsedCardsByKeyId = useMemo(() => {
     if (!Array.isArray(constructions) || constructions.length === 0) return {};
     const next = {};
     for (const item of constructions) {
-      next[item.key_id] = collapseOverrides[item.key_id] ?? true;
+      next[item.key_id] = collapseOverrides[item.key_id] ?? defaultCollapsed;
     }
     return next;
-  }, [constructions, collapseOverrides]);
+  }, [constructions, collapseOverrides, defaultCollapsed]);
 
   const expandedLegacyKeyIdActive = useMemo(() => {
     if (expandedLegacyKeyId == null) return null;
@@ -367,8 +373,10 @@ const ConstructionList = ({
           const montageRubCard = montageLineProductRub(
             montageByKeyId?.[constRItem.key_id]
           );
+          const additionalMaterialsRubCard =
+            additionalMaterialsRubByKeyId?.[constRItem.key_id] ?? 0;
           const cardSectionsTotalRub =
-            materialsRubTotal + (montageRubCard ?? 0);
+            materialsRubTotal + (montageRubCard ?? 0) + additionalMaterialsRubCard;
           const baseTableId = index === 0 ? "table2" : `table2-${index}`;
           const groupBody = (
             <>
@@ -499,6 +507,12 @@ const ConstructionList = ({
                   {groupBody}
                   {!cardCollapsed && typeof renderKpMontageSlot === "function"
                     ? renderKpMontageSlot({
+                        key_id: constRItem.key_id,
+                        cardIndex: index,
+                      })
+                    : null}
+                  {!cardCollapsed && typeof renderKpAdditionalMaterialsSlot === "function"
+                    ? renderKpAdditionalMaterialsSlot({
                         key_id: constRItem.key_id,
                         cardIndex: index,
                       })

@@ -12,11 +12,6 @@ import { useOfferEditSession } from "../stores/offerEditSessionStore.js";
 import { usePriceNarrowViewport } from "../hooks/usePriceNarrowViewport";
 import "./PricePage.css";
 
-let additionalMaterialRowSeq = 0;
-function nextAdditionalMaterialRowId() {
-  additionalMaterialRowSeq += 1;
-  return `mat-${additionalMaterialRowSeq}`;
-}
 
 const getDefaultRegionOption = (availableRegionKeys) =>
   REGION_SELECT_OPTIONS.find((option) => availableRegionKeys.has(option.regionKey))?.value ??
@@ -103,6 +98,8 @@ const PricePage = () => {
     togglePriceArticle,
     kpSnapshot,
     updateKpSnapshotMaterialRows,
+    activeConstructionId,
+    updateKpSnapshotMaterialRowsForConstruction,
   } = useOfferEditSession();
   const {
     list: priceList,
@@ -171,7 +168,7 @@ const PricePage = () => {
   );
 
   const addRowToAdditionalMaterials = (row) => {
-    if (!isEditingDraft) {
+    if (!isEditingDraft || !activeConstructionId) {
       try {
         navigator.clipboard?.writeText(String(row.article ?? row.name ?? ""));
       } catch {
@@ -186,26 +183,13 @@ const PricePage = () => {
     const wasSelected = selectedSet.has(article);
     togglePriceArticle(article);
 
-    const baseRows = kpSnapshot?.materialRows?.length
-      ? kpSnapshot.materialRows
-      : [{ id: "empty", name: "", price: "", quantity: "", unit: "" }];
+    const baseRows = kpSnapshot?.materialRowsByKeyId?.[activeConstructionId] ?? [];
 
     let nextRows;
     if (wasSelected) {
       nextRows = baseRows.filter(
         (r) => String(r.sourceArticle ?? "").trim() !== article
       );
-      if (nextRows.length === 0) {
-        nextRows = [
-          {
-            id: nextAdditionalMaterialRowId(),
-            name: "",
-            price: "",
-            quantity: "",
-            unit: "",
-          },
-        ];
-      }
     } else {
       const withoutEmpty = baseRows.filter(
         (r) => r.name?.trim() || r.price?.trim() || r.quantity?.trim()
@@ -213,7 +197,7 @@ const PricePage = () => {
       nextRows = [...withoutEmpty, newMaterialRowFromPrice(row, selectedRegion)];
     }
 
-    updateKpSnapshotMaterialRows(nextRows);
+    updateKpSnapshotMaterialRowsForConstruction(activeConstructionId, nextRows);
   };
 
   const filtered = useMemo(() => {
@@ -226,8 +210,8 @@ const PricePage = () => {
         <h1 className="price-page__title">Прайс</h1>
         {isEditingDraft && (
           <p className="price-page__draft-hint">
-            Выбранные позиции подсвечены и попадут в блок «Дополнительные
-            материалы» КП.{" "}
+            Выбранные позиции подсвечены и попадут в доп. материалы выбранной
+            конструкции КП.{" "}
             <button
               type="button"
               className="price-page__return-kp"

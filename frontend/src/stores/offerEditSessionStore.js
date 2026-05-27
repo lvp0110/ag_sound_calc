@@ -16,8 +16,14 @@ const initialState = {
   hasUnsavedChanges: false,
   /** Снимок KpPage при уходе в калькулятор/прайс/список без сохранения. */
   kpSnapshot: null,
-  /** Артикулы, выбранные в прайсе (подсветка строк). */
-  selectedPriceArticles: [],
+  /**
+   * Артикулы, выбранные в прайсе, разбитые по key_id конструкции.
+   * Структура: { [key_id]: string[] }
+   * Для обратной совместимости с PricePage используем вычисляемое плоское поле.
+   */
+  selectedPriceArticlesByKeyId: {},
+  /** key_id конструкции, для которой сейчас выбирают материалы в прайсе. */
+  activeConstructionId: null,
   /** Одноразовый пропуск OfferDraftGuard для /kp/list (кнопка «Выйти»). */
   allowExitToList: false,
 };
@@ -43,9 +49,10 @@ export const useOfferEditSessionStore = create(
             isDraft: true,
             hasUnsavedChanges: sameOffer ? state.hasUnsavedChanges : true,
             kpSnapshot: sameOffer ? state.kpSnapshot : null,
-            selectedPriceArticles: sameOffer
-              ? state.selectedPriceArticles
-              : [],
+            selectedPriceArticlesByKeyId: sameOffer
+              ? state.selectedPriceArticlesByKeyId
+              : {},
+            activeConstructionId: sameOffer ? state.activeConstructionId : null,
           };
         }),
 
@@ -57,20 +64,102 @@ export const useOfferEditSessionStore = create(
           kpSnapshot: snapshot,
         })),
 
-      setSelectedPriceArticles: (articles) =>
-        set({ selectedPriceArticles: Array.isArray(articles) ? articles : [] }),
+      /** Установить активную конструкцию для выбора в прайсе. */
+      setActiveConstructionId: (keyId) =>
+        set({ activeConstructionId: keyId ?? null }),
 
-      togglePriceArticle: (article) => {
-        const key = String(article ?? "").trim();
-        if (!key) return;
+      /** Получить плоский список артикулов для конкретной конструкции. */
+      getSelectedArticlesForConstruction: (keyId) => {
+        const state = get();
+        return state.selectedPriceArticlesByKeyId[keyId] ?? [];
+      },
+
+      /** Установить список артикулов для конкретной конструкции (для восстановления из materialRows). */
+      setSelectedArticlesForConstruction: (keyId, articles) => {
+        if (!keyId) return;
+        set((state) => ({
+          selectedPriceArticlesByKeyId: {
+            ...state.selectedPriceArticlesByKeyId,
+            [keyId]: Array.isArray(articles) ? articles : [],
+          },
+        }));
+      },
+
+      /** Сбросить артикулы для конкретной конструкции (при закрытии блока). */
+      clearSelectedArticlesForConstruction: (keyId) => {
+        if (!keyId) return;
         set((state) => {
-          const setArticles = new Set(state.selectedPriceArticles);
-          if (setArticles.has(key)) setArticles.delete(key);
-          else setArticles.add(key);
-          return { selectedPriceArticles: [...setArticles] };
+          const next = { ...state.selectedPriceArticlesByKeyId };
+          delete next[keyId];
+          return { selectedPriceArticlesByKeyId: next };
         });
       },
 
+      togglePriceArticleForConstruction: (keyId, article) => {
+        const key = String(article ?? "").trim();
+        if (!key || !keyId) return;
+        set((state) => {
+          const arr = state.selectedPriceArticlesByKeyId[keyId] ?? [];
+          const setArticles = new Set(arr);
+          if (setArticles.has(key)) setArticles.delete(key);
+          else setArticles.add(key);
+          return {
+            selectedPriceArticlesByKeyId: {
+              ...state.selectedPriceArticlesByKeyId,
+              [keyId]: [...setArticles],
+            },
+          };
+        });
+      },
+
+      /** Обратная совместимость: плоский список артикулов активной конструкции. */
+      setSelectedPriceArticles: (articles) => {
+        const keyId = get().activeConstructionId;
+        if (!keyId) return;
+        set((state) => ({
+          selectedPriceArticlesByKeyId: {
+            ...state.selectedPriceArticlesByKeyId,
+            [keyId]: Array.isArray(articles) ? articles : [],
+          },
+        }));
+      },
+
+      /** Обратная совместимость: toggle для активной конструкции. */
+      togglePriceArticle: (article) => {
+        const key = String(article ?? "").trim();
+        if (!key) return;
+        const keyId = get().activeConstructionId;
+        if (!keyId) return;
+        set((state) => {
+          const arr = state.selectedPriceArticlesByKeyId[keyId] ?? [];
+          const setArticles = new Set(arr);
+          if (setArticles.has(key)) setArticles.delete(key);
+          else setArticles.add(key);
+          return {
+            selectedPriceArticlesByKeyId: {
+              ...state.selectedPriceArticlesByKeyId,
+              [keyId]: [...setArticles],
+            },
+          };
+        });
+      },
+
+      updateKpSnapshotMaterialRowsForConstruction: (keyId, rows) =>
+        set((state) => {
+          const prev = state.kpSnapshot ?? {};
+          const prevByKeyId = prev.materialRowsByKeyId ?? {};
+          return {
+            kpSnapshot: {
+              ...prev,
+              materialRowsByKeyId: {
+                ...prevByKeyId,
+                [keyId]: rows,
+              },
+            },
+          };
+        }),
+
+      /** Обратная совместимость — обновить materialRows как единый список (не используется в новом коде). */
       updateKpSnapshotMaterialRows: (materialRows) =>
         set((state) => ({
           kpSnapshot: state.kpSnapshot
@@ -100,7 +189,8 @@ export const useOfferEditSessionStore = create(
           ...state,
           isDraft: false,
           allowExitToList: true,
-          selectedPriceArticles: [],
+          selectedPriceArticlesByKeyId: {},
+          activeConstructionId: null,
         }));
       },
 
@@ -137,7 +227,8 @@ export const useOfferEditSessionStore = create(
         isDraft: state.isDraft,
         hasUnsavedChanges: state.hasUnsavedChanges,
         kpSnapshot: state.kpSnapshot,
-        selectedPriceArticles: state.selectedPriceArticles,
+        selectedPriceArticlesByKeyId: state.selectedPriceArticlesByKeyId,
+        activeConstructionId: state.activeConstructionId,
       }),
     }
   )
@@ -148,9 +239,10 @@ export function useOfferEditSession() {
   const isDraft = useOfferEditSessionStore((s) => s.isDraft);
   const hasUnsavedChanges = useOfferEditSessionStore((s) => s.hasUnsavedChanges);
   const kpSnapshot = useOfferEditSessionStore((s) => s.kpSnapshot);
-  const selectedPriceArticles = useOfferEditSessionStore(
-    (s) => s.selectedPriceArticles
+  const selectedPriceArticlesByKeyId = useOfferEditSessionStore(
+    (s) => s.selectedPriceArticlesByKeyId
   );
+  const activeConstructionId = useOfferEditSessionStore((s) => s.activeConstructionId);
   const startDraft = useOfferEditSessionStore((s) => s.startDraft);
   const stashKpSnapshot = useOfferEditSessionStore((s) => s.stashKpSnapshot);
   const clearKpSnapshot = useOfferEditSessionStore((s) => s.clearKpSnapshot);
@@ -163,8 +255,21 @@ export function useOfferEditSession() {
   const setSelectedPriceArticles = useOfferEditSessionStore(
     (s) => s.setSelectedPriceArticles
   );
+  const setActiveConstructionId = useOfferEditSessionStore((s) => s.setActiveConstructionId);
+  const setSelectedArticlesForConstruction = useOfferEditSessionStore(
+    (s) => s.setSelectedArticlesForConstruction
+  );
+  const clearSelectedArticlesForConstruction = useOfferEditSessionStore(
+    (s) => s.clearSelectedArticlesForConstruction
+  );
+  const togglePriceArticleForConstruction = useOfferEditSessionStore(
+    (s) => s.togglePriceArticleForConstruction
+  );
   const updateKpSnapshotMaterialRows = useOfferEditSessionStore(
     (s) => s.updateKpSnapshotMaterialRows
+  );
+  const updateKpSnapshotMaterialRowsForConstruction = useOfferEditSessionStore(
+    (s) => s.updateKpSnapshotMaterialRowsForConstruction
   );
   const isPathAllowedDuringDraft = useOfferEditSessionStore(
     (s) => s.isPathAllowedDuringDraft
@@ -174,8 +279,12 @@ export function useOfferEditSession() {
   );
 
   const isEditingDraft = isDraft && Boolean(activeOfferId);
-  const hasUnsavedKpEdits =
-    isEditingDraft && hasUnsavedChanges;
+  const hasUnsavedKpEdits = isEditingDraft && hasUnsavedChanges;
+
+  /** Плоский список артикулов активной конструкции (для PricePage). */
+  const selectedPriceArticles = activeConstructionId
+    ? (selectedPriceArticlesByKeyId[activeConstructionId] ?? [])
+    : [];
 
   return {
     activeOfferId,
@@ -185,6 +294,8 @@ export function useOfferEditSession() {
     isEditingDraft,
     kpSnapshot,
     selectedPriceArticles,
+    selectedPriceArticlesByKeyId,
+    activeConstructionId,
     startDraft,
     stashKpSnapshot,
     clearKpSnapshot,
@@ -195,7 +306,12 @@ export function useOfferEditSession() {
     consumeExitToList,
     togglePriceArticle,
     setSelectedPriceArticles,
+    setActiveConstructionId,
+    setSelectedArticlesForConstruction,
+    clearSelectedArticlesForConstruction,
+    togglePriceArticleForConstruction,
     updateKpSnapshotMaterialRows,
+    updateKpSnapshotMaterialRowsForConstruction,
     isPathAllowedDuringDraft,
     isOfferPdfExportBlocked,
   };

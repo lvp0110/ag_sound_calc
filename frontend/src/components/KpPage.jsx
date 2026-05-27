@@ -320,6 +320,11 @@ const KpPage = () => {
     markDraftDirty,
     isOfferPdfExportBlocked,
     setSelectedPriceArticles,
+    setActiveConstructionId,
+    setSelectedArticlesForConstruction,
+    clearSelectedArticlesForConstruction,
+    selectedPriceArticlesByKeyId,
+    updateKpSnapshotMaterialRowsForConstruction,
   } = useOfferEditSession();
 
   const isPdfExportBlocked =
@@ -337,9 +342,8 @@ const KpPage = () => {
   const [montageSectionOpenByKeyId, setMontageSectionOpenByKeyId] = useState(
     () => ({}),
   );
-  const [materialRows, setMaterialRows] = useState(() => [
-    newCustomMaterialRow(),
-  ]);
+  /** Доп. материалы по конструкциям: { [key_id]: rows[] } */
+  const [materialRowsByKeyId, setMaterialRowsByKeyId] = useState(() => ({}));
   const [serviceRows, setServiceRows] = useState(INITIAL_SERVICE_ROWS);
   // kpSettings — пользовательские ставки монтажа по типам конструкций. Хранятся
   // в Offer.kp_settings (JSONB), приходят в DTO под ключом `kp_settings`.
@@ -352,8 +356,9 @@ const KpPage = () => {
     partition: "",
   });
   const [settingsSectionOpen, setSettingsSectionOpen] = useState(false);
-  const [additionalMaterialsSectionOpen, setAdditionalMaterialsSectionOpen] =
-    useState(false);
+  /** Открыт ли блок доп. материалов по конструкциям: { [key_id]: boolean } */
+  const [additionalMaterialsSectionOpenByKeyId, setAdditionalMaterialsSectionOpenByKeyId] =
+    useState(() => ({}));
   const [servicesSectionOpen, setServicesSectionOpen] = useState(false);
   const isKpNarrow = useKpNarrowViewport();
   const { expandedKey, toggleRow } = useKpExpandedRow();
@@ -365,9 +370,17 @@ const KpPage = () => {
     [regions]
   );
   const isPriceRegionsLoading = priceLoading || (!priceLoaded && !priceError);
+  const additionalMaterialsRubByKeyId = useMemo(() => {
+    const result = {};
+    for (const [keyId, rows] of Object.entries(materialRowsByKeyId)) {
+      result[keyId] = additionalMaterialsGrandTotalRubForKp(rows);
+    }
+    return result;
+  }, [materialRowsByKeyId]);
+
   const additionalMaterialsTotalRub = useMemo(
-    () => additionalMaterialsGrandTotalRubForKp(materialRows),
-    [materialRows],
+    () => Object.values(additionalMaterialsRubByKeyId).reduce((a, b) => a + b, 0),
+    [additionalMaterialsRubByKeyId],
   );
   const servicesTotalRub = useMemo(
     () => additionalServicesGrandTotalRubForKp(serviceRows),
@@ -399,7 +412,7 @@ const KpPage = () => {
 
     let cancelled = false;
     setSettingsSectionOpen(false);
-    setAdditionalMaterialsSectionOpen(false);
+    setAdditionalMaterialsSectionOpenByKeyId({});
     setServicesSectionOpen(false);
     setLoadStatus("loading");
     setLoadError(null);
@@ -453,11 +466,11 @@ const KpPage = () => {
               ? view.serviceRows
               : INITIAL_SERVICE_ROWS),
         );
-        setMaterialRows(
-          snap?.materialRows ??
-            (view.materialRows.length > 0
-              ? view.materialRows
-              : [newCustomMaterialRow()]),
+        setMaterialRowsByKeyId(
+          snap?.materialRowsByKeyId ??
+            (Object.keys(view.materialRowsByKeyId).length > 0
+              ? view.materialRowsByKeyId
+              : {}),
         );
         if (snap?.kpSettings) {
           setKpSettings(snap.kpSettings);
@@ -482,11 +495,14 @@ const KpPage = () => {
           }
           setManualMontagePriceByKeyId(initialManual);
         }
-        const rowsForArticles = snap?.materialRows ?? view.materialRows;
-        const articles = rowsForArticles
-          .map((r) => String(r.sourceArticle ?? "").trim())
-          .filter(Boolean);
-        if (articles.length) setSelectedPriceArticles(articles);
+        // Восстановить артикулы по каждой конструкции из materialRowsByKeyId.
+        const rowsByKeyId = snap?.materialRowsByKeyId ?? view.materialRowsByKeyId;
+        for (const [keyId, rows] of Object.entries(rowsByKeyId)) {
+          const articles = rows
+            .map((r) => String(r.sourceArticle ?? "").trim())
+            .filter(Boolean);
+          if (articles.length) setSelectedArticlesForConstruction(keyId, articles);
+        }
 
         setLoadStatus("loaded");
       } catch (err) {
@@ -512,7 +528,7 @@ const KpPage = () => {
     authStatus,
     kpSnapshot,
     activeOfferId,
-    setSelectedPriceArticles,
+    setSelectedArticlesForConstruction,
   ]);
 
   // Подписи карточек из каталога — не блокируем первый рендер КП.
@@ -566,7 +582,7 @@ const KpPage = () => {
     calcTables,
     montageByKeyId,
     serviceRows,
-    materialRows,
+    materialRowsByKeyId,
     kpSettings,
     manualMontagePriceByKeyId,
     loadStatus,
@@ -678,7 +694,7 @@ const KpPage = () => {
         materialsByConstruction: calcTables.materialsByConstruction,
         montageByKeyId,
         serviceRows,
-        materialRows,
+        materialRowsByKeyId,
         kpSettings,
         originalConstructionsFromOffer: originalConstructionsRef.current,
         constrToCalcToSent: pickConstrToCalcToSentForSave({
@@ -818,12 +834,16 @@ const KpPage = () => {
     setServiceRows((rows) => rows.filter((r) => r.preset || r.id !== id));
   };
 
-  const updateMaterialRow = (id, field) => (e) => {
+  const updateMaterialRow = useCallback((key_id, rowId, field) => (e) => {
     const value = e.target.value;
-    setMaterialRows((rows) =>
-      rows.map((r) => (r.id === id ? { ...r, [field]: value } : r)),
-    );
-  };
+    setMaterialRowsByKeyId((prev) => {
+      const rows = prev[key_id] ?? [];
+      return {
+        ...prev,
+        [key_id]: rows.map((r) => (r.id === rowId ? { ...r, [field]: value } : r)),
+      };
+    });
+  }, []);
 
   const autoResizeNameField = (e) => {
     syncTextareaHeight(e.target);
@@ -861,7 +881,7 @@ const KpPage = () => {
       window.removeEventListener("resize", syncAll);
     };
   }, [
-    materialRows,
+    materialRowsByKeyId,
     serviceRows,
     loadStatus,
     isKpNarrow,
@@ -873,13 +893,24 @@ const KpPage = () => {
     form.officeAddress,
   ]);
 
-  const addMaterialRow = () => {
-    setMaterialRows((rows) => [...rows, newCustomMaterialRow()]);
-  };
+  const addMaterialRow = useCallback((key_id) => {
+    setMaterialRowsByKeyId((prev) => ({
+      ...prev,
+      [key_id]: [...(prev[key_id] ?? []), newCustomMaterialRow()],
+    }));
+  }, []);
 
-  const removeMaterialRow = (id) => {
-    setMaterialRows((rows) => rows.filter((r) => r.id !== id));
-  };
+  const removeMaterialRow = useCallback((key_id, rowId) => {
+    setMaterialRowsByKeyId((prev) => {
+      const rows = (prev[key_id] ?? []).filter((r) => r.id !== rowId);
+      if (rows.length === 0) {
+        const next = { ...prev };
+        delete next[key_id];
+        return next;
+      }
+      return { ...prev, [key_id]: rows };
+    });
+  }, []);
 
   const onKpSettingChange = (key) => (e) => {
     setKpSettings((prev) => ({ ...prev, [key]: e.target.value }));
@@ -913,7 +944,7 @@ const KpPage = () => {
       constrToCalcToSent,
       montageByKeyId,
       serviceRows,
-      materialRows,
+      materialRowsByKeyId,
       manualMontagePriceByKeyId,
       kpSettings,
     });
@@ -923,7 +954,7 @@ const KpPage = () => {
     calcTables,
     montageByKeyId,
     serviceRows,
-    materialRows,
+    materialRowsByKeyId,
     manualMontagePriceByKeyId,
     kpSettings,
   ]);
@@ -938,14 +969,11 @@ const KpPage = () => {
     });
   }, [id, stashAndLeaveKp, navigate]);
 
-  const openPriceForMaterialSelection = () => {
-    const articles = materialRows
-      .map((r) => String(r.sourceArticle ?? "").trim())
-      .filter(Boolean);
-    if (articles.length) setSelectedPriceArticles(articles);
+  const openPriceForConstruction = useCallback((key_id) => {
+    setActiveConstructionId(key_id);
     stashAndLeaveKp();
     navigate("/price");
-  };
+  }, [setActiveConstructionId, stashAndLeaveKp, navigate]);
 
   const openCalculatorForConstructions = () => {
     stashAndLeaveKp();
@@ -1062,7 +1090,23 @@ const KpPage = () => {
       delete next[key_id];
       return next;
     });
-  }, [id, calcTables]);
+
+    setMaterialRowsByKeyId((prev) => {
+      if (!(key_id in prev)) return prev;
+      const next = { ...prev };
+      delete next[key_id];
+      return next;
+    });
+
+    setAdditionalMaterialsSectionOpenByKeyId((prev) => {
+      if (!(key_id in prev)) return prev;
+      const next = { ...prev };
+      delete next[key_id];
+      return next;
+    });
+
+    clearSelectedArticlesForConstruction(key_id);
+  }, [id, calcTables, clearSelectedArticlesForConstruction]);
 
   const renderKpMontageSlot = useCallback(
     ({ key_id, cardIndex }) => {
@@ -1221,6 +1265,205 @@ const KpPage = () => {
       toggleMontageSection,
       updateMontagePriceRow,
       updateMontageRow,
+      isKpNarrow,
+      expandedKey,
+      toggleRow,
+    ],
+  );
+
+  const renderKpAdditionalMaterialsSlot = useCallback(
+    ({ key_id, cardIndex }) => {
+      const rows = materialRowsByKeyId[key_id] ?? [];
+      const sectionOpen = additionalMaterialsSectionOpenByKeyId[key_id] === true;
+      const totalRub = additionalMaterialsGrandTotalRubForKp(rows);
+
+      const toggleSection = () => {
+        setAdditionalMaterialsSectionOpenByKeyId((prev) => {
+          const next = !prev[key_id];
+          if (!next) {
+            // При закрытии — сбрасываем выбранные артикулы для этой конструкции
+            clearSelectedArticlesForConstruction(key_id);
+          }
+          return { ...prev, [key_id]: next };
+        });
+      };
+
+      return (
+        <KpCollapsibleExtraTable
+          tableId={`kp-table-additional-materials-${key_id}`}
+          ariaLabel={`Дополнительные материалы, карточка ${cardIndex + 1}`}
+          title="Дополнительные материалы"
+          sectionOpen={sectionOpen}
+          onToggleSection={toggleSection}
+          totalRub={totalRub}
+          colgroup={
+            <colgroup>
+              <col style={{ width: "50%" }} />
+              <col style={{ width: "12%" }} />
+              <col style={{ width: "10%" }} />
+              <col style={{ width: "7%" }} />
+              <col style={{ width: "20%" }} />
+            </colgroup>
+          }
+          footerRows={
+            <tr className="kp-page__services-add-row">
+              <td colSpan={5} className="kp-page__services-add-cell">
+                <div className="kp-page__services-add-actions">
+                  <button
+                    type="button"
+                    className="kp-page__services-add kp-page__services-add--secondary"
+                    onClick={() => openPriceForConstruction(key_id)}
+                  >
+                    Выбрать материал из прайса
+                  </button>
+                  <button
+                    type="button"
+                    className="kp-page__services-add"
+                    onClick={() => addMaterialRow(key_id)}
+                  >
+                    Добавить строку
+                  </button>
+                </div>
+              </td>
+            </tr>
+          }
+        >
+          {rows.map((row) => {
+            const rowKey = `mat-${key_id}-${row.id}`;
+            const removeRowButton = (
+              <button
+                type="button"
+                className="kp-page__service-row-remove"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  removeMaterialRow(key_id, row.id);
+                }}
+                aria-label="Удалить строку"
+              >
+                ×
+              </button>
+            );
+            const nameTextarea = (
+              <textarea
+                className="kp-page__services-input kp-page__services-textarea"
+                value={row.name}
+                onChange={(e) => {
+                  updateMaterialRow(key_id, row.id, "name")(e);
+                  syncTextareaHeight(e.target);
+                }}
+                onInput={autoResizeNameField}
+                aria-label="Название материала"
+                rows={1}
+              />
+            );
+            const nameCell = isKpNarrow ? (
+              <div className="kp-page__service-name-cell">{nameTextarea}</div>
+            ) : (
+              <div className="kp-page__service-name-cell">
+                {removeRowButton}
+                {nameTextarea}
+              </div>
+            );
+            const priceInput = (
+              <input
+                type="text"
+                className="kp-page__services-input"
+                value={row.price}
+                placeholder={KP_DECIMAL_PLACEHOLDER}
+                onChange={updateMaterialRow(key_id, row.id, "price")}
+                aria-label={`Цена, ${row.name || "материал"}`}
+              />
+            );
+            const quantityInput = (
+              <input
+                type="text"
+                className="kp-page__services-input"
+                value={row.quantity}
+                placeholder={KP_DECIMAL_PLACEHOLDER}
+                onChange={updateMaterialRow(key_id, row.id, "quantity")}
+                aria-label={`Количество, ${row.name || "материал"}`}
+              />
+            );
+            const unitInput = (
+              <input
+                type="text"
+                className="kp-page__services-input"
+                value={row.unit}
+                onChange={updateMaterialRow(key_id, row.id, "unit")}
+                aria-label={`Единица измерения, ${row.name || "материал"}`}
+              />
+            );
+            const sumInput = (
+              <input
+                type="text"
+                readOnly
+                className="kp-page__services-input kp-page__services-input--computed"
+                value={serviceRowSum(row.price, row.quantity)}
+                aria-label={`Сумма, ${row.name || "материал"} (цена × количество)`}
+              />
+            );
+            const detailFields = [
+              { id: "name", label: "Название", children: nameCell },
+              { id: "price", label: "Цена", children: priceInput },
+              { id: "quantity", label: "Количество", children: quantityInput },
+              { id: "unit", label: "Ед. изм.", children: unitInput },
+              { id: "sum", label: "Сумма", children: sumInput },
+            ];
+            const rowCells = isKpNarrow ? (
+              <>
+                <td>
+                  <div className="kp-page__service-name-cell kp-narrow-row-summary-cell">
+                    {removeRowButton}
+                    <span className="kp-narrow-row-summary-name">
+                      {row.name?.trim() ? row.name : "—"}
+                    </span>
+                  </div>
+                </td>
+                <td />
+                <td />
+                <td />
+                <td className="kp-narrow-row-summary-sum">
+                  {serviceRowSum(row.price, row.quantity)}
+                </td>
+              </>
+            ) : (
+              <>
+                <td>{nameCell}</td>
+                <td>{priceInput}</td>
+                <td>{quantityInput}</td>
+                <td>{unitInput}</td>
+                <td>{sumInput}</td>
+              </>
+            );
+            if (isKpNarrow) {
+              return (
+                <KpNarrowExpandableRow
+                  key={row.id}
+                  rowKey={rowKey}
+                  expandedKey={expandedKey}
+                  onToggleRow={toggleRow}
+                  narrow
+                  colSpan={5}
+                  detailFields={detailFields}
+                >
+                  {rowCells}
+                </KpNarrowExpandableRow>
+              );
+            }
+            return <tr key={row.id}>{rowCells}</tr>;
+          })}
+        </KpCollapsibleExtraTable>
+      );
+    },
+    [
+      materialRowsByKeyId,
+      additionalMaterialsSectionOpenByKeyId,
+      clearSelectedArticlesForConstruction,
+      openPriceForConstruction,
+      addMaterialRow,
+      removeMaterialRow,
+      updateMaterialRow,
+      autoResizeNameField,
       isKpNarrow,
       expandedKey,
       toggleRow,
@@ -1506,6 +1749,8 @@ const KpPage = () => {
                 onDelete={removeConstructionFromKp}
                 materialsByConstruction={calcTables.materialsByConstruction}
                 renderKpMontageSlot={renderKpMontageSlot}
+                renderKpAdditionalMaterialsSlot={renderKpAdditionalMaterialsSlot}
+                additionalMaterialsRubByKeyId={additionalMaterialsRubByKeyId}
                 montageByKeyId={montageByKeyId}
                 showGrandTotalInline={false}
                 onGeneralMaterialKpPriceChange={onGeneralMaterialKpPriceChange}
@@ -1527,175 +1772,6 @@ const KpPage = () => {
         </div>
 
         <div className="kp-page__services">
-          <KpCollapsibleExtraTable
-            tableId="kp-table-additional-materials"
-            ariaLabel="Дополнительные материалы"
-            title="Дополнительные материалы"
-            sectionOpen={additionalMaterialsSectionOpen}
-            onToggleSection={() => setAdditionalMaterialsSectionOpen((v) => !v)}
-            totalRub={additionalMaterialsTotalRub}
-            colgroup={
-              <colgroup>
-                <col style={{ width: "50%" }} />
-                <col style={{ width: "12%" }} />
-                <col style={{ width: "10%" }} />
-                <col style={{ width: "7%" }} />
-                <col style={{ width: "20%" }} />
-              </colgroup>
-            }
-            footerRows={
-              <>
-                <tr className="kp-page__services-add-row">
-                  <td colSpan={5} className="kp-page__services-add-cell">
-                    <button
-                      type="button"
-                      className="kp-page__services-add kp-page__services-add--secondary"
-                      onClick={openPriceForMaterialSelection}
-                    >
-                      Выбрать материал из прайса
-                    </button>
-                  </td>
-                </tr>
-                <tr className="kp-page__services-add-row">
-                  <td colSpan={5} className="kp-page__services-add-cell">
-                    <button
-                      type="button"
-                      className="kp-page__services-add"
-                      onClick={addMaterialRow}
-                    >
-                      Добавить строку
-                    </button>
-                  </td>
-                </tr>
-              </>
-            }
-          >
-            {materialRows.map((row) => {
-              const rowKey = `mat-${row.id}`;
-              const removeRowButton = (
-                <button
-                  type="button"
-                  className="kp-page__service-row-remove"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    removeMaterialRow(row.id);
-                  }}
-                  aria-label="Удалить строку"
-                >
-                  ×
-                </button>
-              );
-              const nameTextarea = (
-                <textarea
-                  className="kp-page__services-input kp-page__services-textarea"
-                  value={row.name}
-                  onChange={(e) => {
-                    updateMaterialRow(row.id, "name")(e);
-                    syncTextareaHeight(e.target);
-                  }}
-                  onInput={autoResizeNameField}
-                  aria-label="Название материала"
-                  rows={1}
-                />
-              );
-              const nameCell = isKpNarrow ? (
-                <div className="kp-page__service-name-cell">{nameTextarea}</div>
-              ) : (
-                <div className="kp-page__service-name-cell">
-                  {removeRowButton}
-                  {nameTextarea}
-                </div>
-              );
-              const priceInput = (
-                <input
-                  type="text"
-                  className="kp-page__services-input"
-                  value={row.price}
-                  placeholder={KP_DECIMAL_PLACEHOLDER}
-                  onChange={updateMaterialRow(row.id, "price")}
-                  aria-label={`Цена, ${row.name || "материал"}`}
-                />
-              );
-              const quantityInput = (
-                <input
-                  type="text"
-                  className="kp-page__services-input"
-                  value={row.quantity}
-                  placeholder={KP_DECIMAL_PLACEHOLDER}
-                  onChange={updateMaterialRow(row.id, "quantity")}
-                  aria-label={`Количество, ${row.name || "материал"}`}
-                />
-              );
-              const unitInput = (
-                <input
-                  type="text"
-                  className="kp-page__services-input"
-                  value={row.unit}
-                  onChange={updateMaterialRow(row.id, "unit")}
-                  aria-label={`Единица измерения, ${row.name || "материал"}`}
-                />
-              );
-              const sumInput = (
-                <input
-                  type="text"
-                  readOnly
-                  className="kp-page__services-input kp-page__services-input--computed"
-                  value={serviceRowSum(row.price, row.quantity)}
-                  aria-label={`Сумма, ${row.name || "материал"} (цена × количество)`}
-                />
-              );
-              const detailFields = [
-                { id: "name", label: "Название", children: nameCell },
-                { id: "price", label: "Цена", children: priceInput },
-                { id: "quantity", label: "Количество", children: quantityInput },
-                { id: "unit", label: "Ед. изм.", children: unitInput },
-                { id: "sum", label: "Сумма", children: sumInput },
-              ];
-              const rowCells = isKpNarrow ? (
-                <>
-                  <td>
-                    <div className="kp-page__service-name-cell kp-narrow-row-summary-cell">
-                      {removeRowButton}
-                      <span className="kp-narrow-row-summary-name">
-                        {row.name?.trim() ? row.name : "—"}
-                      </span>
-                    </div>
-                  </td>
-                  <td />
-                  <td />
-                  <td />
-                  <td className="kp-narrow-row-summary-sum">
-                    {serviceRowSum(row.price, row.quantity)}
-                  </td>
-                </>
-              ) : (
-                <>
-                  <td>{nameCell}</td>
-                  <td>{priceInput}</td>
-                  <td>{quantityInput}</td>
-                  <td>{unitInput}</td>
-                  <td>{sumInput}</td>
-                </>
-              );
-              if (isKpNarrow) {
-                return (
-                  <KpNarrowExpandableRow
-                    key={row.id}
-                    rowKey={rowKey}
-                    expandedKey={expandedKey}
-                    onToggleRow={toggleRow}
-                    narrow
-                    colSpan={5}
-                    detailFields={detailFields}
-                  >
-                    {rowCells}
-                  </KpNarrowExpandableRow>
-                );
-              }
-              return <tr key={row.id}>{rowCells}</tr>;
-            })}
-          </KpCollapsibleExtraTable>
-
           <KpCollapsibleExtraTable
             tableId="kp-table-services"
             ariaLabel="Дополнительные услуги"
@@ -1886,9 +1962,7 @@ const KpPage = () => {
               additionalServicesGrandTotalRub={additionalServicesGrandTotalRubForKp(
                 serviceRows,
               )}
-              additionalMaterialsGrandTotalRub={additionalMaterialsGrandTotalRubForKp(
-                materialRows,
-              )}
+              additionalMaterialsGrandTotalRub={additionalMaterialsTotalRub}
               wrapClassName="kp-page__construction-grand-total"
             />
           )}

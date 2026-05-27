@@ -158,7 +158,7 @@ export function mapOfferResponseToKpView(offer, { titleByCode = new Map() } = {}
     materialsByConstruction,
     montageByKeyId,
     serviceRows: mapServicesToRows(offer.services),
-    materialRows: mapAdditionalMaterialsToRows(offer.additional_materials),
+    materialRowsByKeyId: mapAdditionalMaterialsToRows(offer.additional_materials),
     kpSettings: mapKpSettingsFromApi(offer.kp_settings),
   };
 }
@@ -231,9 +231,19 @@ export function buildDraftSyncFromCalculator({
   if (kpSnapshot?.serviceRows) {
     payload.services = kpSnapshot.serviceRows.map(mapServiceRowToApi).filter(Boolean);
   }
-  if (kpSnapshot?.materialRows) {
+  if (kpSnapshot?.materialRowsByKeyId) {
+    const flat = [];
+    for (const [keyId, rows] of Object.entries(kpSnapshot.materialRowsByKeyId)) {
+      if (!Array.isArray(rows)) continue;
+      for (const row of rows) {
+        const mapped = mapMaterialRowToApi(row, keyId);
+        if (mapped) flat.push(mapped);
+      }
+    }
+    payload.additional_materials = flat;
+  } else if (kpSnapshot?.materialRows) {
     payload.additional_materials = kpSnapshot.materialRows
-      .map(mapMaterialRowToApi)
+      .map((r) => mapMaterialRowToApi(r))
       .filter(Boolean);
   }
   if (snapshotKpSettings) {
@@ -256,7 +266,9 @@ export function buildUpdateOfferPayload({
   materialsByConstruction,    // [{ key_id, data }]
   montageByKeyId,             // { key_id: { price, quantity, unit } }
   serviceRows,                // [{ id, preset, name, price, quantity, unit }]
-  materialRows,               // [{ id, name, price, quantity, unit }] — доп. материалы
+  materialRowsByKeyId,        // { [key_id]: [{ id, name, price, quantity, unit }] } — доп. материалы по конструкциям
+  /** @deprecated Используй materialRowsByKeyId. */
+  materialRows,               // [{ id, name, price, quantity, unit }] — доп. материалы (устаревшее, плоский список)
   kpSettings = null,          // { floor, ceiling, cladding, partition } | null
   originalConstructionsFromOffer, // Offer.constructions из getOffer — чтобы достать calc_params
   /** Параллельный массив calc_params (калькулятор / kpSnapshot.constrToCalcToSent). */
@@ -292,12 +304,25 @@ export function buildUpdateOfferPayload({
     };
   });
 
+  // Разворачиваем materialRowsByKeyId в плоский массив с construction_key_id.
+  let additionalMaterialsFlat = [];
+  if (materialRowsByKeyId && typeof materialRowsByKeyId === "object") {
+    for (const [keyId, rows] of Object.entries(materialRowsByKeyId)) {
+      if (!Array.isArray(rows)) continue;
+      for (const row of rows) {
+        const mapped = mapMaterialRowToApi(row, keyId);
+        if (mapped) additionalMaterialsFlat.push(mapped);
+      }
+    }
+  } else if (Array.isArray(materialRows)) {
+    // Обратная совместимость: плоский список без привязки к конструкции.
+    additionalMaterialsFlat = materialRows.map((r) => mapMaterialRowToApi(r)).filter(Boolean);
+  }
+
   return {
     form: form ? mapFormToApi(form) : undefined,
     services: (serviceRows || []).map(mapServiceRowToApi).filter(Boolean),
-    additional_materials: (materialRows || [])
-      .map(mapMaterialRowToApi)
-      .filter(Boolean),
+    additional_materials: additionalMaterialsFlat,
     kp_settings: kpSettings ? normalizeKpSettings(kpSettings) : null,
     constructions: constructionsPayload,
   };
@@ -419,10 +444,12 @@ function mapServiceRowToApi(row) {
 }
 
 /**
- * UI-строка доп. материала → API-формат (одинаковый с Service).
+ * UI-строка доп. материала → API-формат.
  * Пустые строки (без имени, цены и количества) не сохраняем.
+ * @param {object} row
+ * @param {string} [constructionKeyId] — key_id конструкции для привязки.
  */
-function mapMaterialRowToApi(row) {
+function mapMaterialRowToApi(row, constructionKeyId) {
   if (!row) return null;
   const price = parseNumber(row.price);
   const count = parseNumber(row.quantity);
@@ -434,28 +461,36 @@ function mapMaterialRowToApi(row) {
     count,
     unit: row.unit || "",
     ...(article ? { source_article: article } : {}),
+    ...(constructionKeyId ? { construction_key_id: constructionKeyId } : {}),
   };
 }
 
 /**
- * additional_materials из ответа API → строки для KpPage.materialRows.
- * Если список пуст — возвращаем одну пустую строку для удобства добавления.
+ * additional_materials из ответа API → materialRowsByKeyId: { [key_id]: rows[] }.
+ * Каждый элемент массива может содержать construction_key_id для привязки к конструкции.
+ * Элементы без construction_key_id игнорируются (legacy или сброшенные).
  */
 function mapAdditionalMaterialsToRows(additionalMaterials) {
   const arr = Array.isArray(additionalMaterials) ? additionalMaterials : [];
-  if (arr.length === 0) return [];
-  return arr.map((m, i) => ({
-    id:
-      m.id ||
-      (typeof crypto !== "undefined" && crypto.randomUUID
-        ? crypto.randomUUID()
-        : `mat-${i}-${Date.now()}`),
-    name: m.name || "",
-    price: m.price !== undefined && m.price !== null ? String(m.price) : "",
-    quantity: m.count !== undefined && m.count !== null ? String(m.count) : "",
-    unit: m.unit || "",
-    sourceArticle: m.source_article ? String(m.source_article) : "",
-  }));
+  const result = {};
+  arr.forEach((m, i) => {
+    const keyId = m.construction_key_id;
+    if (!keyId) return;
+    if (!result[keyId]) result[keyId] = [];
+    result[keyId].push({
+      id:
+        m.id ||
+        (typeof crypto !== "undefined" && crypto.randomUUID
+          ? crypto.randomUUID()
+          : `mat-${i}-${Date.now()}`),
+      name: m.name || "",
+      price: m.price !== undefined && m.price !== null ? String(m.price) : "",
+      quantity: m.count !== undefined && m.count !== null ? String(m.count) : "",
+      unit: m.unit || "",
+      sourceArticle: m.source_article ? String(m.source_article) : "",
+    });
+  });
+  return result;
 }
 
 function mapServicesToRows(services) {

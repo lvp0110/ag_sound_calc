@@ -233,8 +233,6 @@ textarea.kp-page__input {
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
-  border-radius: 12px;
-  border: 2px solid #cfe0e8;
   background: #ffffff;
   box-shadow:
     0 4px 18px rgba(26, 42, 58, 0.08),
@@ -245,6 +243,8 @@ textarea.kp-page__input {
 
 .kp-page .kp-table-card .data {
   border: none;
+  border-left: 1px solid var(--table-border);
+  border-right: 1px solid var(--table-border);
   background: transparent;
 }
 
@@ -313,6 +313,24 @@ textarea.kp-page__input {
   font-weight: 700;
 }
 
+.kp-page
+  .kp-table-card
+  .data:not(.kp-data-table--starts-with-column-headers)
+  thead:first-of-type
+  tr:first-child
+  th:first-child {
+  border-top-left-radius: 12px;
+}
+
+.kp-page
+  .kp-table-card
+  .data:not(.kp-data-table--starts-with-column-headers)
+  thead:first-of-type
+  tr:first-child
+  th:last-child {
+  border-top-right-radius: 12px;
+}
+
 /* «Итого» под карточкой: как заголовок сворачиваемого раздела (.kp-section-collapsible-toggle) */
 .kp-page .kp-table-card .kp-card-sections-total-table tbody td.kp-card-sections-total__cell {
   padding: 14px 12px 12px;
@@ -320,7 +338,6 @@ textarea.kp-page__input {
   vertical-align: middle;
   background: #dde9ef;
   border-top: 1px solid var(--table-border);
-  border-bottom: 1px solid var(--table-border);
 }
 
 .kp-page .kp-table-card .kp-card-sections-total-table tbody tr:hover {
@@ -632,6 +649,17 @@ textarea.kp-page__input {
 
 }
 
+.kp-page__services-add-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.kp-page__services-add-actions .kp-page__services-add {
+  margin: 0;
+}
+
 .kp-page__services-add {
   margin: 0 auto;
   font-family: inherit;
@@ -720,7 +748,6 @@ textarea.kp-page__input {
   color: var(--kp-card-section-heading-color);
   background: #dde9ef;
   border: none;
-  border-bottom: 1px solid var(--table-border);
   border-radius: 0;
   box-shadow: none;
   cursor: pointer;
