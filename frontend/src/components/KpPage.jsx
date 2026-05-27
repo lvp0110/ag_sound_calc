@@ -12,6 +12,7 @@ import ConstructionList, {
 } from "./tables/ConstructionList";
 import {
   computeGrandTotalRubForConstructions,
+  formatKpComputedSum,
   formatRub,
   montageLineProductRub,
   parseKpDecimal,
@@ -23,6 +24,7 @@ import {
   uploadLogo,
 } from "../services/offersApi";
 import {
+  buildCalculatorSyncFromKp,
   buildUpdateOfferPayload,
   enrichConstructionsWithTitles,
   mapOfferResponseToKpView,
@@ -78,13 +80,6 @@ function isKpContactFormComplete(form) {
   ].every((v) => String(v ?? "").trim() !== "");
 }
 
-function formatServiceSum(product) {
-  return new Intl.NumberFormat("ru-RU", {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  }).format(product);
-}
-
 const KP_DECIMAL_PLACEHOLDER = "0,00";
 
 const KP_AUTO_RESIZE_TEXTAREA_SELECTOR =
@@ -99,8 +94,8 @@ function syncTextareaHeight(field) {
 function serviceRowSum(priceStr, qtyStr) {
   const p = parseKpDecimal(priceStr);
   const q = parseKpDecimal(qtyStr);
-  if (p === null || q === null) return KP_DECIMAL_PLACEHOLDER;
-  return formatServiceSum(p * q);
+  if (p === null || q === null) return formatKpComputedSum(null);
+  return formatKpComputedSum(p * q);
 }
 
 /** Сумма монтажа по КП: отдельные цена×кол-во в каждой карточке (key_id). */
@@ -323,7 +318,6 @@ const KpPage = () => {
     stashKpSnapshot,
     markDraftSaved,
     markDraftDirty,
-    requestExitToList,
     isOfferPdfExportBlocked,
     setSelectedPriceArticles,
   } = useOfferEditSession();
@@ -423,15 +417,35 @@ const KpPage = () => {
         setForm(snap?.form ?? view.form);
         // Сессия калькулятора/КП живёт в kpSnapshot — иначе после удаления
         // в калькуляторе GET снова подставляет старый состав до PATCH.
-        setCalcTables(
-          snap?.calcTables
-            ? snap.calcTables
-            : {
-                tableConstrToCalc: view.constructions.length > 0 ? {} : null,
-                ConstrToCalc: view.constructions,
-                materialsByConstruction: view.materialsByConstruction,
-              },
-        );
+        const rawCalcTables = snap?.calcTables
+          ? snap.calcTables
+          : {
+              tableConstrToCalc: view.constructions.length > 0 ? {} : null,
+              ConstrToCalc: view.constructions,
+              materialsByConstruction: view.materialsByConstruction,
+            };
+        const nextCalcTables =
+          rawCalcTables.ConstrToCalc?.length > 0
+            ? {
+                ...rawCalcTables,
+                tableConstrToCalc: rawCalcTables.tableConstrToCalc ?? {},
+              }
+            : rawCalcTables;
+        const constrToCalcToSent =
+          snap?.constrToCalcToSent ??
+          (offer.constructions || [])
+            .map((c) => c.calc_params)
+            .filter(Boolean);
+
+        setCalcTables(nextCalcTables);
+        useCalculatorStore
+          .getState()
+          .loadKpEditState(
+            buildCalculatorSyncFromKp({
+              calcTables: nextCalcTables,
+              constrToCalcToSent,
+            }),
+          );
         setMontageByKeyId(snap?.montageByKeyId ?? view.montageByKeyId);
         setServiceRows(
           snap?.serviceRows ??
@@ -885,10 +899,17 @@ const KpPage = () => {
     const constrToCalcToSent = (calcTables.ConstrToCalc || [])
       .map((ui) => calcParamsById.get(ui.key_id))
       .filter(Boolean);
+    const tablesForSnapshot =
+      calcTables.ConstrToCalc?.length > 0
+        ? {
+            ...calcTables,
+            tableConstrToCalc: calcTables.tableConstrToCalc ?? {},
+          }
+        : calcTables;
 
     stashKpSnapshot({
       form,
-      calcTables,
+      calcTables: tablesForSnapshot,
       constrToCalcToSent,
       montageByKeyId,
       serviceRows,
@@ -910,12 +931,12 @@ const KpPage = () => {
   const handleExit = useCallback(() => {
     if (!id) return;
     stashAndLeaveKp();
-    requestExitToList();
+    useOfferEditSessionStore.getState().leaveToOfferList();
     navigate("/kp/list", {
       replace: true,
       state: { kpExit: true },
     });
-  }, [id, stashAndLeaveKp, requestExitToList, navigate]);
+  }, [id, stashAndLeaveKp, navigate]);
 
   const openPriceForMaterialSelection = () => {
     const articles = materialRows
@@ -928,6 +949,17 @@ const KpPage = () => {
 
   const openCalculatorForConstructions = () => {
     stashAndLeaveKp();
+    const snap = useOfferEditSessionStore.getState().kpSnapshot;
+    if (snap?.calcTables) {
+      useCalculatorStore
+        .getState()
+        .loadKpEditState(
+          buildCalculatorSyncFromKp({
+            calcTables: snap.calcTables,
+            constrToCalcToSent: snap.constrToCalcToSent,
+          }),
+        );
+    }
     navigate("/calc");
   };
 

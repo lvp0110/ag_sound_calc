@@ -179,6 +179,18 @@ export function mapOfferToCalculatorState(offer, options) {
   };
 }
 
+/** Синхронизация zustand-калькулятора из calcTables КП (loadKpEditState). */
+export function buildCalculatorSyncFromKp({ calcTables, constrToCalcToSent }) {
+  const constrToCalc = calcTables?.ConstrToCalc ?? [];
+  const hasConstr = constrToCalc.length > 0;
+  return {
+    constrToCalc,
+    constrToCalcToSent: constrToCalcToSent ?? [],
+    materialsByConstruction: calcTables?.materialsByConstruction ?? [],
+    tableConstrToCalc: hasConstr ? (calcTables?.tableConstrToCalc ?? {}) : null,
+  };
+}
+
 // ─── draft sync (калькулятор → черновик КП без финального «Сохранить») ───────
 
 /**

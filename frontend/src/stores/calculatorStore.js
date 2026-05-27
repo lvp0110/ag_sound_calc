@@ -47,8 +47,37 @@ export const useCalculatorStore = create(
           [key]: typeof v === "function" ? v(state[key]) : v,
         })),
 
-      /** Полный сброс состояния (например при «Сделать КП» если захотим очищать). */
+      /** Полный сброс состояния (например при выходе из КП в список). */
       reset: () => set(initialState),
+
+      /**
+       * Подстановка состава КП в калькулятор (режим редактирования).
+       * Если есть конструкции — таблица всегда открыта (tableConstrToCalc ≠ null).
+       */
+      loadKpEditState: ({
+        constrToCalc,
+        constrToCalcToSent,
+        materialsByConstruction,
+        tableConstrToCalc,
+      }) =>
+        set((state) => {
+          const ConstrToCalc = constrToCalc ?? [];
+          const hasConstr = ConstrToCalc.length > 0;
+          let table = tableConstrToCalc;
+          if (hasConstr && (table == null || table === undefined)) {
+            table = {};
+          }
+          if (!hasConstr) {
+            table = null;
+          }
+          return {
+            ...state,
+            ConstrToCalc,
+            ConstrToCalcToSent: constrToCalcToSent ?? [],
+            materialsByConstruction: materialsByConstruction ?? [],
+            tableConstrToCalc: table,
+          };
+        }),
     }),
     {
       name: "ag_calc_store_v1",

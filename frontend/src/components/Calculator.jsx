@@ -173,6 +173,12 @@ const Calculator = () => {
     }
   }, [openedSubCategories, itemsWithImages, getItemsForSection]);
 
+  // После «В калькулятор» снимок КП обновляется — перегидратируем калькулятор.
+  useEffect(() => {
+    if (!isEditingDraft) return;
+    hydratedOfferIdRef.current = null;
+  }, [kpSnapshot, activeOfferId, isEditingDraft]);
+
   // При редактировании КП подтягиваем конструкции из снимка КП или с сервера.
   useEffect(() => {
     if (!isEditingDraft || !activeOfferId) {
@@ -244,7 +250,11 @@ const Calculator = () => {
         setConstrToCalc(state.constrToCalc);
         setConstrToCalcToSent(state.constrToCalcToSent);
         setMaterialsByConstruction(state.materialsByConstruction);
-        setTableConstrToCalc(state.tableConstrToCalc);
+        setTableConstrToCalc(
+          state.constrToCalc?.length > 0
+            ? (state.tableConstrToCalc ?? {})
+            : null,
+        );
         hydratedOfferIdRef.current = activeOfferId;
       } catch {
         // пустой калькулятор — пользователь может добавить конструкции вручную

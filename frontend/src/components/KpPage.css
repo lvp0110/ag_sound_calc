@@ -666,6 +666,7 @@ textarea.kp-page__input {
   font-size: 14px;
   color: #1a1d21;
   border: none;
+  text-align: center;
 }
 
 .kp-page__services-textarea {
@@ -677,6 +678,7 @@ textarea.kp-page__input {
   line-height: 1.35;
   min-height: 30px;
   field-sizing: content;
+  text-align: left;
 }
 
 .kp-page__services-input::placeholder {

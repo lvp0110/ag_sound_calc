@@ -4,7 +4,8 @@ import { useCalculatorStore } from "./calculatorStore.js";
 
 /**
  * Сессия редактирования черновика КП (только для авторизованных).
- * isDraft + activeOfferId — открытая сессия КП (в т.ч. после «Выйти» в список).
+ * isDraft + activeOfferId — активное редактирование КП (страница /kp/:id, /calc, /price).
+ * После «Выйти» в список isDraft=false, kpSnapshot сохраняется для повторного открытия.
  * hasUnsavedChanges — несохранённые правки (бейдж в шапке, блок PDF).
  * Уход в список: кнопка «Выйти» (requestExitToList). «Сохранить» остаётся на КП.
  * Разрешена навигация на /calc и /price для добавления позиций.
@@ -32,15 +33,19 @@ export const useOfferEditSessionStore = create(
             return state;
           }
           const prevId = state.activeOfferId;
-          if (prevId != null && prevId !== offerId) {
+          const sameOffer =
+            prevId != null && String(prevId) === String(offerId);
+          if (prevId != null && !sameOffer) {
             useCalculatorStore.getState().reset();
           }
           return {
             activeOfferId: offerId,
             isDraft: true,
-            hasUnsavedChanges: true,
-            kpSnapshot: null,
-            selectedPriceArticles: [],
+            hasUnsavedChanges: sameOffer ? state.hasUnsavedChanges : true,
+            kpSnapshot: sameOffer ? state.kpSnapshot : null,
+            selectedPriceArticles: sameOffer
+              ? state.selectedPriceArticles
+              : [],
           };
         }),
 
@@ -84,6 +89,20 @@ export const useOfferEditSessionStore = create(
 
       /** Кнопка «Выйти» на KpPage — разрешить переход в список без PATCH. */
       requestExitToList: () => set({ allowExitToList: true }),
+
+      /**
+       * «Выйти» в список: сбросить калькулятор, завершить режим черновика.
+       * kpSnapshot и activeOfferId сохраняются — при повторном открытии КП подтянутся.
+       */
+      leaveToOfferList: () => {
+        useCalculatorStore.getState().reset();
+        set((state) => ({
+          ...state,
+          isDraft: false,
+          allowExitToList: true,
+          selectedPriceArticles: [],
+        }));
+      },
 
       consumeExitToList: () =>
         set((state) =>

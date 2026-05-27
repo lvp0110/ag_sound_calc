@@ -24,6 +24,9 @@ export const formatRub = (value) => {
   });
 };
 
+/** Read-only сумма на КП: при отсутствии расчёта — 0,00, не прочерк. */
+export const formatKpComputedSum = (value) => formatRub(value ?? 0);
+
 /** Те же правила, что ввод цены/количества на КП (пробелы, запятая). */
 export function parseKpDecimal(raw) {
   if (raw == null) return null;
@@ -50,6 +53,30 @@ export function effectiveMaterialPrices(material, pricePerM2, pricePerUnit) {
     effM2: kpM2 !== null ? kpM2 : pricePerM2,
     effUnit: kpUnit !== null ? kpUnit : pricePerUnit,
   };
+}
+
+/** Поле override цены на КП в зависимости от ед. изм. строки. */
+export function kpPriceFieldForMaterial(material) {
+  return isM2Units(material?.Units) ? "KpPricePerM2" : "KpPricePerUnit";
+}
+
+/** Цена из прайса для ед. изм. строки. */
+export function catalogPriceForMaterial(material, pricePerM2, pricePerUnit) {
+  return isM2Units(material?.Units) ? pricePerM2 : pricePerUnit;
+}
+
+/** Эффективная цена одной колонкой (Kp* или прайс). */
+export function effectiveSingleMaterialPrice(
+  material,
+  pricePerM2,
+  pricePerUnit
+) {
+  const { effM2, effUnit } = effectiveMaterialPrices(
+    material,
+    pricePerM2,
+    pricePerUnit
+  );
+  return isM2Units(material?.Units) ? (effM2 ?? effUnit) : effUnit;
 }
 
 const lineSumRub = (material, pricePerM2, pricePerUnit) => {
@@ -110,7 +137,7 @@ export function computeGrandTotalRubForConstructions(
  * @param {string} [tableId] — id таблицы (для экспорта; по умолчанию table2 для первой группы)
  * @param {string} [sectionTitle] — заголовок блока (по умолчанию «материалы»)
  * @param {boolean} [collapsible=false] — на КП: таблица свёрнута, раскрытие по клику на заголовок
- * @param {boolean} [editablePriceCells=false] — ячейки «цена ₽/м²» и «цена ₽/ед.» как поля ввода (блок общестроительных материалов)
+ * @param {boolean} [editablePriceCells=false] — одна колонка «цена» как поле ввода (блок общестроительных материалов)
  * @param {(rowIndex: number, field: 'KpPricePerM2'|'KpPricePerUnit', value: string) => void} [onKpMaterialPriceChange]
  * @param {boolean} [compositionOnly=false] — только артикул, название, ед.изм и кол-во (без цен и сумм)
  */
@@ -152,13 +179,15 @@ const MaterialsList = ({
   const compositionNarrow = compositionOnly && calcCardsViewport;
   /** Калькулятор: на узком экране убираем колонки из DOM. КП (collapsible): все колонки в DOM, скрытие через CSS. */
   const legacyNarrow = !collapsible && !compositionOnly && isNarrowScreen;
+  const singlePriceColumn = editablePriceCells;
+  const fullPriceColCount = singlePriceColumn ? 7 : 8;
   const colSpan = compositionOnly
     ? compositionNarrow
       ? 3
       : 4
     : legacyNarrow
       ? 4
-      : 8;
+      : fullPriceColCount;
   const colInDom = compositionOnly || collapsible || !legacyNarrow;
   const showArticleCol = compositionOnly ? !compositionNarrow : colInDom;
   const hideOnKpNarrow = collapsible ? " kp-data-col--hide-narrow" : "";
@@ -238,12 +267,15 @@ const MaterialsList = ({
                 {colInDom && !compositionOnly && (
                   <th className={hideOnKpNarrow.trim() || undefined}>ед.изм</th>
                 )}
-                {colInDom && !compositionOnly && (
+                {colInDom && !compositionOnly && singlePriceColumn && (
+                  <th className={hideOnKpNarrow.trim() || undefined}>цена</th>
+                )}
+                {colInDom && !compositionOnly && !singlePriceColumn && (
                   <th className={hideOnKpNarrow.trim() || undefined}>
                     цена, ₽/м²
                   </th>
                 )}
-                {colInDom && !compositionOnly && (
+                {colInDom && !compositionOnly && !singlePriceColumn && (
                   <th className={hideOnKpNarrow.trim() || undefined}>
                     цена, ₽/ед.
                   </th>
@@ -270,6 +302,42 @@ const MaterialsList = ({
                     : Material.Name != null && String(Material.Name).trim() !== ""
                     ? String(Material.Name).trim()
                     : "—";
+                const kpPriceField = kpPriceFieldForMaterial(Material);
+                const catalogPrice = catalogPriceForMaterial(
+                  Material,
+                  pricePerM2,
+                  pricePerUnit
+                );
+                const kpPriceRaw = Material[kpPriceField];
+                const singlePriceDisplayRub = formatRub(
+                  effectiveSingleMaterialPrice(
+                    Material,
+                    pricePerM2,
+                    pricePerUnit
+                  )
+                );
+                const singlePriceEditInput = editablePriceCells ? (
+                  <input
+                    type="text"
+                    className="kp-page__services-input"
+                    value={
+                      kpPriceRaw != null && kpPriceRaw !== ""
+                        ? String(kpPriceRaw)
+                        : ""
+                    }
+                    onChange={(e) =>
+                      onKpMaterialPriceChange?.(
+                        index,
+                        kpPriceField,
+                        e.target.value
+                      )
+                    }
+                    placeholder={
+                      catalogPrice != null ? formatRub(catalogPrice) : formatRub(0)
+                    }
+                    aria-label={`Цена, ${materialName}`}
+                  />
+                ) : null;
                 const priceM2Input = editablePriceCells ? (
                   <input
                     type="text"
@@ -325,11 +393,11 @@ const MaterialsList = ({
                     type="text"
                     readOnly
                     className="kp-page__services-input kp-page__services-input--computed"
-                    value={formatRub(sumRub)}
+                    value={formatKpComputedSum(sumRub)}
                     aria-label={`Сумма, ${materialName}`}
                   />
                 ) : (
-                  formatRub(sumRub)
+                  formatKpComputedSum(sumRub)
                 );
                 const showInputsInRow = !kpNarrowDetail;
                 const detailFields = kpNarrowDetail
@@ -349,16 +417,26 @@ const MaterialsList = ({
                         label: "Кол-во",
                         children: convertUnits(Material),
                       },
-                      {
-                        id: "priceM2",
-                        label: "Цена, ₽/м²",
-                        children: priceM2Input,
-                      },
-                      {
-                        id: "priceUnit",
-                        label: "Цена, ₽/ед.",
-                        children: priceUnitInput,
-                      },
+                      ...(singlePriceColumn
+                        ? [
+                            {
+                              id: "price",
+                              label: "Цена",
+                              children: singlePriceEditInput ?? singlePriceDisplayRub,
+                            },
+                          ]
+                        : [
+                            {
+                              id: "priceM2",
+                              label: "Цена, ₽/м²",
+                              children: priceM2Input,
+                            },
+                            {
+                              id: "priceUnit",
+                              label: "Цена, ₽/ед.",
+                              children: priceUnitInput,
+                            },
+                          ]),
                       {
                         id: "sum",
                         label: "Сумма, ₽",
@@ -410,14 +488,21 @@ const MaterialsList = ({
                         {Material.Units}
                       </td>
                     )}
-                    {colInDom && (
+                    {colInDom && singlePriceColumn && (
+                      <td className={hideOnKpNarrow.trim() || undefined}>
+                        {showInputsInRow && singlePriceEditInput
+                          ? singlePriceEditInput
+                          : singlePriceDisplayRub}
+                      </td>
+                    )}
+                    {colInDom && !singlePriceColumn && (
                       <td className={hideOnKpNarrow.trim() || undefined}>
                         {showInputsInRow && editablePriceCells
                           ? priceM2Input
                           : formatRub(pricePerM2)}
                       </td>
                     )}
-                    {colInDom && (
+                    {colInDom && !singlePriceColumn && (
                       <td className={hideOnKpNarrow.trim() || undefined}>
                         {showInputsInRow && editablePriceCells
                           ? priceUnitInput
@@ -432,7 +517,7 @@ const MaterialsList = ({
                       >
                         {showInputsInRow && editablePriceCells
                           ? sumDisplay
-                          : formatRub(sumRub)}
+                          : formatKpComputedSum(sumRub)}
                       </td>
                     )}
                   </>
@@ -445,7 +530,7 @@ const MaterialsList = ({
                       expandedKey={expandedKey}
                       onToggleRow={toggleRow}
                       narrow
-                      colSpan={8}
+                      colSpan={fullPriceColCount}
                       detailFields={detailFields}
                     >
                       {rowCells}
