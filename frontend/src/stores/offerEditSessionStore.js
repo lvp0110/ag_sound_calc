@@ -16,6 +16,8 @@ const initialState = {
   hasUnsavedChanges: false,
   /** Снимок KpPage при уходе в калькулятор/прайс/список без сохранения. */
   kpSnapshot: null,
+  /** Снимки по офферам: { [offerId]: kpSnapshot } */
+  kpSnapshotsByOfferId: {},
   /**
    * Артикулы, выбранные в прайсе, разбитые по key_id конструкции.
    * Структура: { [key_id]: string[] }
@@ -48,7 +50,9 @@ export const useOfferEditSessionStore = create(
             activeOfferId: offerId,
             isDraft: true,
             hasUnsavedChanges: sameOffer ? state.hasUnsavedChanges : true,
-            kpSnapshot: sameOffer ? state.kpSnapshot : null,
+            kpSnapshot: sameOffer
+              ? state.kpSnapshot
+              : state.kpSnapshotsByOfferId[String(offerId)] ?? null,
             selectedPriceArticlesByKeyId: sameOffer
               ? state.selectedPriceArticlesByKeyId
               : {},
@@ -56,12 +60,26 @@ export const useOfferEditSessionStore = create(
           };
         }),
 
-      clearKpSnapshot: () => set({ kpSnapshot: null }),
+      clearKpSnapshot: () =>
+        set((state) => {
+          const activeKey = state.activeOfferId != null ? String(state.activeOfferId) : null;
+          if (!activeKey) return { kpSnapshot: null };
+          const nextMap = { ...state.kpSnapshotsByOfferId };
+          delete nextMap[activeKey];
+          return { kpSnapshot: null, kpSnapshotsByOfferId: nextMap };
+        }),
 
       stashKpSnapshot: (snapshot) =>
         set((state) => ({
           ...state,
           kpSnapshot: snapshot,
+          kpSnapshotsByOfferId:
+            state.activeOfferId != null
+              ? {
+                  ...state.kpSnapshotsByOfferId,
+                  [String(state.activeOfferId)]: snapshot,
+                }
+              : state.kpSnapshotsByOfferId,
         })),
 
       /** Установить активную конструкцию для выбора в прайсе. */
@@ -148,24 +166,44 @@ export const useOfferEditSessionStore = create(
         set((state) => {
           const prev = state.kpSnapshot ?? {};
           const prevByKeyId = prev.materialRowsByKeyId ?? {};
-          return {
-            kpSnapshot: {
-              ...prev,
-              materialRowsByKeyId: {
-                ...prevByKeyId,
-                [keyId]: rows,
-              },
+          const nextSnapshot = {
+            ...prev,
+            materialRowsByKeyId: {
+              ...prevByKeyId,
+              [keyId]: rows,
             },
+          };
+          const activeKey = state.activeOfferId != null ? String(state.activeOfferId) : null;
+          return {
+            kpSnapshot: nextSnapshot,
+            kpSnapshotsByOfferId:
+              activeKey != null
+                ? {
+                    ...state.kpSnapshotsByOfferId,
+                    [activeKey]: nextSnapshot,
+                  }
+                : state.kpSnapshotsByOfferId,
           };
         }),
 
       /** Обратная совместимость — обновить materialRows как единый список (не используется в новом коде). */
       updateKpSnapshotMaterialRows: (materialRows) =>
-        set((state) => ({
-          kpSnapshot: state.kpSnapshot
+        set((state) => {
+          const nextSnapshot = state.kpSnapshot
             ? { ...state.kpSnapshot, materialRows }
-            : { materialRows },
-        })),
+            : { materialRows };
+          const activeKey = state.activeOfferId != null ? String(state.activeOfferId) : null;
+          return {
+            kpSnapshot: nextSnapshot,
+            kpSnapshotsByOfferId:
+              activeKey != null
+                ? {
+                    ...state.kpSnapshotsByOfferId,
+                    [activeKey]: nextSnapshot,
+                  }
+                : state.kpSnapshotsByOfferId,
+          };
+        }),
 
       clearSession: () => set(initialState),
 
@@ -227,6 +265,7 @@ export const useOfferEditSessionStore = create(
         isDraft: state.isDraft,
         hasUnsavedChanges: state.hasUnsavedChanges,
         kpSnapshot: state.kpSnapshot,
+        kpSnapshotsByOfferId: state.kpSnapshotsByOfferId,
         selectedPriceArticlesByKeyId: state.selectedPriceArticlesByKeyId,
         activeConstructionId: state.activeConstructionId,
       }),

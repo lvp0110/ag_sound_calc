@@ -398,6 +398,8 @@ const KpPage = () => {
   const originalConstructionsRef = useRef([]); // сырой Offer.constructions с calc_params — для PATCH
   /** Не помечать dirty при первой подстановке данных после загрузки / сохранения. */
   const ignoreDirtyTrackingRef = useRef(true);
+  /** Снимок черновика из sessionStore применяем на страницу только один раз на загрузку :id. */
+  const didApplyDraftSnapshotRef = useRef(false);
 
   // Загрузка оффера по :id. Каталог AllIsolationConstr — отдельно (может быть 25–35s).
   useEffect(() => {
@@ -426,6 +428,7 @@ const KpPage = () => {
         originalConstructionsRef.current = offer.constructions || [];
 
         const snap = kpSnapshot && activeOfferId === id ? kpSnapshot : null;
+        didApplyDraftSnapshotRef.current = Boolean(snap);
 
         setForm(snap?.form ?? view.form);
         // Сессия калькулятора/КП живёт в kpSnapshot — иначе после удаления
@@ -526,7 +529,6 @@ const KpPage = () => {
     id,
     isAuthed,
     authStatus,
-    kpSnapshot,
     activeOfferId,
     setSelectedArticlesForConstruction,
   ]);
@@ -561,7 +563,39 @@ const KpPage = () => {
 
   useEffect(() => {
     ignoreDirtyTrackingRef.current = true;
+    didApplyDraftSnapshotRef.current = false;
   }, [id]);
+
+  // Когда открываем КП из списка после «Выйти», persisted zustand может догрузиться
+  // чуть позже первого GET /offers/:id. Подхватываем snapshot один раз после load.
+  useEffect(() => {
+    if (loadStatus !== "loaded" || !id || didApplyDraftSnapshotRef.current) return;
+    const liveState = useOfferEditSessionStore.getState();
+    if (String(liveState.activeOfferId ?? "") !== String(id)) return;
+    const snap = liveState.kpSnapshot;
+    if (!snap) return;
+
+    const nextCalcTables = snap.calcTables
+      ? snap.calcTables.ConstrToCalc?.length > 0
+        ? {
+            ...snap.calcTables,
+            tableConstrToCalc: snap.calcTables.tableConstrToCalc ?? {},
+          }
+        : snap.calcTables
+      : null;
+
+    if (snap.form) setForm(snap.form);
+    if (nextCalcTables) setCalcTables(nextCalcTables);
+    if (snap.montageByKeyId) setMontageByKeyId(snap.montageByKeyId);
+    if (snap.serviceRows) setServiceRows(snap.serviceRows);
+    if (snap.materialRowsByKeyId) setMaterialRowsByKeyId(snap.materialRowsByKeyId);
+    if (snap.kpSettings) setKpSettings(snap.kpSettings);
+    if (snap.manualMontagePriceByKeyId) {
+      setManualMontagePriceByKeyId(snap.manualMontagePriceByKeyId);
+    }
+
+    didApplyDraftSnapshotRef.current = true;
+  }, [id, loadStatus, activeOfferId, kpSnapshot]);
 
   // Черновик включаем до отрисовки, чтобы PDF не мигал доступным до startDraft.
   useLayoutEffect(() => {
@@ -834,16 +868,23 @@ const KpPage = () => {
     setServiceRows((rows) => rows.filter((r) => r.preset || r.id !== id));
   };
 
-  const updateMaterialRow = useCallback((key_id, rowId, field) => (e) => {
-    const value = e.target.value;
-    setMaterialRowsByKeyId((prev) => {
-      const rows = prev[key_id] ?? [];
-      return {
-        ...prev,
-        [key_id]: rows.map((r) => (r.id === rowId ? { ...r, [field]: value } : r)),
-      };
-    });
-  }, []);
+  const updateMaterialRow = useCallback(
+    (key_id, rowId, field) => (e) => {
+      const value = e.target.value;
+      setMaterialRowsByKeyId((prev) => {
+        const rows = prev[key_id] ?? [];
+        const nextRows = rows.map((r) =>
+          r.id === rowId ? { ...r, [field]: value } : r,
+        );
+        updateKpSnapshotMaterialRowsForConstruction(key_id, nextRows);
+        return {
+          ...prev,
+          [key_id]: nextRows,
+        };
+      });
+    },
+    [updateKpSnapshotMaterialRowsForConstruction],
+  );
 
   const autoResizeNameField = (e) => {
     syncTextareaHeight(e.target);
@@ -893,24 +934,36 @@ const KpPage = () => {
     form.officeAddress,
   ]);
 
-  const addMaterialRow = useCallback((key_id) => {
-    setMaterialRowsByKeyId((prev) => ({
-      ...prev,
-      [key_id]: [...(prev[key_id] ?? []), newCustomMaterialRow()],
-    }));
-  }, []);
+  const addMaterialRow = useCallback(
+    (key_id) => {
+      setMaterialRowsByKeyId((prev) => {
+        const nextRows = [...(prev[key_id] ?? []), newCustomMaterialRow()];
+        updateKpSnapshotMaterialRowsForConstruction(key_id, nextRows);
+        return {
+          ...prev,
+          [key_id]: nextRows,
+        };
+      });
+    },
+    [updateKpSnapshotMaterialRowsForConstruction],
+  );
 
-  const removeMaterialRow = useCallback((key_id, rowId) => {
-    setMaterialRowsByKeyId((prev) => {
-      const rows = (prev[key_id] ?? []).filter((r) => r.id !== rowId);
-      if (rows.length === 0) {
-        const next = { ...prev };
-        delete next[key_id];
-        return next;
-      }
-      return { ...prev, [key_id]: rows };
-    });
-  }, []);
+  const removeMaterialRow = useCallback(
+    (key_id, rowId) => {
+      setMaterialRowsByKeyId((prev) => {
+        const rows = (prev[key_id] ?? []).filter((r) => r.id !== rowId);
+        if (rows.length === 0) {
+          const next = { ...prev };
+          delete next[key_id];
+          updateKpSnapshotMaterialRowsForConstruction(key_id, []);
+          return next;
+        }
+        updateKpSnapshotMaterialRowsForConstruction(key_id, rows);
+        return { ...prev, [key_id]: rows };
+      });
+    },
+    [updateKpSnapshotMaterialRowsForConstruction],
+  );
 
   const onKpSettingChange = (key) => (e) => {
     setKpSettings((prev) => ({ ...prev, [key]: e.target.value }));

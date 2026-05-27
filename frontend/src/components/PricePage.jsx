@@ -180,10 +180,12 @@ const PricePage = () => {
     const article = String(row.article ?? "").trim();
     if (!article) return;
 
-    const wasSelected = selectedSet.has(article);
-    togglePriceArticle(article);
-
     const baseRows = kpSnapshot?.materialRowsByKeyId?.[activeConstructionId] ?? [];
+    const hasRowInKp = baseRows.some(
+      (r) => String(r.sourceArticle ?? "").trim() === article
+    );
+    const wasSelected = selectedSet.has(article) || hasRowInKp;
+    togglePriceArticle(article);
 
     let nextRows;
     if (wasSelected) {
@@ -194,7 +196,12 @@ const PricePage = () => {
       const withoutEmpty = baseRows.filter(
         (r) => r.name?.trim() || r.price?.trim() || r.quantity?.trim()
       );
-      nextRows = [...withoutEmpty, newMaterialRowFromPrice(row, selectedRegion)];
+      const existingRow = withoutEmpty.find(
+        (r) => String(r.sourceArticle ?? "").trim() === article
+      );
+      nextRows = existingRow
+        ? withoutEmpty
+        : [...withoutEmpty, newMaterialRowFromPrice(row, selectedRegion)];
     }
 
     updateKpSnapshotMaterialRowsForConstruction(activeConstructionId, nextRows);
