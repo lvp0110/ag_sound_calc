@@ -46,13 +46,16 @@ export const useOfferEditSessionStore = create(
           if (prevId != null && !sameOffer) {
             useCalculatorStore.getState().reset();
           }
+          const snapshotForOffer = sameOffer
+            ? state.kpSnapshot
+            : state.kpSnapshotsByOfferId[String(offerId)] ?? null;
           return {
             activeOfferId: offerId,
             isDraft: true,
-            hasUnsavedChanges: sameOffer ? state.hasUnsavedChanges : true,
-            kpSnapshot: sameOffer
-              ? state.kpSnapshot
-              : state.kpSnapshotsByOfferId[String(offerId)] ?? null,
+            hasUnsavedChanges: sameOffer
+              ? state.hasUnsavedChanges
+              : Boolean(snapshotForOffer),
+            kpSnapshot: snapshotForOffer,
             selectedPriceArticlesByKeyId: sameOffer
               ? state.selectedPriceArticlesByKeyId
               : {},
@@ -226,6 +229,7 @@ export const useOfferEditSessionStore = create(
         set((state) => ({
           ...state,
           isDraft: false,
+          hasUnsavedChanges: false,
           allowExitToList: true,
           selectedPriceArticlesByKeyId: {},
           activeConstructionId: null,

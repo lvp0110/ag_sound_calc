@@ -407,12 +407,22 @@ router.patch(
 
       let constructions: OfferConstruction[];
       if (parsed.constructions !== undefined) {
-        await tx.offerConstruction.deleteMany({ where: { offerId: offer.id } });
-        constructions = await Promise.all(
-          parsed.constructions.map((c, index) =>
-            tx.offerConstruction.create({
+        const existingConstructions = await tx.offerConstruction.findMany({
+          where: { offerId: offer.id },
+          orderBy: { position: "asc" },
+        });
+        const minLength = Math.min(
+          existingConstructions.length,
+          parsed.constructions.length
+        );
+
+        // Обновляем существующие строки «на месте», чтобы не менять id конструкции:
+        // additional_materials.construction_key_id продолжит ссылаться на корректный key_id.
+        const updatedExisting = await Promise.all(
+          parsed.constructions.slice(0, minLength).map((c, index) =>
+            tx.offerConstruction.update({
+              where: { id: existingConstructions[index].id },
               data: {
-                offerId: offer.id,
                 position: index,
                 calcParams: c.calc_params as unknown as Prisma.InputJsonValue,
                 materials: (c.materials ?? []) as unknown as Prisma.InputJsonValue,
@@ -420,6 +430,41 @@ router.patch(
               },
             })
           )
+        );
+
+        const createdExtra =
+          parsed.constructions.length > existingConstructions.length
+            ? await Promise.all(
+                parsed.constructions
+                  .slice(existingConstructions.length)
+                  .map((c, extraIndex) =>
+                    tx.offerConstruction.create({
+                      data: {
+                        offerId: offer.id,
+                        position: existingConstructions.length + extraIndex,
+                        calcParams: c.calc_params as unknown as Prisma.InputJsonValue,
+                        materials: (c.materials ?? []) as unknown as Prisma.InputJsonValue,
+                        montage: (c.montage ?? []) as unknown as Prisma.InputJsonValue,
+                      },
+                    })
+                  )
+              )
+            : [];
+
+        if (existingConstructions.length > parsed.constructions.length) {
+          await tx.offerConstruction.deleteMany({
+            where: {
+              id: {
+                in: existingConstructions
+                  .slice(parsed.constructions.length)
+                  .map((c) => c.id),
+              },
+            },
+          });
+        }
+
+        constructions = [...updatedExisting, ...createdExtra].sort(
+          (a, b) => a.position - b.position
         );
       } else {
         constructions = await tx.offerConstruction.findMany({

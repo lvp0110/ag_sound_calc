@@ -304,6 +304,22 @@ function kpSettingKeyByConstructionType(type) {
   return null;
 }
 
+function snapshotsAreEqual(left, right) {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
+function normalizeDateForDateInput(value) {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+  const dottedMatch = raw.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+  if (dottedMatch) {
+    const [, dd, mm, yyyy] = dottedMatch;
+    return `${yyyy}-${mm}-${dd}`;
+  }
+  return "";
+}
+
 const KpPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -313,9 +329,11 @@ const KpPage = () => {
   const {
     isEditingDraft,
     activeOfferId,
+    hasUnsavedChanges,
     kpSnapshot,
     startDraft,
     stashKpSnapshot,
+    clearKpSnapshot,
     markDraftSaved,
     markDraftDirty,
     isOfferPdfExportBlocked,
@@ -382,6 +400,10 @@ const KpPage = () => {
     () => Object.values(additionalMaterialsRubByKeyId).reduce((a, b) => a + b, 0),
     [additionalMaterialsRubByKeyId],
   );
+  const dateInputValue = useMemo(
+    () => normalizeDateForDateInput(form.date),
+    [form.date],
+  );
   const servicesTotalRub = useMemo(
     () => additionalServicesGrandTotalRubForKp(serviceRows),
     [serviceRows],
@@ -398,8 +420,42 @@ const KpPage = () => {
   const originalConstructionsRef = useRef([]); // сырой Offer.constructions с calc_params — для PATCH
   /** Не помечать dirty при первой подстановке данных после загрузки / сохранения. */
   const ignoreDirtyTrackingRef = useRef(true);
+  /** Базовый payload последнего сохранённого/загруженного состояния КП. */
+  const dirtyBaselinePayloadRef = useRef(null);
+  /** После загрузки/сохранения заново инициализируем baseline на ближайшем рендере. */
+  const shouldResetDirtyBaselineRef = useRef(true);
   /** Снимок черновика из sessionStore применяем на страницу только один раз на загрузку :id. */
   const didApplyDraftSnapshotRef = useRef(false);
+  const prevMaterialRowsByKeyIdRef = useRef({});
+
+  const buildCurrentUpdatePayload = useCallback(() => {
+    const calcState = useCalculatorStore.getState();
+    return buildUpdateOfferPayload({
+      form,
+      constructions: calcTables.ConstrToCalc,
+      materialsByConstruction: calcTables.materialsByConstruction,
+      montageByKeyId,
+      serviceRows,
+      materialRowsByKeyId,
+      kpSettings,
+      originalConstructionsFromOffer: originalConstructionsRef.current,
+      constrToCalcToSent: pickConstrToCalcToSentForSave({
+        constructions: calcTables.ConstrToCalc,
+        originalConstructionsFromOffer: originalConstructionsRef.current,
+        calculatorSent: calcState.ConstrToCalcToSent,
+        snapshotSent: kpSnapshot?.constrToCalcToSent,
+      }),
+    });
+  }, [
+    form,
+    calcTables.ConstrToCalc,
+    calcTables.materialsByConstruction,
+    montageByKeyId,
+    serviceRows,
+    materialRowsByKeyId,
+    kpSettings,
+    kpSnapshot?.constrToCalcToSent,
+  ]);
 
   // Загрузка оффера по :id. Каталог AllIsolationConstr — отдельно (может быть 25–35s).
   useEffect(() => {
@@ -428,18 +484,56 @@ const KpPage = () => {
         originalConstructionsRef.current = offer.constructions || [];
 
         const snap = kpSnapshot && activeOfferId === id ? kpSnapshot : null;
-        didApplyDraftSnapshotRef.current = Boolean(snap);
+        const viewCalcTables = {
+          tableConstrToCalc: view.constructions.length > 0 ? {} : null,
+          ConstrToCalc: view.constructions,
+          materialsByConstruction: view.materialsByConstruction,
+        };
+        const viewConstrToCalcToSent = (offer.constructions || [])
+          .map((c) => c.calc_params)
+          .filter(Boolean);
+        const viewServiceRows =
+          view.serviceRows.length > 0 ? view.serviceRows : INITIAL_SERVICE_ROWS;
+        const viewMaterialRowsByKeyId =
+          Object.keys(view.materialRowsByKeyId).length > 0
+            ? view.materialRowsByKeyId
+            : {};
+        const viewManualMontagePriceByKeyId = {};
+        for (const [keyId, row] of Object.entries(view.montageByKeyId)) {
+          if (row && typeof row.price === "string" && row.price.trim() !== "") {
+            viewManualMontagePriceByKeyId[keyId] = true;
+          }
+        }
+        const snapshotFromServer = {
+          form: view.form,
+          calcTables: viewCalcTables,
+          constrToCalcToSent: viewConstrToCalcToSent,
+          montageByKeyId: view.montageByKeyId,
+          serviceRows: viewServiceRows,
+          materialRowsByKeyId: viewMaterialRowsByKeyId,
+          manualMontagePriceByKeyId: viewManualMontagePriceByKeyId,
+          kpSettings: view.kpSettings,
+        };
+        const hasOnlyStaleSnapshot = Boolean(
+          snap && snapshotsAreEqual(snap, snapshotFromServer),
+        );
+        const effectiveSnap = hasOnlyStaleSnapshot ? null : snap;
+        didApplyDraftSnapshotRef.current = Boolean(effectiveSnap);
+        // При входе в КП из списка без локальных правок ничего не меняли:
+        // считаем черновик «чистым», чтобы не требовать повторного сохранения.
+        if (hasOnlyStaleSnapshot) {
+          clearKpSnapshot();
+        }
+        if (!effectiveSnap) {
+          markDraftSaved();
+        }
 
-        setForm(snap?.form ?? view.form);
+        setForm(effectiveSnap?.form ?? view.form);
         // Сессия калькулятора/КП живёт в kpSnapshot — иначе после удаления
         // в калькуляторе GET снова подставляет старый состав до PATCH.
-        const rawCalcTables = snap?.calcTables
-          ? snap.calcTables
-          : {
-              tableConstrToCalc: view.constructions.length > 0 ? {} : null,
-              ConstrToCalc: view.constructions,
-              materialsByConstruction: view.materialsByConstruction,
-            };
+        const rawCalcTables = effectiveSnap?.calcTables
+          ? effectiveSnap.calcTables
+          : viewCalcTables;
         const nextCalcTables =
           rawCalcTables.ConstrToCalc?.length > 0
             ? {
@@ -448,10 +542,7 @@ const KpPage = () => {
               }
             : rawCalcTables;
         const constrToCalcToSent =
-          snap?.constrToCalcToSent ??
-          (offer.constructions || [])
-            .map((c) => c.calc_params)
-            .filter(Boolean);
+          effectiveSnap?.constrToCalcToSent ?? viewConstrToCalcToSent;
 
         setCalcTables(nextCalcTables);
         useCalculatorStore
@@ -462,26 +553,20 @@ const KpPage = () => {
               constrToCalcToSent,
             }),
           );
-        setMontageByKeyId(snap?.montageByKeyId ?? view.montageByKeyId);
+        setMontageByKeyId(effectiveSnap?.montageByKeyId ?? view.montageByKeyId);
         setServiceRows(
-          snap?.serviceRows ??
-            (view.serviceRows.length > 0
-              ? view.serviceRows
-              : INITIAL_SERVICE_ROWS),
+          effectiveSnap?.serviceRows ?? viewServiceRows,
         );
         setMaterialRowsByKeyId(
-          snap?.materialRowsByKeyId ??
-            (Object.keys(view.materialRowsByKeyId).length > 0
-              ? view.materialRowsByKeyId
-              : {}),
+          effectiveSnap?.materialRowsByKeyId ?? viewMaterialRowsByKeyId,
         );
-        if (snap?.kpSettings) {
-          setKpSettings(snap.kpSettings);
+        if (effectiveSnap?.kpSettings) {
+          setKpSettings(effectiveSnap.kpSettings);
         } else if (view.kpSettings) {
           setKpSettings(view.kpSettings);
         }
-        if (snap?.manualMontagePriceByKeyId) {
-          setManualMontagePriceByKeyId(snap.manualMontagePriceByKeyId);
+        if (effectiveSnap?.manualMontagePriceByKeyId) {
+          setManualMontagePriceByKeyId(effectiveSnap.manualMontagePriceByKeyId);
         } else {
           // Цена монтажа из БД (c.montage[0].price) приоритетнее ставки из
           // настроек КП: помечаем такие key_id как «ручные», иначе авто-эффект
@@ -499,7 +584,8 @@ const KpPage = () => {
           setManualMontagePriceByKeyId(initialManual);
         }
         // Восстановить артикулы по каждой конструкции из materialRowsByKeyId.
-        const rowsByKeyId = snap?.materialRowsByKeyId ?? view.materialRowsByKeyId;
+        const rowsByKeyId =
+          effectiveSnap?.materialRowsByKeyId ?? view.materialRowsByKeyId;
         for (const [keyId, rows] of Object.entries(rowsByKeyId)) {
           const articles = rows
             .map((r) => String(r.sourceArticle ?? "").trim())
@@ -530,6 +616,8 @@ const KpPage = () => {
     isAuthed,
     authStatus,
     activeOfferId,
+    clearKpSnapshot,
+    markDraftSaved,
     setSelectedArticlesForConstruction,
   ]);
 
@@ -563,7 +651,10 @@ const KpPage = () => {
 
   useEffect(() => {
     ignoreDirtyTrackingRef.current = true;
+    dirtyBaselinePayloadRef.current = null;
+    shouldResetDirtyBaselineRef.current = true;
     didApplyDraftSnapshotRef.current = false;
+    prevMaterialRowsByKeyIdRef.current = {};
   }, [id]);
 
   // Когда открываем КП из списка после «Выйти», persisted zustand может догрузиться
@@ -608,19 +699,33 @@ const KpPage = () => {
     if (loadStatus !== "loaded" || !id) return;
     if (ignoreDirtyTrackingRef.current) {
       ignoreDirtyTrackingRef.current = false;
+      const initialPayloadHash = JSON.stringify(buildCurrentUpdatePayload());
+      dirtyBaselinePayloadRef.current = initialPayloadHash;
+      shouldResetDirtyBaselineRef.current = false;
+      markDraftSaved();
+      return;
+    }
+    const currentPayloadHash = JSON.stringify(buildCurrentUpdatePayload());
+    if (
+      shouldResetDirtyBaselineRef.current ||
+      dirtyBaselinePayloadRef.current === null
+    ) {
+      dirtyBaselinePayloadRef.current = currentPayloadHash;
+      shouldResetDirtyBaselineRef.current = false;
+      markDraftSaved();
+      return;
+    }
+    if (dirtyBaselinePayloadRef.current === currentPayloadHash) {
+      markDraftSaved();
       return;
     }
     markDraftDirty();
   }, [
-    form,
-    calcTables,
-    montageByKeyId,
-    serviceRows,
-    materialRowsByKeyId,
-    kpSettings,
-    manualMontagePriceByKeyId,
+    buildCurrentUpdatePayload,
     loadStatus,
     id,
+    manualMontagePriceByKeyId,
+    markDraftSaved,
     markDraftDirty,
   ]);
 
@@ -721,23 +826,7 @@ const KpPage = () => {
     setIsSaving(true);
     setSaveError(null);
     try {
-      const calcState = useCalculatorStore.getState();
-      const payload = buildUpdateOfferPayload({
-        form,
-        constructions: calcTables.ConstrToCalc,
-        materialsByConstruction: calcTables.materialsByConstruction,
-        montageByKeyId,
-        serviceRows,
-        materialRowsByKeyId,
-        kpSettings,
-        originalConstructionsFromOffer: originalConstructionsRef.current,
-        constrToCalcToSent: pickConstrToCalcToSentForSave({
-          constructions: calcTables.ConstrToCalc,
-          originalConstructionsFromOffer: originalConstructionsRef.current,
-          calculatorSent: calcState.ConstrToCalcToSent,
-          snapshotSent: kpSnapshot?.constrToCalcToSent,
-        }),
-      });
+      const payload = buildCurrentUpdatePayload();
       const updated = await updateOffer(id, payload);
       if (updated?.constructions) {
         originalConstructionsRef.current = updated.constructions;
@@ -748,6 +837,7 @@ const KpPage = () => {
       }
       markDraftSaved();
       ignoreDirtyTrackingRef.current = true;
+      shouldResetDirtyBaselineRef.current = true;
     } catch (err) {
       const issues = err?.body?.issues;
       if (Array.isArray(issues) && issues.length > 0) {
@@ -876,14 +966,13 @@ const KpPage = () => {
         const nextRows = rows.map((r) =>
           r.id === rowId ? { ...r, [field]: value } : r,
         );
-        updateKpSnapshotMaterialRowsForConstruction(key_id, nextRows);
         return {
           ...prev,
           [key_id]: nextRows,
         };
       });
     },
-    [updateKpSnapshotMaterialRowsForConstruction],
+    [],
   );
 
   const autoResizeNameField = (e) => {
@@ -934,18 +1023,34 @@ const KpPage = () => {
     form.officeAddress,
   ]);
 
+  // Синхронизируем snapshot доп. материалов после коммита React-стейта.
+  // Важно: не вызывать zustand setState внутри React setState-updater.
+  useEffect(() => {
+    const prev = prevMaterialRowsByKeyIdRef.current || {};
+    const next = materialRowsByKeyId || {};
+    for (const [keyId, rows] of Object.entries(next)) {
+      if (!snapshotsAreEqual(prev[keyId] ?? [], rows ?? [])) {
+        updateKpSnapshotMaterialRowsForConstruction(keyId, rows ?? []);
+      }
+    }
+    for (const keyId of Object.keys(prev)) {
+      if (!(keyId in next)) {
+        updateKpSnapshotMaterialRowsForConstruction(keyId, []);
+      }
+    }
+    prevMaterialRowsByKeyIdRef.current = next;
+  }, [materialRowsByKeyId, updateKpSnapshotMaterialRowsForConstruction]);
+
   const addMaterialRow = useCallback(
     (key_id) => {
       setMaterialRowsByKeyId((prev) => {
-        const nextRows = [...(prev[key_id] ?? []), newCustomMaterialRow()];
-        updateKpSnapshotMaterialRowsForConstruction(key_id, nextRows);
         return {
           ...prev,
-          [key_id]: nextRows,
+          [key_id]: [...(prev[key_id] ?? []), newCustomMaterialRow()],
         };
       });
     },
-    [updateKpSnapshotMaterialRowsForConstruction],
+    [],
   );
 
   const removeMaterialRow = useCallback(
@@ -955,14 +1060,12 @@ const KpPage = () => {
         if (rows.length === 0) {
           const next = { ...prev };
           delete next[key_id];
-          updateKpSnapshotMaterialRowsForConstruction(key_id, []);
           return next;
         }
-        updateKpSnapshotMaterialRowsForConstruction(key_id, rows);
         return { ...prev, [key_id]: rows };
       });
     },
-    [updateKpSnapshotMaterialRowsForConstruction],
+    [],
   );
 
   const onKpSettingChange = (key) => (e) => {
@@ -1014,13 +1117,14 @@ const KpPage = () => {
 
   const handleExit = useCallback(() => {
     if (!id) return;
-    stashAndLeaveKp();
+    // «Выйти» — только выход из КП: без автосохранения и без сохранения snapshot.
+    clearKpSnapshot();
     useOfferEditSessionStore.getState().leaveToOfferList();
     navigate("/kp/list", {
       replace: true,
       state: { kpExit: true },
     });
-  }, [id, stashAndLeaveKp, navigate]);
+  }, [id, clearKpSnapshot, navigate]);
 
   const openPriceForConstruction = useCallback((key_id) => {
     setActiveConstructionId(key_id);
@@ -1331,14 +1435,15 @@ const KpPage = () => {
       const totalRub = additionalMaterialsGrandTotalRubForKp(rows);
 
       const toggleSection = () => {
-        setAdditionalMaterialsSectionOpenByKeyId((prev) => {
-          const next = !prev[key_id];
-          if (!next) {
-            // При закрытии — сбрасываем выбранные артикулы для этой конструкции
-            clearSelectedArticlesForConstruction(key_id);
-          }
-          return { ...prev, [key_id]: next };
-        });
+        const willClose = sectionOpen;
+        setAdditionalMaterialsSectionOpenByKeyId((prev) => ({
+          ...prev,
+          [key_id]: !prev[key_id],
+        }));
+        if (willClose) {
+          // При закрытии — сбрасываем выбранные артикулы для этой конструкции.
+          clearSelectedArticlesForConstruction(key_id);
+        }
       };
 
       return (
@@ -1634,7 +1739,7 @@ const KpPage = () => {
               id="kp-date"
               className="kp-page__input"
               type="date"
-              value={form.date}
+              value={dateInputValue}
               onChange={onFieldChange("date")}
             />
           </div>

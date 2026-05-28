@@ -60,21 +60,26 @@ export const mergeMaterialOverrides = (
   fresh: CalcMaterial[],
   saved: CalcMaterial[] | null
 ): CalcMaterial[] => {
-  if (!saved || saved.length === 0) return fresh;
+  const freshList: MaterialLike[] = Array.isArray(fresh)
+    ? (fresh as unknown as MaterialLike[])
+    : [];
+  const savedList: MaterialLike[] = Array.isArray(saved)
+    ? (saved as unknown as MaterialLike[])
+    : [];
+  if (savedList.length === 0) return freshList as unknown as CalcMaterial[];
 
   const freshByKey = new Map<string, MaterialLike>();
-  for (const f of fresh) {
-    const key = materialKey(f as unknown as MaterialLike);
-    if (key) freshByKey.set(key, f as unknown as MaterialLike);
+  for (const f of freshList) {
+    const key = materialKey(f);
+    if (key) freshByKey.set(key, f);
   }
 
   const usedKeys = new Set<string>();
   const result: MaterialLike[] = [];
 
   // 1) идём по saved, сохраняя пользовательский порядок
-  for (const s of saved) {
-    const sLike = s as unknown as MaterialLike;
-    const key = materialKey(sLike);
+  for (const s of savedList) {
+    const key = materialKey(s);
     if (!key) continue;
     const freshItem = freshByKey.get(key);
     if (!freshItem) continue; // устаревшая позиция — отбрасываем
@@ -82,7 +87,7 @@ export const mergeMaterialOverrides = (
 
     const merged = { ...freshItem };
     for (const field of OVERRIDE_FIELDS) {
-      const v = sLike[field];
+      const v = s[field];
       if (v !== undefined && v !== null && v !== "") {
         merged[field] = v;
       }
@@ -91,11 +96,10 @@ export const mergeMaterialOverrides = (
   }
 
   // 2) добавляем fresh-новинки (которых не было в saved), в натуральном порядке
-  for (const f of fresh) {
-    const fLike = f as unknown as MaterialLike;
-    const key = materialKey(fLike);
+  for (const f of freshList) {
+    const key = materialKey(f);
     if (!key || usedKeys.has(key)) continue;
-    result.push(fLike);
+    result.push(f);
   }
 
   return result as unknown as CalcMaterial[];
