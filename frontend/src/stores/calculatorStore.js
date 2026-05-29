@@ -12,7 +12,7 @@ import { persist, createJSONStorage } from "zustand/middleware";
  *   - табличное состояние (tableConstrToCalc);
  *   - выбор пользователя в UI (currentSubCategory/Items, openedSubCategories,
  *     template, profileStep (лаги пола), facingProfileStep (облицовка/перегородки),
- *     dFrame, currentConstr, currentGkla/Wool, unvisible).
+ *     dFrame, currentConstr, currentFloorSealant, currentGkla/Wool, unvisible).
  *
  * Эфемерные вещи (текущая форма нового элемента `constR`/`constrSent`/`opening`,
  * лоадеры, модалки) остаются useState в компоненте.
@@ -31,6 +31,7 @@ const initialState = {
   facingProfileStep: 600,
   dFrame: false,
   currentConstr: "",
+  currentFloorSealant: "vibrosil",
   ConstrToCalcToSent: [],
   ConstrToCalc: [],
   materialsByConstruction: [],

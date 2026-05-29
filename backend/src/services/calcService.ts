@@ -1,6 +1,8 @@
 import { env } from "../config/env.js";
 import {
   isUlTapeCalcCode,
+  isUltracousticFloorSealant,
+  mapVibrosilSealantToUltracoustic,
   mapVibrostekMaterialsToUlTape,
   vibrostekCodeFromUlTape,
 } from "./calcUlTapeFallback.js";
@@ -104,6 +106,12 @@ const calculateOne = async (params: CalcParams): Promise<CalcMaterial[]> => {
     const vibrostekMaterials = await fetchMaterialsFromCalcService(vibrostekParams);
     const mapped = mapVibrostekMaterialsToUlTape(vibrostekMaterials);
     if (mapped) materials = mapped as CalcMaterial[];
+  }
+
+  const floorSealant = (params as unknown as Record<string, unknown>).FloorSealant;
+  if (isUltracousticFloorSealant(floorSealant)) {
+    const sealantMapped = mapVibrosilSealantToUltracoustic(materials);
+    if (sealantMapped) materials = sealantMapped as CalcMaterial[];
   }
 
   setCachedCalcMaterials(params, materials);

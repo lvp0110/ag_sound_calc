@@ -25,6 +25,7 @@ import {
   getConstructionCode,
   resolveDisplayCipher,
 } from "../utils/calculations";
+import { hasFloorSealantChoice } from "../utils/calcUlTapeFallback";
 import {
   sectionIdFromCode,
   sectionIdFromSubCategory,
@@ -75,6 +76,8 @@ const Calculator = () => {
   const [facingProfileStep, setFacingProfileStep] = useCalcField("facingProfileStep");
   const [dFrame, setDFrame] = useCalcField("dFrame");
   const [currentConstr, setCurrentConstr] = useCalcField("currentConstr");
+  const [currentFloorSealant, setCurrentFloorSealant] =
+    useCalcField("currentFloorSealant");
   const [ConstrToCalcToSent, setConstrToCalcToSent] = useCalcField("ConstrToCalcToSent");
   const [ConstrToCalc, setConstrToCalc] = useCalcField("ConstrToCalc");
   const [materialsByConstruction, setMaterialsByConstruction] = useCalcField(
@@ -357,11 +360,13 @@ const Calculator = () => {
         setCurrentItems(0);
         setTemplate(null);
         setCurrentConstr("");
+        setCurrentFloorSealant("vibrosil");
       } else {
         setCurrentItems(item.id);
         setTemplate(item.template);
         setTableConstrToCalc(1);
         setCurrentConstr(item.ag_id);
+        setCurrentFloorSealant("vibrosil");
         if (isFacingTemplate(item.template)) {
           setFacingProfileStep(600);
         }
@@ -389,9 +394,17 @@ const Calculator = () => {
     } else {
       setTemplate(null);
       setCurrentConstr("");
+      setCurrentFloorSealant("vibrosil");
       initializedItemIdRef.current = null;
     }
-  }, [currentItems, itemsWithImages, setCurrentConstr, setTableConstrToCalc, setTemplate]);
+  }, [
+    currentItems,
+    itemsWithImages,
+    setCurrentConstr,
+    setCurrentFloorSealant,
+    setTableConstrToCalc,
+    setTemplate,
+  ]);
 
   useEffect(() => {
     if (currentItems != 0) {
@@ -714,6 +727,9 @@ const Calculator = () => {
     ) {
       newConstrSent.step = 400;
     }
+    if (hasFloorSealantChoice({ code }) || [607.1, 608.1, 609.1, 610.1, 2.1].includes(template)) {
+      newConstrSent.FloorSealant = currentFloorSealant;
+    }
 
     const deep = JSON.parse(JSON.stringify(newConstrSent));
 
@@ -744,6 +760,7 @@ const Calculator = () => {
       setFacingProfileStep(600);
       setCurrentGkla("default");
       setCurrentWool("default");
+      setCurrentFloorSealant("vibrosil");
     } catch (error) {
       let errorMessage = error.message;
       if (error.message.includes("invalid construction size")) {
@@ -776,6 +793,7 @@ const Calculator = () => {
     constrSent,
     currentGkla,
     currentWool,
+    currentFloorSealant,
     template,
   ]);
 
@@ -1014,6 +1032,8 @@ const Calculator = () => {
                             currentSubCategory={currentSubCategory}
                             currentConstr={currentConstr}
                             setCurrentConstr={setCurrentConstr}
+                            currentFloorSealant={currentFloorSealant}
+                            setCurrentFloorSealant={setCurrentFloorSealant}
                             unvisible={unvisible}
                             setUnvisible={setUnvisible}
                             currentGkla={currentGkla}

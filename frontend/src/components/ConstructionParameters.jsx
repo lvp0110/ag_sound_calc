@@ -1,5 +1,11 @@
 import { useEffect } from "react";
 import {
+  FLOOR_K2_PERIMETER_AG_IDS,
+  FLOOR_NO_UL_TAPE_AG_IDS,
+  floorPerimeterTapeCodes,
+  hasFloorSealantChoice,
+} from "../utils/calcUlTapeFallback";
+import {
   getMaxLenZInMeters,
   normalizeFacingProfileStep,
   normalizeLagProfileStep,
@@ -14,6 +20,8 @@ const ConstructionParameters = ({
   template,
   currentConstr,
   setCurrentConstr,
+  currentFloorSealant,
+  setCurrentFloorSealant,
   unvisible,
   onToggleVisible,
   currentSubCategory,
@@ -50,6 +58,24 @@ const ConstructionParameters = ({
       setProfileStep(normalized);
     }
   }, [mode, selectedItem?.id, isZIPSFacing, profileStep, setProfileStep]);
+
+  useEffect(() => {
+    if (mode !== "floor" || !selectedItem?.ag_id) return;
+    const agId = selectedItem.ag_id;
+    if (FLOOR_K2_PERIMETER_AG_IDS.has(agId)) {
+      setCurrentConstr(agId);
+    }
+  }, [mode, selectedItem?.id, selectedItem?.ag_id, setCurrentConstr]);
+
+  useEffect(() => {
+    if (mode !== "floor" || !selectedItem?.ag_id) return;
+    const agId = selectedItem.ag_id;
+    if (FLOOR_K2_PERIMETER_AG_IDS.has(agId)) return;
+    const validTape = floorPerimeterTapeCodes(agId);
+    if (validTape.length > 0 && !validTape.includes(currentConstr)) {
+      setCurrentConstr(agId);
+    }
+  }, [mode, selectedItem?.ag_id, selectedItem?.id, currentConstr, setCurrentConstr]);
 
   if (mode === "ceiling") {
     const currentTemplate = template ?? selectedItem?.template;
@@ -213,7 +239,53 @@ const ConstructionParameters = ({
     const isPerimeterType = [607.1, 608.1, 609.1, 610.1, 2.1].includes(
       currentTemplate
     );
+    const hideUlTapePerimeter = FLOOR_NO_UL_TAPE_AG_IDS.has(selectedItem?.ag_id);
     const isLagsType = currentTemplate == 3;
+    const showSealantChoice = hasFloorSealantChoice({ agId: selectedItem?.ag_id });
+    const showSealantUi =
+      (showSealantChoice || isPerimeterType) && (!isPerimeterType || unvisible);
+
+    const floorSealantRadios = showSealantUi ? (
+      <>
+        <h4 className="selected-item-forms__group-heading">
+          выбрать тип герметика
+        </h4>
+        <div className="radio-option">
+          <input
+            className="radio"
+            type="radio"
+            onChange={(e) => setCurrentFloorSealant(e.target.value)}
+            id={`floor_sealant_vibrosil_${selectedItem.id}`}
+            name={`floor_sealant_${selectedItem.id}`}
+            value="vibrosil"
+            checked={currentFloorSealant === "vibrosil"}
+          />
+          <label
+            className="label"
+            htmlFor={`floor_sealant_vibrosil_${selectedItem.id}`}
+          >
+            Вибросил
+          </label>
+        </div>
+        <div className="radio-option">
+          <input
+            className="radio"
+            type="radio"
+            onChange={(e) => setCurrentFloorSealant(e.target.value)}
+            id={`floor_sealant_ul_${selectedItem.id}`}
+            name={`floor_sealant_${selectedItem.id}`}
+            value="ultracoustic"
+            checked={currentFloorSealant === "ultracoustic"}
+          />
+          <label
+            className="label"
+            htmlFor={`floor_sealant_ul_${selectedItem.id}`}
+          >
+            Ультракустик
+          </label>
+        </div>
+      </>
+    ) : null;
 
     return (
       <div className="selected-item-forms__stack">
@@ -229,6 +301,9 @@ const ConstructionParameters = ({
 
         {unvisible && isPerimeterType && (
           <>
+            <h4 className="selected-item-forms__group-heading">
+              выбрать тип ленты
+            </h4>
             <div className="radio-option">
               <input
                 className="radio"
@@ -265,23 +340,25 @@ const ConstructionParameters = ({
                 Вибростек по периметру
               </label>
             </div>
-            <div className="radio-option">
-              <input
-                className="radio"
-                type="radio"
-                onChange={(e) => setCurrentConstr(e.target.value)}
-                id={`floor_ul_tape_${selectedItem.id}`}
-                name={`floor_type_${selectedItem.id}`}
-                value={`${selectedItem.ag_id}_ul_tape`}
-                checked={currentConstr === `${selectedItem.ag_id}_ul_tape`}
-              />
-              <label
-                className="label"
-                htmlFor={`floor_ul_tape_${selectedItem.id}`}
-              >
-                Ультракустик F100 по периметру
-              </label>
-            </div>
+            {!hideUlTapePerimeter && (
+              <div className="radio-option">
+                <input
+                  className="radio"
+                  type="radio"
+                  onChange={(e) => setCurrentConstr(e.target.value)}
+                  id={`floor_ul_tape_${selectedItem.id}`}
+                  name={`floor_type_${selectedItem.id}`}
+                  value={`${selectedItem.ag_id}_ul_tape`}
+                  checked={currentConstr === `${selectedItem.ag_id}_ul_tape`}
+                />
+                <label
+                  className="label"
+                  htmlFor={`floor_ul_tape_${selectedItem.id}`}
+                >
+                  Ультракустик F100 по периметру
+                </label>
+              </div>
+            )}
           </>
         )}
 
@@ -471,6 +548,8 @@ const ConstructionParameters = ({
             </div>
           </>
         )}
+
+        {floorSealantRadios}
       </div>
     );
   }

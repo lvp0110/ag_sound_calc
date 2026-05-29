@@ -4,6 +4,7 @@ import CeilingForm from "./forms/CeilingForm";
 import FacingForm from "./forms/FacingForm";
 import SoundboardForm from "./forms/SoundboardForm";
 import ConstructionParameters from "./ConstructionParameters";
+import { hasFloorSealantChoice } from "../utils/calcUlTapeFallback";
 import { isFacingTemplate } from "../utils/validation";
 
 /**
@@ -16,6 +17,8 @@ const SelectedItemForms = ({
   currentSubCategory,
   currentConstr,
   setCurrentConstr,
+  currentFloorSealant,
+  setCurrentFloorSealant,
   unvisible,
   setUnvisible,
   currentGkla,
@@ -36,7 +39,11 @@ const SelectedItemForms = ({
 }) => {
   const template = selectedItem?.template;
   const isFloorTemplate = [1, 111, 3, 607.1, 608.1, 609.1, 610.1, 2.1, 9, 9.1].includes(template);
-  const hasFloorParameters = [3, 607.1, 608.1, 609.1, 610.1, 2.1, 9, 9.1].includes(template);
+  const hasFloorParameters = [3, 607.1, 608.1, 609.1, 610.1, 2.1, 9, 9.1].includes(
+    template
+  );
+  const showFloorConstructionParameters =
+    hasFloorParameters || hasFloorSealantChoice({ agId: selectedItem?.ag_id });
   const isCeilingTemplate = [4, 5].includes(template);
   const isFacing = isFacingTemplate(template);
   const isSoundboardTemplate = [201, 202].includes(template);
@@ -84,13 +91,15 @@ const SelectedItemForms = ({
             onLenXChange={(value) => setConstR({ ...constR, lenX: value })}
             onLenYChange={(value) => setConstR({ ...constR, lenY: value })}
           />
-          {hasFloorParameters && (
+          {showFloorConstructionParameters && (
             <ConstructionParameters
               mode="floor"
               selectedItem={selectedItem}
               template={template}
               currentConstr={currentConstr}
               setCurrentConstr={setCurrentConstr}
+              currentFloorSealant={currentFloorSealant}
+              setCurrentFloorSealant={setCurrentFloorSealant}
               profileStep={profileStep}
               setProfileStep={setProfileStep}
               unvisible={unvisible}

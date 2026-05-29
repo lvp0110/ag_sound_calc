@@ -5,6 +5,8 @@
 import { BASE_URL } from "./apiClient";
 import {
   isUlTapeCalcCode,
+  isUltracousticFloorSealant,
+  mapVibrosilSealantToUltracoustic,
   mapVibrostekMaterialsToUlTape,
   vibrostekCodeFromUlTape,
 } from "../utils/calcUlTapeFallback.js";
@@ -81,6 +83,13 @@ export const calculateConstruction = async (constrList) => {
     const mapped = mapVibrostekMaterialsToUlTape(fallback?.data ?? []);
     if (mapped?.length) {
       return { data: mapped };
+    }
+  }
+
+  if (rows.length > 0 && isUltracousticFloorSealant(constrList[0]?.FloorSealant)) {
+    const sealantMapped = mapVibrosilSealantToUltracoustic(rows);
+    if (sealantMapped?.length) {
+      rows = sealantMapped;
     }
   }
 

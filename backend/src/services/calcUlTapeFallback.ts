@@ -33,3 +33,45 @@ export const mapVibrostekMaterialsToUlTape = (
 
   return replaced ? mapped : null;
 };
+
+export const FLOOR_SEALANT_ULTRACOUSTIC = "ultracoustic";
+
+const UL_SEALANT_BY_VIBROSIL_CODE: Record<
+  string,
+  { Code: string; Name: string }
+> = {
+  "1177.1001": {
+    Code: "1177.2001",
+    Name: "Герметик вибро-акустический Ультракустик, 290 мл",
+  },
+  "1177.1002": {
+    Code: "1177.2002",
+    Name: "Герметик вибро-акустический Ультракустик, 290 мл",
+  },
+};
+
+export const isUltracousticFloorSealant = (sealant: unknown): boolean =>
+  sealant === FLOOR_SEALANT_ULTRACOUSTIC;
+
+export const mapVibrosilSealantToUltracoustic = (
+  materials: unknown[]
+): unknown[] | null => {
+  if (!Array.isArray(materials) || materials.length === 0) return null;
+
+  let replaced = false;
+  const mapped = materials.map((row) => {
+    const rec =
+      row && typeof row === "object" ? (row as Record<string, unknown>) : {};
+    const code = String(rec.Code ?? rec.code ?? "").trim();
+    const replacement = UL_SEALANT_BY_VIBROSIL_CODE[code];
+    if (!replacement) return row;
+    replaced = true;
+    return {
+      ...rec,
+      Code: replacement.Code,
+      Name: replacement.Name,
+    };
+  });
+
+  return replaced ? mapped : null;
+};
