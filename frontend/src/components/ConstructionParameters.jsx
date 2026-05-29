@@ -1,15 +1,58 @@
 import { useEffect } from "react";
 import {
+  ceilingPerimeterTapeCodes,
+  facingPerimeterTapeCodes,
   FLOOR_K2_PERIMETER_AG_IDS,
   FLOOR_NO_UL_TAPE_AG_IDS,
   floorPerimeterTapeCodes,
+  hasCeilingTapeChoice,
+  hasFacingTapeChoice,
   hasFloorSealantChoice,
+  UL_TAPE_SUFFIX,
 } from "../utils/calcUlTapeFallback";
 import {
   getMaxLenZInMeters,
   normalizeFacingProfileStep,
   normalizeLagProfileStep,
 } from "../utils/validation";
+
+function TapeChoiceRadios({ idPrefix, itemId, agId, value, onChange }) {
+  return (
+    <>
+      <h4 className="selected-item-forms__group-heading">
+        выбрать тип ленты
+      </h4>
+      <div className="radio-option">
+        <input
+          className="radio"
+          type="radio"
+          onChange={(e) => onChange(e.target.value)}
+          id={`${idPrefix}_vibro_${itemId}`}
+          name={`${idPrefix}_tape_${itemId}`}
+          value={agId}
+          checked={value === agId}
+        />
+        <label className="label" htmlFor={`${idPrefix}_vibro_${itemId}`}>
+          Вибростек по периметру
+        </label>
+      </div>
+      <div className="radio-option">
+        <input
+          className="radio"
+          type="radio"
+          onChange={(e) => onChange(e.target.value)}
+          id={`${idPrefix}_ul_tape_${itemId}`}
+          name={`${idPrefix}_tape_${itemId}`}
+          value={`${agId}${UL_TAPE_SUFFIX}`}
+          checked={value === `${agId}${UL_TAPE_SUFFIX}`}
+        />
+        <label className="label" htmlFor={`${idPrefix}_ul_tape_${itemId}`}>
+          Ультракустик F100 по периметру
+        </label>
+      </div>
+    </>
+  );
+}
 
 function SealantChoiceRadios({ idPrefix, itemId, value, onChange }) {
   return (
@@ -118,9 +161,40 @@ const ConstructionParameters = ({
     }
   }, [mode, selectedItem?.ag_id, selectedItem?.id, currentConstr, setCurrentConstr]);
 
+  useEffect(() => {
+    if (mode !== "ceiling" || !selectedItem?.ag_id) return;
+    const agId = selectedItem.ag_id;
+    if (!hasCeilingTapeChoice(agId)) {
+      if (currentConstr !== agId) {
+        setCurrentConstr(agId);
+      }
+      return;
+    }
+    const validTape = ceilingPerimeterTapeCodes(agId);
+    if (!validTape.includes(currentConstr)) {
+      setCurrentConstr(agId);
+    }
+  }, [mode, selectedItem?.ag_id, selectedItem?.id, currentConstr, setCurrentConstr]);
+
+  useEffect(() => {
+    if (mode !== "facing" || !selectedItem?.ag_id) return;
+    const agId = selectedItem.ag_id;
+    if (!hasFacingTapeChoice(agId)) {
+      if (currentConstr !== agId) {
+        setCurrentConstr(agId);
+      }
+      return;
+    }
+    const validTape = facingPerimeterTapeCodes(agId);
+    if (!validTape.includes(currentConstr)) {
+      setCurrentConstr(agId);
+    }
+  }, [mode, selectedItem?.ag_id, selectedItem?.id, currentConstr, setCurrentConstr]);
+
   if (mode === "ceiling") {
     const currentTemplate = template ?? selectedItem?.template;
     const isSuspendedCeiling = currentTemplate == 5;
+    const showCeilingTapeChoice = hasCeilingTapeChoice(selectedItem?.ag_id);
 
     return (
       <div className="selected-item-forms__stack">
@@ -265,6 +339,16 @@ const ConstructionParameters = ({
                   </>
                 )}
               </>
+            )}
+
+            {showCeilingTapeChoice && (
+              <TapeChoiceRadios
+                idPrefix="ceiling"
+                itemId={selectedItem.id}
+                agId={selectedItem.ag_id}
+                value={currentConstr}
+                onChange={setCurrentConstr}
+              />
             )}
 
             <SealantChoiceRadios
@@ -569,6 +653,8 @@ const ConstructionParameters = ({
     );
   }
 
+  const showFacingTapeChoice = hasFacingTapeChoice(selectedItem?.ag_id);
+
   return (
     <div className="selected-item-forms__stack">
       <h4 className="selected-item-forms__group-heading">
@@ -764,6 +850,16 @@ const ConstructionParameters = ({
             добавить сдвоенный каркас
           </label>
         </div>
+      )}
+
+      {showFacingTapeChoice && (
+        <TapeChoiceRadios
+          idPrefix="facing"
+          itemId={selectedItem.id}
+          agId={selectedItem.ag_id}
+          value={currentConstr}
+          onChange={setCurrentConstr}
+        />
       )}
 
       <SealantChoiceRadios

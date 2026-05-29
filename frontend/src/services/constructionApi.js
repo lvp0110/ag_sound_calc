@@ -8,7 +8,7 @@ import {
   isUltracousticFloorSealant,
   mapVibrosilSealantToUltracoustic,
   mapVibrostekMaterialsToUlTape,
-  vibrostekCodeFromUlTape,
+  ulTapeFallbackCalcCodes,
 } from "../utils/calcUlTapeFallback.js";
 
 export const calculateConstruction = async (constrList) => {
@@ -75,14 +75,16 @@ export const calculateConstruction = async (constrList) => {
     constrList.length === 1 &&
     isUlTapeCalcCode(constrList[0]?.Code)
   ) {
-    const vibrostekPayload = constrList.map((item) => ({
-      ...item,
-      Code: vibrostekCodeFromUlTape(item.Code),
-    }));
-    const fallback = await calculateConstruction(vibrostekPayload);
-    const mapped = mapVibrostekMaterialsToUlTape(fallback?.data ?? []);
-    if (mapped?.length) {
-      return { data: mapped };
+    for (const fallbackCode of ulTapeFallbackCalcCodes(constrList[0].Code)) {
+      const fallbackPayload = constrList.map((item) => ({
+        ...item,
+        Code: fallbackCode,
+      }));
+      const fallback = await calculateConstruction(fallbackPayload);
+      const mapped = mapVibrostekMaterialsToUlTape(fallback?.data ?? []);
+      if (mapped?.length) {
+        return { data: mapped };
+      }
     }
   }
 

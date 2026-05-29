@@ -8,11 +8,33 @@ export const UL_TAPE_ARTICLE = {
   Units: "рул",
 };
 
+export const UL_TAPE_SUFFIX = "_ul_tape";
+export const VIBROSTEK_SUFFIX = "_vibrostek";
+
 export const isUlTapeCalcCode = (code) =>
-  typeof code === "string" && code.endsWith("_ul_tape");
+  typeof code === "string" && code.endsWith(UL_TAPE_SUFFIX);
 
 export const vibrostekCodeFromUlTape = (code) =>
-  String(code).replace(/_ul_tape$/, "_vibrostek");
+  String(code).replace(new RegExp(`${UL_TAPE_SUFFIX}$`), VIBROSTEK_SUFFIX);
+
+/** Убирает суффикс ленты с полного кода (в т.ч. AG.C501_ul_tape). */
+export const stripTapeSuffix = (code) => {
+  const s = String(code ?? "").trim();
+  if (s.endsWith(UL_TAPE_SUFFIX)) {
+    return { base: s.slice(0, -UL_TAPE_SUFFIX.length), tape: UL_TAPE_SUFFIX };
+  }
+  if (s.endsWith(VIBROSTEK_SUFFIX)) {
+    return { base: s.slice(0, -VIBROSTEK_SUFFIX.length), tape: VIBROSTEK_SUFFIX };
+  }
+  return { base: s, tape: "" };
+};
+
+/** Коды для fallback *_ul_tape: сначала *_vibrostek (полы), затем базовый (потолки). */
+export const ulTapeFallbackCalcCodes = (code) => {
+  const primary = vibrostekCodeFromUlTape(code);
+  const { base } = stripTapeSuffix(code);
+  return primary === base ? [primary] : [primary, base];
+};
 
 /**
  * В calc-сервисе пока нет *_ul_tape: берём расчёт *_vibrostek и меняем
@@ -59,6 +81,40 @@ export const floorPerimeterTapeCodes = (agId) => {
     codes.push(`${agId}_ul_tape`);
   }
   return codes;
+};
+
+/** Потолки без выбора ленты по периметру (ЗИПС-Синема). */
+export const CEILING_NO_TAPE_AG_IDS = new Set(["AG.Z205"]);
+
+export const hasCeilingTapeChoice = (agId) =>
+  Boolean(agId) && !CEILING_NO_TAPE_AG_IDS.has(agId);
+
+/** Допустимые коды ленты по периметру для потолков (AG.C5xx, AG.Z20x). */
+export const ceilingPerimeterTapeCodes = (agId) => {
+  if (!hasCeilingTapeChoice(agId)) return [];
+  return [agId, `${agId}${UL_TAPE_SUFFIX}`];
+};
+
+/** ЗИПС-облицовка без выбора ленты (Синема). */
+export const FACING_NO_TAPE_AG_IDS = new Set(["AG.Z205"]);
+
+/** Облицовка с выбором ленты (каркас / Виброфлекс). */
+export const FACING_TAPE_L_AG_IDS = new Set(["AG.L401", "AG.L404", "AG.L405"]);
+
+/** Перегородки с выбором ленты по периметру. */
+export const PARTITION_TAPE_AG_IDS = new Set(["AG.W103", "AG.W104", "AG.W105"]);
+
+export const hasFacingTapeChoice = (agId) => {
+  if (!agId || FACING_NO_TAPE_AG_IDS.has(agId)) return false;
+  if (FACING_TAPE_L_AG_IDS.has(agId)) return true;
+  if (PARTITION_TAPE_AG_IDS.has(agId)) return true;
+  return String(agId).startsWith("AG.Z");
+};
+
+/** Допустимые коды ленты по периметру для облицовки. */
+export const facingPerimeterTapeCodes = (agId) => {
+  if (!hasFacingTapeChoice(agId)) return [];
+  return [agId, `${agId}${UL_TAPE_SUFFIX}`];
 };
 
 /** Базовые шифры полов с выбором типа герметика (AG.F603 … AG.F615). */

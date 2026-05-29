@@ -6,10 +6,30 @@ const UL_TAPE_ARTICLE = {
   Units: "рул",
 };
 
-export const isUlTapeCalcCode = (code: string): boolean => code.endsWith("_ul_tape");
+export const UL_TAPE_SUFFIX = "_ul_tape";
+export const VIBROSTEK_SUFFIX = "_vibrostek";
+
+export const isUlTapeCalcCode = (code: string): boolean => code.endsWith(UL_TAPE_SUFFIX);
 
 export const vibrostekCodeFromUlTape = (code: string): string =>
-  code.replace(/_ul_tape$/, "_vibrostek");
+  code.replace(new RegExp(`${UL_TAPE_SUFFIX}$`), VIBROSTEK_SUFFIX);
+
+export const stripTapeSuffix = (code: string): { base: string; tape: string } => {
+  const s = String(code ?? "").trim();
+  if (s.endsWith(UL_TAPE_SUFFIX)) {
+    return { base: s.slice(0, -UL_TAPE_SUFFIX.length), tape: UL_TAPE_SUFFIX };
+  }
+  if (s.endsWith(VIBROSTEK_SUFFIX)) {
+    return { base: s.slice(0, -VIBROSTEK_SUFFIX.length), tape: VIBROSTEK_SUFFIX };
+  }
+  return { base: s, tape: "" };
+};
+
+export const ulTapeFallbackCalcCodes = (code: string): string[] => {
+  const primary = vibrostekCodeFromUlTape(code);
+  const { base } = stripTapeSuffix(code);
+  return primary === base ? [primary] : [primary, base];
+};
 
 export const mapVibrostekMaterialsToUlTape = (
   materials: unknown[]

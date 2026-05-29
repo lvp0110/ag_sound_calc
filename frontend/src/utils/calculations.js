@@ -22,18 +22,25 @@ export const calculateAreaAndPerimeter = (lenX, lenY, lenZ, currentSubCategory) 
   return { area, perimeter };
 };
 
+import { stripTapeSuffix } from "./calcUlTapeFallback.js";
+
 /**
  * Получает код конструкции по материалам
  */
 export const getConstructionCode = (currentConstr, currentGkla, currentWool) => {
+  const { base, tape } = stripTapeSuffix(currentConstr);
+  let code = base;
   if (currentGkla == "default" && currentWool == "default") {
-    return currentConstr;
-  } else if (currentGkla == "default") {
-    return currentConstr + "_" + currentWool;
-  } else if (currentWool == "default") {
-    return currentConstr + "_" + currentGkla;
+    return base + tape;
   }
-  return currentConstr + "_" + currentGkla + "_" + currentWool;
+  if (currentGkla == "default") {
+    code = `${base}_${currentWool}`;
+  } else if (currentWool == "default") {
+    code = `${base}_${currentGkla}`;
+  } else {
+    code = `${base}_${currentGkla}_${currentWool}`;
+  }
+  return code + tape;
 };
 
 /**

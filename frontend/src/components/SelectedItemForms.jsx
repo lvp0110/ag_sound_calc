@@ -124,6 +124,8 @@ const SelectedItemForms = ({
             mode="ceiling"
             selectedItem={selectedItem}
             template={template}
+            currentConstr={currentConstr}
+            setCurrentConstr={setCurrentConstr}
             currentGkla={currentGkla}
             setCurrentGkla={setCurrentGkla}
             currentWool={currentWool}
@@ -150,6 +152,8 @@ const SelectedItemForms = ({
             <ConstructionParameters
               selectedItem={selectedItem}
               currentSubCategory={currentSubCategory}
+              currentConstr={currentConstr}
+              setCurrentConstr={setCurrentConstr}
               currentGkla={currentGkla}
               setCurrentGkla={setCurrentGkla}
               currentWool={currentWool}

@@ -4,7 +4,7 @@ import {
   isUltracousticFloorSealant,
   mapVibrosilSealantToUltracoustic,
   mapVibrostekMaterialsToUlTape,
-  vibrostekCodeFromUlTape,
+  ulTapeFallbackCalcCodes,
 } from "./calcUlTapeFallback.js";
 import {
   getCachedCalcMaterials,
@@ -97,15 +97,17 @@ const calculateOne = async (params: CalcParams): Promise<CalcMaterial[]> => {
 
   let materials = await fetchMaterialsFromCalcService(params);
 
-  // Внешний calc пока не знает *_ul_tape — считаем через *_vibrostek и подменяем ленту.
+  // Внешний calc пока не знает *_ul_tape — считаем через *_vibrostek (полы) или базовый код (потолки).
   if (materials.length === 0 && isUlTapeCalcCode(params.Code)) {
-    const vibrostekParams = {
-      ...params,
-      Code: vibrostekCodeFromUlTape(params.Code),
-    };
-    const vibrostekMaterials = await fetchMaterialsFromCalcService(vibrostekParams);
-    const mapped = mapVibrostekMaterialsToUlTape(vibrostekMaterials);
-    if (mapped) materials = mapped as CalcMaterial[];
+    for (const fallbackCode of ulTapeFallbackCalcCodes(params.Code)) {
+      const fallbackParams = { ...params, Code: fallbackCode };
+      const fallbackMaterials = await fetchMaterialsFromCalcService(fallbackParams);
+      const mapped = mapVibrostekMaterialsToUlTape(fallbackMaterials);
+      if (mapped) {
+        materials = mapped as CalcMaterial[];
+        break;
+      }
+    }
   }
 
   const floorSealant = (params as unknown as Record<string, unknown>).FloorSealant;
