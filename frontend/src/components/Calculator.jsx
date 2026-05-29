@@ -20,8 +20,15 @@ import {
   normalizeLagProfileStep,
   isFacingTemplate,
 } from "../utils/validation";
-import { calculateAreaAndPerimeter, getConstructionCode } from "../utils/calculations";
-import { sectionIdFromSubCategory } from "../utils/constructionSection";
+import {
+  calculateAreaAndPerimeter,
+  getConstructionCode,
+  resolveDisplayCipher,
+} from "../utils/calculations";
+import {
+  sectionIdFromCode,
+  sectionIdFromSubCategory,
+} from "../utils/constructionSection";
 import { calculateConstruction } from "../services/constructionApi";
 import { createOffer, getOffer, updateOffer } from "../services/offersApi";
 import {
@@ -52,6 +59,7 @@ const Calculator = () => {
   } = useOfferEditSession();
 
   const hydratedOfferIdRef = useRef(null);
+  const initializedItemIdRef = useRef(null);
 
   // Persistent-поля: живут в zustand-сторе (sessionStorage), переживают
   // переходы по страницам в рамках сессии. См. stores/calculatorStore.js.
@@ -371,13 +379,19 @@ const Calculator = () => {
       if (selectedItem) {
         setTemplate(selectedItem.template);
         setTableConstrToCalc(1);
-        setCurrentConstr(selectedItem.ag_id);
+        // Инициализируем шифр только при фактической смене выбранной конструкции.
+        // Иначе обновление itemsWithImages может затирать выбранный suffix-вариант.
+        if (initializedItemIdRef.current !== currentItems) {
+          setCurrentConstr(selectedItem.ag_id);
+          initializedItemIdRef.current = currentItems;
+        }
       }
     } else {
       setTemplate(null);
       setCurrentConstr("");
+      initializedItemIdRef.current = null;
     }
-  }, [currentItems, itemsWithImages]);
+  }, [currentItems, itemsWithImages, setCurrentConstr, setTableConstrToCalc, setTemplate]);
 
   useEffect(() => {
     if (currentItems != 0) {
@@ -641,9 +655,9 @@ const Calculator = () => {
 
     const IconType = SubCategories.find((el) => el.id == currentSubCategory);
     const Constr = itemsWithImages.find((el) => el.id == currentItems);
-    const sectionId = sectionIdFromSubCategory(currentSubCategory);
-
     const code = getConstructionCode(currentConstr, currentGkla, currentWool);
+    const sectionId =
+      sectionIdFromSubCategory(currentSubCategory) || sectionIdFromCode(code);
 
     const newConstR = {
       ...constR,
@@ -653,7 +667,9 @@ const Calculator = () => {
       title: Constr?.title,
       type: IconType?.title,
       section_id: sectionId,
-      ag_id: Constr?.ag_id ?? code,
+      // Для UI показываем базовый шифр без суффиксов (AG.F...),
+      // а полный код остаётся в newConstrSent.Code для расчёта/API.
+      ag_id: resolveDisplayCipher(code),
       step: Constr?.step,
       weight: Constr?.weight,
     };
@@ -711,6 +727,9 @@ const Calculator = () => {
         ...prev,
         { key_id: newConstR.key_id, data },
       ]);
+      // После удаления всех конструкций флаг может быть null.
+      // Поднимаем его при успешном расчёте, чтобы таблица отрисовалась сразу.
+      setTableConstrToCalc((prev) => prev ?? {});
       setConstrSent({ ...constSentZero });
       setOpening({ ...openingZero });
       setConstR({ ...constRZero });
@@ -741,6 +760,7 @@ const Calculator = () => {
     }
   }, [
     constR,
+    currentConstr,
     currentSubCategory,
     currentItems,
     itemsWithImages,

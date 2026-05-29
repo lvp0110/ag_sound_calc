@@ -208,12 +208,18 @@ function constructionDisplayTitle({ title, type }) {
 function constructionCardHeading(item) {
   const { title, type, ag_id: code } = item;
   const displayTitle = constructionDisplayTitle({ title, type });
-  const constructionPart =
-    displayTitle !== ""
+  const normalizedCode = code != null ? String(code).trim() : "";
+  const looksLikeConstructionCode = /^AG\.[A-Z0-9._-]+$/i.test(
+    String(displayTitle || "").trim()
+  );
+  const safeDisplayTitle =
+    displayTitle !== "" &&
+    displayTitle !== normalizedCode &&
+    !looksLikeConstructionCode
       ? displayTitle
-      : code != null && String(code).trim() !== ""
-        ? String(code).trim()
-        : "Конструкция";
+      : "";
+  const constructionPart =
+    safeDisplayTitle !== "" ? safeDisplayTitle : "Конструкция";
   const sectionLabel = sectionLabelForConstruction(item);
   if (!sectionLabel) return constructionPart;
   const prefix = `${sectionLabel} `;
@@ -229,6 +235,12 @@ function constructionLegacyTitle(item) {
   const code = String(item.ag_id ?? "").trim();
   if (code !== "" && display === code) return "";
   return display;
+}
+
+function constructionDisplayNameOrCode(item) {
+  const title = constructionLegacyTitle(item);
+  if (title) return title;
+  return String(item.ag_id ?? "").trim() || "—";
 }
 
 /** Как в колонке «артикул»: без цифры в начале кода показывается «---». */
@@ -423,7 +435,9 @@ const ConstructionList = ({
                     {!cardCollapsed && (
                       <tr>
                         {!readOnly && <th className="construction-card__delete-col" />}
-                        <th className="tbl-in__cipher-col">шифр</th>
+                        <th className="tbl-in__cipher-col">
+                          {readOnly ? "название" : "шифр"}
+                        </th>
                         <th className="construction-card__dim-th">размеры, мм</th>
                         <th>площадь, м2</th>
                       </tr>
@@ -449,7 +463,11 @@ const ConstructionList = ({
                             />
                           </td>
                         )}
-                        <td className="tbl-in__cipher-col">{constRItem.ag_id}</td>
+                        <td className="tbl-in__cipher-col">
+                          {readOnly
+                            ? constructionDisplayNameOrCode(constRItem)
+                            : constRItem.ag_id}
+                        </td>
                         <td className="construction-card__dim-td">
                           {constructionDimensionsMm(constRItem)}
                         </td>

@@ -43,10 +43,12 @@ export const getConstructionCode = (currentConstr, currentGkla, currentWool) => 
 export const resolveDisplayCipher = (calcCode, titleByCode) => {
   const code = String(calcCode ?? "").trim();
   if (!code) return "";
+  const codeWithoutSuffix = code.split("_")[0] || code;
   if (!(titleByCode instanceof Map) || titleByCode.size === 0) {
-    return code;
+    return codeWithoutSuffix;
   }
   if (titleByCode.has(code)) return code;
+  if (titleByCode.has(codeWithoutSuffix)) return codeWithoutSuffix;
 
   let best = "";
   for (const key of titleByCode.keys()) {
@@ -56,7 +58,7 @@ export const resolveDisplayCipher = (calcCode, titleByCode) => {
       if (base.length > best.length) best = base;
     }
   }
-  return best || code;
+  return best || codeWithoutSuffix;
 };
 
 

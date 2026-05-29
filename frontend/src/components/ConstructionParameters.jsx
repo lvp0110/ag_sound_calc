@@ -265,6 +265,23 @@ const ConstructionParameters = ({
                 Вибростек по периметру
               </label>
             </div>
+            <div className="radio-option">
+              <input
+                className="radio"
+                type="radio"
+                onChange={(e) => setCurrentConstr(e.target.value)}
+                id={`floor_ul_tape_${selectedItem.id}`}
+                name={`floor_type_${selectedItem.id}`}
+                value={`${selectedItem.ag_id}_ul_tape`}
+                checked={currentConstr === `${selectedItem.ag_id}_ul_tape`}
+              />
+              <label
+                className="label"
+                htmlFor={`floor_ul_tape_${selectedItem.id}`}
+              >
+                УЛ-тейп по периметру
+              </label>
+            </div>
           </>
         )}
 

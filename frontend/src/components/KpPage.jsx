@@ -477,10 +477,14 @@ const KpPage = () => {
 
     (async () => {
       try {
-        const offer = await getOffer(id);
+        const [offer, constrList] = await Promise.all([
+          getOffer(id),
+          getAllIsolationConstr().catch(() => []),
+        ]);
         if (cancelled) return;
 
-        const view = mapOfferResponseToKpView(offer);
+        const titleByCode = buildTitleByCodeMap(constrList);
+        const view = mapOfferResponseToKpView(offer, { titleByCode });
         originalConstructionsRef.current = offer.constructions || [];
 
         const snap = kpSnapshot && activeOfferId === id ? kpSnapshot : null;
@@ -534,13 +538,20 @@ const KpPage = () => {
         const rawCalcTables = effectiveSnap?.calcTables
           ? effectiveSnap.calcTables
           : viewCalcTables;
-        const nextCalcTables =
+        const nextCalcTablesRaw =
           rawCalcTables.ConstrToCalc?.length > 0
             ? {
                 ...rawCalcTables,
                 tableConstrToCalc: rawCalcTables.tableConstrToCalc ?? {},
               }
             : rawCalcTables;
+        const nextCalcTables = {
+          ...nextCalcTablesRaw,
+          ConstrToCalc: enrichConstructionsWithTitles(
+            nextCalcTablesRaw?.ConstrToCalc ?? [],
+            titleByCode,
+          ),
+        };
         const constrToCalcToSent =
           effectiveSnap?.constrToCalcToSent ?? viewConstrToCalcToSent;
 
@@ -624,7 +635,6 @@ const KpPage = () => {
   // Подписи карточек из каталога — не блокируем первый рендер КП.
   useEffect(() => {
     if (!id || loadStatus !== "loaded") return undefined;
-    if (kpSnapshot && activeOfferId === id) return undefined;
 
     let cancelled = false;
     getAllIsolationConstr()
@@ -647,7 +657,7 @@ const KpPage = () => {
     return () => {
       cancelled = true;
     };
-  }, [id, loadStatus, kpSnapshot, activeOfferId]);
+  }, [id, loadStatus]);
 
   useEffect(() => {
     ignoreDirtyTrackingRef.current = true;
