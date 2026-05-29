@@ -727,7 +727,13 @@ const Calculator = () => {
     ) {
       newConstrSent.step = 400;
     }
-    if (hasFloorSealantChoice({ code }) || [607.1, 608.1, 609.1, 610.1, 2.1].includes(template)) {
+    const sendSealantChoice =
+      hasFloorSealantChoice({ code }) ||
+      [607.1, 608.1, 609.1, 610.1, 2.1].includes(template) ||
+      isFacingTemplate(template) ||
+      template === 4 ||
+      template === 5;
+    if (sendSealantChoice) {
       newConstrSent.FloorSealant = currentFloorSealant;
     }
 

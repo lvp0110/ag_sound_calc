@@ -11,6 +11,47 @@ import {
   normalizeLagProfileStep,
 } from "../utils/validation";
 
+function SealantChoiceRadios({ idPrefix, itemId, value, onChange }) {
+  return (
+    <>
+      <h4 className="selected-item-forms__group-heading">
+        выбрать тип герметика
+      </h4>
+      <div className="radio-option">
+        <input
+          className="radio"
+          type="radio"
+          onChange={(e) => onChange(e.target.value)}
+          id={`${idPrefix}_sealant_vibrosil_${itemId}`}
+          name={`${idPrefix}_sealant_${itemId}`}
+          value="vibrosil"
+          checked={value === "vibrosil"}
+        />
+        <label
+          className="label"
+          htmlFor={`${idPrefix}_sealant_vibrosil_${itemId}`}
+        >
+          Вибросил
+        </label>
+      </div>
+      <div className="radio-option">
+        <input
+          className="radio"
+          type="radio"
+          onChange={(e) => onChange(e.target.value)}
+          id={`${idPrefix}_sealant_ul_${itemId}`}
+          name={`${idPrefix}_sealant_${itemId}`}
+          value="ultracoustic"
+          checked={value === "ultracoustic"}
+        />
+        <label className="label" htmlFor={`${idPrefix}_sealant_ul_${itemId}`}>
+          Ультракустик
+        </label>
+      </div>
+    </>
+  );
+}
+
 /**
  * Компонент параметров конструкции (гипсокартон, минвата, шаг профиля, проемы)
  */
@@ -225,6 +266,13 @@ const ConstructionParameters = ({
                 )}
               </>
             )}
+
+            <SealantChoiceRadios
+              idPrefix="ceiling"
+              itemId={selectedItem.id}
+              value={currentFloorSealant}
+              onChange={setCurrentFloorSealant}
+            />
           </>
         )}
       </div>
@@ -246,45 +294,12 @@ const ConstructionParameters = ({
       (showSealantChoice || isPerimeterType) && (!isPerimeterType || unvisible);
 
     const floorSealantRadios = showSealantUi ? (
-      <>
-        <h4 className="selected-item-forms__group-heading">
-          выбрать тип герметика
-        </h4>
-        <div className="radio-option">
-          <input
-            className="radio"
-            type="radio"
-            onChange={(e) => setCurrentFloorSealant(e.target.value)}
-            id={`floor_sealant_vibrosil_${selectedItem.id}`}
-            name={`floor_sealant_${selectedItem.id}`}
-            value="vibrosil"
-            checked={currentFloorSealant === "vibrosil"}
-          />
-          <label
-            className="label"
-            htmlFor={`floor_sealant_vibrosil_${selectedItem.id}`}
-          >
-            Вибросил
-          </label>
-        </div>
-        <div className="radio-option">
-          <input
-            className="radio"
-            type="radio"
-            onChange={(e) => setCurrentFloorSealant(e.target.value)}
-            id={`floor_sealant_ul_${selectedItem.id}`}
-            name={`floor_sealant_${selectedItem.id}`}
-            value="ultracoustic"
-            checked={currentFloorSealant === "ultracoustic"}
-          />
-          <label
-            className="label"
-            htmlFor={`floor_sealant_ul_${selectedItem.id}`}
-          >
-            Ультракустик
-          </label>
-        </div>
-      </>
+      <SealantChoiceRadios
+        idPrefix="floor"
+        itemId={selectedItem.id}
+        value={currentFloorSealant}
+        onChange={setCurrentFloorSealant}
+      />
     ) : null;
 
     return (
@@ -750,6 +765,13 @@ const ConstructionParameters = ({
           </label>
         </div>
       )}
+
+      <SealantChoiceRadios
+        idPrefix="facing"
+        itemId={selectedItem.id}
+        value={currentFloorSealant}
+        onChange={setCurrentFloorSealant}
+      />
 
       <h4 className="selected-item-forms__group-heading">размер проема</h4>
       <input
