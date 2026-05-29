@@ -279,7 +279,7 @@ const ConstructionParameters = ({
                 className="label"
                 htmlFor={`floor_ul_tape_${selectedItem.id}`}
               >
-                УЛ-тейп по периметру
+                Ультракустик F100 по периметру
               </label>
             </div>
           </>

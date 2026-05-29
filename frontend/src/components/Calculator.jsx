@@ -721,6 +721,12 @@ const Calculator = () => {
       const result = await calculateConstruction([deep]);
       const data = result?.data ?? [];
 
+      if (data.length === 0) {
+        throw new Error(
+          "Расчёт не вернул материалы для выбранного варианта конструкции."
+        );
+      }
+
       setConstrToCalcToSent((prev) => [...prev, deep]);
       setConstrToCalc((prev) => [...prev, newConstR]);
       setMaterialsByConstruction((prev) => [

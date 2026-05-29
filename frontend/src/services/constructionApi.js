@@ -3,6 +3,11 @@
  */
 
 import { BASE_URL } from "./apiClient";
+import {
+  isUlTapeCalcCode,
+  mapVibrostekMaterialsToUlTape,
+  vibrostekCodeFromUlTape,
+} from "../utils/calcUlTapeFallback.js";
 
 export const calculateConstruction = async (constrList) => {
   if (!constrList || constrList.length === 0) {
@@ -53,13 +58,33 @@ export const calculateConstruction = async (constrList) => {
 
   const data = await response.json();
 
+  let rows;
   if (data && data.data) {
-    return data;
+    rows = data.data;
   } else if (Array.isArray(data)) {
-    return { data: data };
+    rows = data;
   } else {
-    return { data: [] };
+    rows = [];
   }
+
+  // Внешний calc пока не знает *_ul_tape (пустой data при HTTP 200).
+  if (
+    rows.length === 0 &&
+    constrList.length === 1 &&
+    isUlTapeCalcCode(constrList[0]?.Code)
+  ) {
+    const vibrostekPayload = constrList.map((item) => ({
+      ...item,
+      Code: vibrostekCodeFromUlTape(item.Code),
+    }));
+    const fallback = await calculateConstruction(vibrostekPayload);
+    const mapped = mapVibrostekMaterialsToUlTape(fallback?.data ?? []);
+    if (mapped?.length) {
+      return { data: mapped };
+    }
+  }
+
+  return { data: rows };
 };
 
 /**

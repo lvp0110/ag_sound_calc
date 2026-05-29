@@ -1,5 +1,10 @@
 import { env } from "../config/env.js";
 import {
+  isUlTapeCalcCode,
+  mapVibrostekMaterialsToUlTape,
+  vibrostekCodeFromUlTape,
+} from "./calcUlTapeFallback.js";
+import {
   getCachedCalcMaterials,
   setCachedCalcMaterials,
 } from "./calcResultCache.js";
@@ -35,14 +40,9 @@ export class CalcServiceError extends Error {
 
 const CALC_PATH = "/api/v1/calcIsolation/byProduct";
 
-/**
- * Вызывает внешний сервис расчёта для ОДНОЙ конструкции.
- * Возвращает плоский массив материалов этой конструкции.
- */
-const calculateOne = async (params: CalcParams): Promise<CalcMaterial[]> => {
-  const cached = getCachedCalcMaterials(params);
-  if (cached) return cached;
-
+const fetchMaterialsFromCalcService = async (
+  params: CalcParams
+): Promise<CalcMaterial[]> => {
   const url = `${env.calcServiceUrl.replace(/\/$/, "")}${CALC_PATH}`;
 
   let response: globalThis.Response;
@@ -82,7 +82,30 @@ const calculateOne = async (params: CalcParams): Promise<CalcMaterial[]> => {
     payload && typeof payload === "object" && "data" in payload
       ? (payload as { data: unknown }).data
       : payload;
-  const materials = Array.isArray(raw) ? (raw as CalcMaterial[]) : [];
+  return Array.isArray(raw) ? (raw as CalcMaterial[]) : [];
+};
+
+/**
+ * Вызывает внешний сервис расчёта для ОДНОЙ конструкции.
+ * Возвращает плоский массив материалов этой конструкции.
+ */
+const calculateOne = async (params: CalcParams): Promise<CalcMaterial[]> => {
+  const cached = getCachedCalcMaterials(params);
+  if (cached) return cached;
+
+  let materials = await fetchMaterialsFromCalcService(params);
+
+  // Внешний calc пока не знает *_ul_tape — считаем через *_vibrostek и подменяем ленту.
+  if (materials.length === 0 && isUlTapeCalcCode(params.Code)) {
+    const vibrostekParams = {
+      ...params,
+      Code: vibrostekCodeFromUlTape(params.Code),
+    };
+    const vibrostekMaterials = await fetchMaterialsFromCalcService(vibrostekParams);
+    const mapped = mapVibrostekMaterialsToUlTape(vibrostekMaterials);
+    if (mapped) materials = mapped as CalcMaterial[];
+  }
+
   setCachedCalcMaterials(params, materials);
   return materials;
 };
