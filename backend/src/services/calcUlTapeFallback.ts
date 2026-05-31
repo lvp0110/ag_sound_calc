@@ -8,6 +8,57 @@ const UL_TAPE_ARTICLE = {
 
 export const UL_TAPE_SUFFIX = "_ul_tape";
 export const VIBROSTEK_SUFFIX = "_vibrostek";
+export const UL_HANGER_SUFFIX = "_ul_hanger";
+
+const VIBROFLEX_HANGER_ARTICLE_CODES = new Set([
+  "2316.3010",
+  "2316.1010",
+  "2316.4020",
+  "2316.2020",
+]);
+
+const UL_HANGER_ARTICLE = {
+  Code: "2406.5000",
+  Name: "Подвес виброизолирующий Ультракустик универсальный",
+  Units: "шт",
+};
+
+export const isUlHangerCalcCode = (code: string): boolean =>
+  code.includes(UL_HANGER_SUFFIX);
+
+export const stripHangerSuffix = (code: string): { base: string; hanger: string } => {
+  const s = String(code ?? "").trim();
+  if (s.endsWith(UL_HANGER_SUFFIX)) {
+    return { base: s.slice(0, -UL_HANGER_SUFFIX.length), hanger: UL_HANGER_SUFFIX };
+  }
+  return { base: s, hanger: "" };
+};
+
+export const ulHangerFallbackCalcCode = (code: string): string =>
+  stripHangerSuffix(code).base;
+
+export const mapVibroflexHangerToUltracoustic = (
+  materials: unknown[]
+): unknown[] | null => {
+  if (!Array.isArray(materials) || materials.length === 0) return null;
+
+  let replaced = false;
+  const mapped = materials.map((row) => {
+    const rec =
+      row && typeof row === "object" ? (row as Record<string, unknown>) : {};
+    const code = String(rec.Code ?? rec.code ?? "").trim();
+    if (!VIBROFLEX_HANGER_ARTICLE_CODES.has(code)) return row;
+    replaced = true;
+    return {
+      ...rec,
+      Code: UL_HANGER_ARTICLE.Code,
+      Name: UL_HANGER_ARTICLE.Name,
+      Units: UL_HANGER_ARTICLE.Units,
+    };
+  });
+
+  return replaced ? mapped : null;
+};
 
 export const isUlTapeCalcCode = (code: string): boolean => code.endsWith(UL_TAPE_SUFFIX);
 

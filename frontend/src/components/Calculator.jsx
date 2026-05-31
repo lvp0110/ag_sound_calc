@@ -25,7 +25,12 @@ import {
   getConstructionCode,
   resolveDisplayCipher,
 } from "../utils/calculations";
-import { hasFloorSealantChoice } from "../utils/calcUlTapeFallback";
+import {
+  hangerTypeFromCode,
+  hasFloorSealantChoice,
+  HANGER_VIBROSTEK,
+  stripHangerSuffix,
+} from "../utils/calcUlTapeFallback";
 import {
   sectionIdFromCode,
   sectionIdFromSubCategory,
@@ -78,6 +83,8 @@ const Calculator = () => {
   const [currentConstr, setCurrentConstr] = useCalcField("currentConstr");
   const [currentFloorSealant, setCurrentFloorSealant] =
     useCalcField("currentFloorSealant");
+  const [currentHangerType, setCurrentHangerType] =
+    useCalcField("currentHangerType");
   const [ConstrToCalcToSent, setConstrToCalcToSent] = useCalcField("ConstrToCalcToSent");
   const [ConstrToCalc, setConstrToCalc] = useCalcField("ConstrToCalc");
   const [materialsByConstruction, setMaterialsByConstruction] = useCalcField(
@@ -361,12 +368,14 @@ const Calculator = () => {
         setTemplate(null);
         setCurrentConstr("");
         setCurrentFloorSealant("vibrosil");
+        setCurrentHangerType(HANGER_VIBROSTEK);
       } else {
         setCurrentItems(item.id);
         setTemplate(item.template);
         setTableConstrToCalc(1);
         setCurrentConstr(item.ag_id);
         setCurrentFloorSealant("vibrosil");
+        setCurrentHangerType(hangerTypeFromCode(item.ag_id));
         if (isFacingTemplate(item.template)) {
           setFacingProfileStep(600);
         }
@@ -388,6 +397,7 @@ const Calculator = () => {
         // Иначе обновление itemsWithImages может затирать выбранный suffix-вариант.
         if (initializedItemIdRef.current !== currentItems) {
           setCurrentConstr(selectedItem.ag_id);
+          setCurrentHangerType(hangerTypeFromCode(selectedItem.ag_id));
           initializedItemIdRef.current = currentItems;
         }
       }
@@ -395,6 +405,7 @@ const Calculator = () => {
       setTemplate(null);
       setCurrentConstr("");
       setCurrentFloorSealant("vibrosil");
+      setCurrentHangerType(HANGER_VIBROSTEK);
       initializedItemIdRef.current = null;
     }
   }, [
@@ -402,6 +413,7 @@ const Calculator = () => {
     itemsWithImages,
     setCurrentConstr,
     setCurrentFloorSealant,
+    setCurrentHangerType,
     setTableConstrToCalc,
     setTemplate,
   ]);
@@ -668,7 +680,12 @@ const Calculator = () => {
 
     const IconType = SubCategories.find((el) => el.id == currentSubCategory);
     const Constr = itemsWithImages.find((el) => el.id == currentItems);
-    const code = getConstructionCode(currentConstr, currentGkla, currentWool);
+    const code = getConstructionCode(
+      currentConstr,
+      currentGkla,
+      currentWool,
+      currentHangerType
+    );
     const sectionId =
       sectionIdFromSubCategory(currentSubCategory) || sectionIdFromCode(code);
 
@@ -767,6 +784,7 @@ const Calculator = () => {
       setCurrentGkla("default");
       setCurrentWool("default");
       setCurrentFloorSealant("vibrosil");
+      setCurrentHangerType(HANGER_VIBROSTEK);
     } catch (error) {
       let errorMessage = error.message;
       if (error.message.includes("invalid construction size")) {
@@ -800,6 +818,7 @@ const Calculator = () => {
     currentGkla,
     currentWool,
     currentFloorSealant,
+    currentHangerType,
     template,
   ]);
 
@@ -832,7 +851,11 @@ const Calculator = () => {
 
   useEffect(() => {
     if (id != null && itemsWithImages.length > 0) {
-      const item = itemsWithImages.find((item) => item.ag_id === id);
+      const routeCode = String(id).trim();
+      const { base: routeBaseId } = stripHangerSuffix(routeCode);
+      const item = itemsWithImages.find(
+        (entry) => entry.ag_id === routeCode || entry.ag_id === routeBaseId
+      );
       if (item) {
         const subCategory = SubCategories.find(
           (subCategory) => subCategory.id === item.c_id
@@ -840,6 +863,7 @@ const Calculator = () => {
         if (subCategory) {
           setCurrentItems(item.id);
           setCurrentSubCategory(subCategory.id);
+          setCurrentHangerType(hangerTypeFromCode(routeCode));
 
           const sectionId =
             item.c_id === "F"
@@ -864,7 +888,7 @@ const Calculator = () => {
         }
       }
     }
-  }, [id, itemsWithImages]);
+  }, [id, itemsWithImages, setCurrentHangerType]);
 
   return (
     <div className="calculator-page">
@@ -1040,6 +1064,8 @@ const Calculator = () => {
                             setCurrentConstr={setCurrentConstr}
                             currentFloorSealant={currentFloorSealant}
                             setCurrentFloorSealant={setCurrentFloorSealant}
+                            currentHangerType={currentHangerType}
+                            setCurrentHangerType={setCurrentHangerType}
                             unvisible={unvisible}
                             setUnvisible={setUnvisible}
                             currentGkla={currentGkla}

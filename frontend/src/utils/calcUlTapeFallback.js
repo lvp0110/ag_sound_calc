@@ -10,6 +10,78 @@ export const UL_TAPE_ARTICLE = {
 
 export const UL_TAPE_SUFFIX = "_ul_tape";
 export const VIBROSTEK_SUFFIX = "_vibrostek";
+export const UL_HANGER_SUFFIX = "_ul_hanger";
+
+export const HANGER_VIBROSTEK = "vibrostek";
+export const HANGER_ULTRACOUSTIC = "ultracoustic";
+
+/** Конструкции с выбором типа подвеса (Вибростек / Ультракустик). */
+export const HANGER_CHOICE_AG_IDS = new Set([
+  "AG.C501",
+  "AG.C502",
+  "AG.C503",
+  "AG.L404",
+  "AG.L405",
+]);
+
+export const isUlHangerCalcCode = (code) =>
+  typeof code === "string" && code.includes(UL_HANGER_SUFFIX);
+
+export const hangerTypeFromCode = (code) =>
+  isUlHangerCalcCode(code) ? HANGER_ULTRACOUSTIC : HANGER_VIBROSTEK;
+
+/** Убирает суффикс подвеса с полного кода (в т.ч. AG.C501_ul_hanger). */
+export const stripHangerSuffix = (code) => {
+  const s = String(code ?? "").trim();
+  if (s.endsWith(UL_HANGER_SUFFIX)) {
+    return { base: s.slice(0, -UL_HANGER_SUFFIX.length), hanger: UL_HANGER_SUFFIX };
+  }
+  return { base: s, hanger: "" };
+};
+
+export const hasHangerChoice = (agId) =>
+  Boolean(agId) && HANGER_CHOICE_AG_IDS.has(String(agId).trim());
+
+/** Подвесы Виброфлекс в ответе calc для базового шифра (AG.C501 … AG.L405). */
+const VIBROFLEX_HANGER_ARTICLE_CODES = new Set([
+  "2316.3010",
+  "2316.1010",
+  "2316.4020",
+  "2316.2020",
+]);
+
+/** Артикул «Подвес виброизолирующий Ультракустик универсальный» в прайсе 1С. */
+export const UL_HANGER_ARTICLE = {
+  Code: "2406.5000",
+  Name: "Подвес виброизолирующий Ультракустик универсальный",
+  Units: "шт",
+};
+
+/** Код без суффикса *_ul_hanger (для fallback: AG.C501_ul_tape_ul_hanger → AG.C501_ul_tape). */
+export const ulHangerFallbackCalcCode = (code) => stripHangerSuffix(code).base;
+
+/**
+ * В calc-сервисе пока нет *_ul_hanger: считаем базовый шифр (и при необходимости
+ * цепочку *_ul_tape) и меняем подвес Виброфлекс на Ультракустик.
+ */
+export const mapVibroflexHangerToUltracoustic = (materials) => {
+  if (!Array.isArray(materials) || materials.length === 0) return null;
+
+  let replaced = false;
+  const mapped = materials.map((row) => {
+    const code = String(row?.Code ?? row?.code ?? "").trim();
+    if (!VIBROFLEX_HANGER_ARTICLE_CODES.has(code)) return row;
+    replaced = true;
+    return {
+      ...row,
+      Code: UL_HANGER_ARTICLE.Code,
+      Name: UL_HANGER_ARTICLE.Name,
+      Units: UL_HANGER_ARTICLE.Units,
+    };
+  });
+
+  return replaced ? mapped : null;
+};
 
 export const isUlTapeCalcCode = (code) =>
   typeof code === "string" && code.endsWith(UL_TAPE_SUFFIX);

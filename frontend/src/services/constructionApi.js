@@ -4,10 +4,13 @@
 
 import { BASE_URL } from "./apiClient";
 import {
+  isUlHangerCalcCode,
   isUlTapeCalcCode,
   isUltracousticFloorSealant,
+  mapVibroflexHangerToUltracoustic,
   mapVibrosilSealantToUltracoustic,
   mapVibrostekMaterialsToUlTape,
+  ulHangerFallbackCalcCode,
   ulTapeFallbackCalcCodes,
 } from "../utils/calcUlTapeFallback.js";
 
@@ -67,6 +70,24 @@ export const calculateConstruction = async (constrList) => {
     rows = data;
   } else {
     rows = [];
+  }
+
+  // Внешний calc пока не знает *_ul_hanger (пустой data при HTTP 200).
+  if (
+    rows.length === 0 &&
+    constrList.length === 1 &&
+    isUlHangerCalcCode(constrList[0]?.Code)
+  ) {
+    const fallbackCode = ulHangerFallbackCalcCode(constrList[0].Code);
+    const fallbackPayload = constrList.map((item) => ({
+      ...item,
+      Code: fallbackCode,
+    }));
+    const fallback = await calculateConstruction(fallbackPayload);
+    const mapped = mapVibroflexHangerToUltracoustic(fallback?.data ?? []);
+    if (mapped?.length) {
+      return { data: mapped };
+    }
   }
 
   // Внешний calc пока не знает *_ul_tape (пустой data при HTTP 200).
