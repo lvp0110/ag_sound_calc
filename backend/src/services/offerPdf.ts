@@ -2,7 +2,7 @@ import puppeteer, { type Browser } from "puppeteer";
 import { buildTitleByCode } from "./catalogData.js";
 import { buildPriceLookup } from "./priceData.js";
 import {
-  KP_FOOTER_TEMPLATE,
+  buildFooterHtml,
   KP_HEADER_TEMPLATE,
   renderOfferKpHtml,
   type OfferForRender,
@@ -109,7 +109,10 @@ export class OfferPdfError extends Error {
   }
 }
 
-const renderPdfFromHtml = async (html: string): Promise<Buffer> => {
+const renderPdfFromHtml = async (
+  html: string,
+  footerHtml: string
+): Promise<Buffer> => {
   const browser = await getBrowser();
   const page = await browser.newPage();
   try {
@@ -120,7 +123,7 @@ const renderPdfFromHtml = async (html: string): Promise<Buffer> => {
       printBackground: true,
       displayHeaderFooter: true,
       headerTemplate: KP_HEADER_TEMPLATE,
-      footerTemplate: KP_FOOTER_TEMPLATE,
+      footerTemplate: footerHtml,
     });
     return Buffer.from(pdf);
   } finally {
@@ -142,11 +145,12 @@ export const renderOfferPdf = async (offer: OfferForRender): Promise<Buffer> => 
   ]);
 
   const html = renderOfferKpHtml({ offer, priceLookup, catalog });
+  const footerHtml = buildFooterHtml(offer);
 
   let lastError: unknown;
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      return await renderPdfFromHtml(html);
+      return await renderPdfFromHtml(html, footerHtml);
     } catch (err) {
       lastError = err;
       if (attempt === 0 && isBrowserConnectionError(err)) {

@@ -80,6 +80,11 @@ export type OfferForRender = {
   object_name: string | null;
   region: string | null;
   logo_url: string | null;
+  company_name: string | null;
+  company_address: string | null;
+  ogrn: string | null;
+  kpp: string | null;
+  inn: string | null;
   services: ServiceLike[] | null;
   additional_materials: ServiceLike[] | null;
   constructions: ConstructionLike[];
@@ -275,6 +280,12 @@ export function renderOfferKpHtml({ offer, priceLookup, catalog }: RenderInput):
 
   const sections: RenderedSection[] = [];
 
+  // Правило: строка попадает в PDF, только если у неё цена > 0. Заголовок
+  // секции рендерится только при наличии хотя бы одной строки. Без этого
+  // пустые конструкции / нулевые услуги создают «висящие» секции в КП.
+  const hasPositivePrice = (price: number | null | undefined): boolean =>
+    price != null && Number.isFinite(price) && price > 0;
+
   for (const c of offer.constructions || []) {
     const materials = Array.isArray(c.materials) ? c.materials : [];
     const rows: RenderedSection["rows"] = [];
@@ -283,6 +294,7 @@ export function renderOfferKpHtml({ offer, priceLookup, catalog }: RenderInput):
       const article = materialArticle(m);
       const { pricePerM2, pricePerUnit } = priceLookup(article);
       const unitPrice = materialUnitPriceForDisplay(m, pricePerM2, pricePerUnit);
+      if (!hasPositivePrice(unitPrice)) continue;
       const qty = materialQuantityForDisplay(m);
       const lineSum = materialLineSum(m, pricePerM2, pricePerUnit);
       if (lineSum != null) sectionTotal += lineSum;
@@ -294,6 +306,7 @@ export function renderOfferKpHtml({ offer, priceLookup, catalog }: RenderInput):
         lineSum,
       });
     }
+    if (rows.length === 0) continue;
     sections.push({
       name: constructionDisplayName(c.calc_params, catalog),
       sectionTotal,
@@ -301,50 +314,53 @@ export function renderOfferKpHtml({ offer, priceLookup, catalog }: RenderInput):
     });
   }
 
-  // Услуги и доп. материалы — отдельными секциями в конце (если не пустые).
-  const services = (offer.services || []).filter(
-    (s) => (s.name && String(s.name).trim()) || Number(s.price) > 0 || Number(s.count) > 0
-  );
-  if (services.length > 0) {
+  // Услуги — оставляем только строки с положительной ценой.
+  {
+    const rows: RenderedSection["rows"] = [];
     let total = 0;
-    const rows = services.map((s) => {
+    for (const s of offer.services || []) {
       const price = Number(s.price) || 0;
+      if (!hasPositivePrice(price)) continue;
       const count = Number(s.count) || 0;
       const lineSum = price * count;
       total += lineSum;
-      return {
+      rows.push({
         name: String(s.name ?? ""),
         unit: String(s.unit ?? ""),
         qty: count,
         unitPrice: price,
         lineSum,
-      };
-    });
-    sections.push({ name: "Услуги", sectionTotal: total, rows });
+      });
+    }
+    if (rows.length > 0) {
+      sections.push({ name: "Услуги", sectionTotal: total, rows });
+    }
   }
 
-  const additional = (offer.additional_materials || []).filter(
-    (m) => (m.name && String(m.name).trim()) || Number(m.price) > 0 || Number(m.count) > 0
-  );
-  if (additional.length > 0) {
+  // Доп. материалы — то же правило.
+  {
+    const rows: RenderedSection["rows"] = [];
     let total = 0;
-    const rows = additional.map((m) => {
+    for (const m of offer.additional_materials || []) {
       const price = Number(m.price) || 0;
+      if (!hasPositivePrice(price)) continue;
       const count = Number(m.count) || 0;
       const lineSum = price * count;
       total += lineSum;
-      return {
+      rows.push({
         name: String(m.name ?? ""),
         unit: String(m.unit ?? ""),
         qty: count,
         unitPrice: price,
         lineSum,
-      };
-    });
-    sections.push({ name: "Дополнительные материалы", sectionTotal: total, rows });
+      });
+    }
+    if (rows.length > 0) {
+      sections.push({ name: "Дополнительные материалы", sectionTotal: total, rows });
+    }
   }
 
-  // Монтаж по конструкциям — отдельная секция (одна строка = одна конструкция).
+  // Монтаж по конструкциям — одна строка на конструкцию. Без цены не выводим.
   const montageRows: RenderedSection["rows"] = [];
   let montageTotal = 0;
   for (const c of offer.constructions || []) {
@@ -352,8 +368,8 @@ export function renderOfferKpHtml({ offer, priceLookup, catalog }: RenderInput):
     const row = arr[0];
     if (!row) continue;
     const price = Number(row.price) || 0;
+    if (!hasPositivePrice(price)) continue;
     const count = Number(row.count) || 0;
-    if (price === 0 && count === 0) continue;
     const lineSum = price * count;
     montageTotal += lineSum;
     montageRows.push({
@@ -423,6 +439,14 @@ export function renderOfferKpHtml({ offer, priceLookup, catalog }: RenderInput):
     MANAGER_EMAIL: esc(offer.email ?? ""),
     // HTML, не esc(): либо <img data: URI>, либо дефолтный брендовый блок.
     LOGO_BLOCK: buildLogoBlockHtml(offer.logo_url),
+    // Название фирмы во вступительной фразе «Компания ООО «...» предлагает Вам».
+    // В шаблоне «ООО «»» — обёртка зафиксирована, в плейсхолдер кладём только
+    // «голое» название (как ввёл пользователь). При пустом поле — «Шуманет Шоп».
+    INTRO_COMPANY: esc(
+      (offer.company_name ?? "").trim() !== ""
+        ? (offer.company_name as string).trim()
+        : "Шуманет Шоп"
+    ),
   };
 
   return applyPlaceholders(loadTemplate(), placeholders);
@@ -441,7 +465,38 @@ const applyPlaceholders = (template: string, values: Record<string, string>): st
   return out;
 };
 
-const FOOTER_HTML = `
+/**
+ * Дефолтные реквизиты для футера PDF (ООО «Шуманет Шоп»). Используются
+ * по-полю, если соответствующее поле в Offer не заполнено — иначе подставится
+ * значение из Offer (см. buildFooterHtml).
+ */
+const DEFAULT_FOOTER = {
+  companyName: "ООО «Шуманет Шоп»",
+  companyAddress: "115054, Москва г, Новокузнецкая ул, дом 33, строение 2",
+  phone: "+8 (495) 134-98-98",
+  ogrn: "1177746342157",
+  kpp: "770501001",
+  inn: "9705093593",
+} as const;
+
+/**
+ * Футер PDF собирается на каждый рендер: пользовательские значения из Offer
+ * (company_name / company_address / phone / ogrn / kpp / inn) подставляются
+ * по-полю; пустые поля заменяются дефолтами «Шуманет Шоп».
+ */
+export const buildFooterHtml = (offer: OfferForRender): string => {
+  const pick = (val: string | null | undefined, fallback: string): string => {
+    const s = (val ?? "").trim();
+    return s !== "" ? s : fallback;
+  };
+  const companyName = pick(offer.company_name, DEFAULT_FOOTER.companyName);
+  const companyAddress = pick(offer.company_address, DEFAULT_FOOTER.companyAddress);
+  const phone = pick(offer.phone, DEFAULT_FOOTER.phone);
+  const ogrn = pick(offer.ogrn, DEFAULT_FOOTER.ogrn);
+  const kpp = pick(offer.kpp, DEFAULT_FOOTER.kpp);
+  const inn = pick(offer.inn, DEFAULT_FOOTER.inn);
+
+  return `
 <div style="
   width: 100%;
   font-family: 'Liberation Sans', 'DejaVu Sans', Arial, sans-serif;
@@ -452,12 +507,12 @@ const FOOTER_HTML = `
   border-top: 1px solid #4a4a4a;
   padding-top: 2mm;
 ">
-  <div>ООО «Шуманет Шоп» • 115054, Москва г, Новокузнецкая ул, дом 33, строение 2</div>
-  <div>Тел./факс: +8 (495) 134-98-98</div>
-  <div>ОГРН 1177746342157 • ИНН/КПП 9705093593/770501001</div>
+  <div>${esc(companyName)} • ${esc(companyAddress)}</div>
+  <div>Тел./факс: ${esc(phone)}</div>
+  <div>ОГРН ${esc(ogrn)} • ИНН/КПП ${esc(inn)}/${esc(kpp)}</div>
 </div>`;
+};
 
 const HEADER_HTML = `<div></div>`;
 
 export const KP_HEADER_TEMPLATE = HEADER_HTML;
-export const KP_FOOTER_TEMPLATE = FOOTER_HTML;

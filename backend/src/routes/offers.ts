@@ -52,6 +52,11 @@ const toForm = (parsed: z.infer<typeof CreateOfferRequestSchema>["form"]) => {
     region: form.region ?? null,
     markupPercent: form.markup_percent ?? null,
     discountPercent: form.discount_percent ?? null,
+    companyName: form.company_name ?? null,
+    companyAddress: form.company_address ?? null,
+    ogrn: form.ogrn ?? null,
+    kpp: form.kpp ?? null,
+    inn: form.inn ?? null,
   };
 };
 
@@ -111,6 +116,11 @@ const toOfferDto = (offer: Offer, constructions: ConstructionForDto[]) => ({
   region: offer.region,
   markup_percent: decimalToNumber(offer.markupPercent),
   discount_percent: decimalToNumber(offer.discountPercent),
+  company_name: offer.companyName,
+  company_address: offer.companyAddress,
+  ogrn: offer.ogrn,
+  kpp: offer.kpp,
+  inn: offer.inn,
   services: offer.services ?? null,
   additional_materials: offer.additionalMaterials ?? null,
   kp_settings: offer.kpSettings ?? null,
@@ -316,6 +326,11 @@ router.get(
       object_name: dto.object_name,
       region: dto.region,
       logo_url: dto.logo_url,
+      company_name: dto.company_name,
+      company_address: dto.company_address,
+      ogrn: dto.ogrn,
+      kpp: dto.kpp,
+      inn: dto.inn,
       services: (Array.isArray(dto.services) ? dto.services : null) as Array<
         Record<string, unknown>
       > | null,
@@ -380,6 +395,11 @@ router.patch(
       if (f.region !== undefined) formData.region = f.region;
       if (f.markup_percent !== undefined) formData.markupPercent = f.markup_percent;
       if (f.discount_percent !== undefined) formData.discountPercent = f.discount_percent;
+      if (f.company_name !== undefined) formData.companyName = f.company_name;
+      if (f.company_address !== undefined) formData.companyAddress = f.company_address;
+      if (f.ogrn !== undefined) formData.ogrn = f.ogrn;
+      if (f.kpp !== undefined) formData.kpp = f.kpp;
+      if (f.inn !== undefined) formData.inn = f.inn;
     }
 
     const updated = await prisma.$transaction(async (tx) => {
@@ -530,6 +550,11 @@ router.post(
           region: source.region,
           markupPercent: source.markupPercent,
           discountPercent: source.discountPercent,
+          companyName: source.companyName,
+          companyAddress: source.companyAddress,
+          ogrn: source.ogrn,
+          kpp: source.kpp,
+          inn: source.inn,
           services: (source.services ?? []) as unknown as Prisma.InputJsonValue,
           additionalMaterials:
             (source.additionalMaterials ?? []) as unknown as Prisma.InputJsonValue,

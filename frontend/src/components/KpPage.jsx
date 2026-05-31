@@ -64,6 +64,12 @@ const initialForm = {
   // Относительный URL загруженного логотипа («/uploads/...»). Пустая строка =
   // логотип не выбран. Заполняется через POST /api/uploads/logo (см. offersApi.uploadLogo).
   logoUrl: "",
+  // Реквизиты компании-клиента (отображаются в правом верхнем блоке PDF).
+  companyName: "",
+  companyAddress: "",
+  ogrn: "",
+  kpp: "",
+  inn: "",
 };
 
 /** Все обязательные поля блока «Контактные данные» (.kp-page__contact) заполнены. */
@@ -414,6 +420,9 @@ const KpPage = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState(null);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
+  const [isPdfDialogOpen, setIsPdfDialogOpen] = useState(false);
+  const [pdfDialogCompanyName, setPdfDialogCompanyName] = useState("");
+  const [pdfDialogError, setPdfDialogError] = useState(null);
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const [logoUploadError, setLogoUploadError] = useState(null);
   const logoInputRef = useRef(null);
@@ -805,7 +814,7 @@ const KpPage = () => {
     [],
   );
 
-  const handleDownloadPdf = async () => {
+  const handleDownloadPdf = () => {
     if (!id || isDownloadingPdf) return;
     if (isPdfExportBlocked) {
       setSaveError(
@@ -813,13 +822,45 @@ const KpPage = () => {
       );
       return;
     }
+    // Сначала диалог с обязательными данными для печати (пока — только
+    // название фирмы); фактическая выгрузка — в handleConfirmPdfDownload.
+    setPdfDialogCompanyName(form.companyName ?? "");
+    setPdfDialogError(null);
+    setIsPdfDialogOpen(true);
+  };
+
+  const handleClosePdfDialog = useCallback(() => {
+    if (isDownloadingPdf) return;
+    setIsPdfDialogOpen(false);
+    setPdfDialogError(null);
+  }, [isDownloadingPdf]);
+
+  const handleConfirmPdfDownload = async () => {
+    if (!id || isDownloadingPdf) return;
+    const trimmed = (pdfDialogCompanyName ?? "").trim();
+    if (trimmed === "") {
+      setPdfDialogError("Введите название фирмы.");
+      return;
+    }
     setIsDownloadingPdf(true);
+    setPdfDialogError(null);
     setSaveError(null);
     try {
+      if (trimmed !== (form.companyName ?? "")) {
+        // PATCH частично: только company_name. Backend читает PDF из БД,
+        // поэтому правка должна попасть туда до вызова /pdf.
+        await updateOffer(id, { form: { company_name: trimmed } });
+        setForm((prev) => ({ ...prev, companyName: trimmed }));
+        // Сбросить dirty-baseline тем же способом, что и handleSave —
+        // иначе экран зацепит «несохранённые изменения».
+        ignoreDirtyTrackingRef.current = true;
+        shouldResetDirtyBaselineRef.current = true;
+      }
       const objectPart = form.object?.trim() || id;
       await downloadOfferPdf(id, `КП ${objectPart}.pdf`);
+      setIsPdfDialogOpen(false);
     } catch (err) {
-      setSaveError(err?.message || "Не удалось сгенерировать PDF.");
+      setPdfDialogError(err?.message || "Не удалось сгенерировать PDF.");
     } finally {
       setIsDownloadingPdf(false);
     }
@@ -1841,7 +1882,7 @@ const KpPage = () => {
               onInput={autoResizeNameField}
             />
           </div>
-          <div className="kp-page__field-row kp-page__field-row--last">
+          <div className="kp-page__field-row">
             <label className="kp-page__label" htmlFor="kp-address">
               Адрес офиса:
             </label>
@@ -1852,6 +1893,76 @@ const KpPage = () => {
               autoComplete="street-address"
               value={form.officeAddress}
               onChange={onContactFieldChange("officeAddress")}
+              onInput={autoResizeNameField}
+            />
+          </div>
+          <div className="kp-page__field-row">
+            <label className="kp-page__label" htmlFor="kp-company-name">
+              Название фирмы:
+            </label>
+            <textarea
+              id="kp-company-name"
+              className="kp-page__input"
+              rows={1}
+              autoComplete="organization"
+              value={form.companyName}
+              onChange={onContactFieldChange("companyName")}
+              onInput={autoResizeNameField}
+            />
+          </div>
+          <div className="kp-page__field-row">
+            <label className="kp-page__label" htmlFor="kp-company-address">
+              Адрес фирмы:
+            </label>
+            <textarea
+              id="kp-company-address"
+              className="kp-page__input"
+              rows={1}
+              autoComplete="street-address"
+              value={form.companyAddress}
+              onChange={onContactFieldChange("companyAddress")}
+              onInput={autoResizeNameField}
+            />
+          </div>
+          <div className="kp-page__field-row">
+            <label className="kp-page__label" htmlFor="kp-ogrn">
+              ОГРН:
+            </label>
+            <textarea
+              id="kp-ogrn"
+              className="kp-page__input"
+              rows={1}
+              inputMode="numeric"
+              value={form.ogrn}
+              onChange={onContactFieldChange("ogrn")}
+              onInput={autoResizeNameField}
+            />
+          </div>
+          <div className="kp-page__field-row">
+            <label className="kp-page__label" htmlFor="kp-kpp">
+              КПП:
+            </label>
+            <textarea
+              id="kp-kpp"
+              className="kp-page__input"
+              rows={1}
+              inputMode="numeric"
+              value={form.kpp}
+              onChange={onContactFieldChange("kpp")}
+              onInput={autoResizeNameField}
+            />
+          </div>
+          <div className="kp-page__field-row kp-page__field-row--last">
+            <label className="kp-page__label" htmlFor="kp-inn">
+              ИНН:
+            </label>
+            <textarea
+              id="kp-inn"
+              className="kp-page__input"
+              rows={1}
+              inputMode="numeric"
+              value={form.inn}
+              onChange={onContactFieldChange("inn")}
               onInput={autoResizeNameField}
             />
           </div>
@@ -2176,6 +2287,77 @@ const KpPage = () => {
           </div>
         </div>
       </main>
+      {isPdfDialogOpen && (
+        <div
+          className="kp-pdf-dialog__backdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="kp-pdf-dialog-title"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) handleClosePdfDialog();
+          }}
+        >
+          <div className="kp-pdf-dialog">
+            <button
+              type="button"
+              className="kp-pdf-dialog__close"
+              onClick={handleClosePdfDialog}
+              aria-label="Закрыть"
+              disabled={isDownloadingPdf}
+            >
+              ×
+            </button>
+            <h3 id="kp-pdf-dialog-title" className="kp-pdf-dialog__title">
+              Данные для печати КП
+            </h3>
+            <form
+              className="kp-pdf-dialog__form"
+              onSubmit={(e) => {
+                e.preventDefault();
+                void handleConfirmPdfDownload();
+              }}
+            >
+              <label
+                className="kp-pdf-dialog__label"
+                htmlFor="kp-pdf-dialog-company"
+              >
+                Название фирмы
+              </label>
+              <input
+                id="kp-pdf-dialog-company"
+                type="text"
+                className="kp-pdf-dialog__input"
+                value={pdfDialogCompanyName}
+                onChange={(e) => setPdfDialogCompanyName(e.target.value)}
+                autoFocus
+                disabled={isDownloadingPdf}
+              />
+              {pdfDialogError && (
+                <div className="kp-pdf-dialog__error" role="alert">
+                  {pdfDialogError}
+                </div>
+              )}
+              <div className="kp-pdf-dialog__actions">
+                <button
+                  type="button"
+                  className="kp-pdf-dialog__btn kp-pdf-dialog__btn--ghost"
+                  onClick={handleClosePdfDialog}
+                  disabled={isDownloadingPdf}
+                >
+                  Отмена
+                </button>
+                <button
+                  type="submit"
+                  className="kp-pdf-dialog__btn kp-pdf-dialog__btn--primary"
+                  disabled={isDownloadingPdf}
+                >
+                  {isDownloadingPdf ? "Готовим PDF..." : "Скачать PDF"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

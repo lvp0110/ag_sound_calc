@@ -163,6 +163,11 @@ export const OfferFormSchema = z
     region: z.string().nullish(),
     markup_percent: z.number().nullish(),
     discount_percent: z.number().nullish(),
+    company_name: z.string().nullish(),
+    company_address: z.string().nullish(),
+    ogrn: z.string().nullish(),
+    kpp: z.string().nullish(),
+    inn: z.string().nullish(),
   })
   .openapi("OfferForm");
 
@@ -264,6 +269,11 @@ export const OfferSchema = z
     region: z.string().nullable(),
     markup_percent: z.number().nullable(),
     discount_percent: z.number().nullable(),
+    company_name: z.string().nullable(),
+    company_address: z.string().nullable(),
+    ogrn: z.string().nullable(),
+    kpp: z.string().nullable(),
+    inn: z.string().nullable(),
     services: z.array(ServiceSchema).nullable(),
     additional_materials: z.array(AdditionalMaterialSchema).nullable(),
     kp_settings: KpSettingsSchema.nullable(),
