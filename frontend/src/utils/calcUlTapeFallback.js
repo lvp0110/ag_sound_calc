@@ -176,6 +176,12 @@ export const FACING_TAPE_L_AG_IDS = new Set(["AG.L401", "AG.L404", "AG.L405"]);
 /** Перегородки с выбором ленты по периметру. */
 export const PARTITION_TAPE_AG_IDS = new Set(["AG.W103", "AG.W104", "AG.W105"]);
 
+/** Конструкции без выбора типа гипсокартона (фиксированный состав). */
+export const GKLA_NO_CHOICE_AG_IDS = new Set(["AG.W108"]);
+
+export const hasGklaChoice = (agId) =>
+  Boolean(agId) && !GKLA_NO_CHOICE_AG_IDS.has(String(agId).trim());
+
 export const hasFacingTapeChoice = (agId) => {
   if (!agId || FACING_NO_TAPE_AG_IDS.has(agId)) return false;
   if (FACING_TAPE_L_AG_IDS.has(agId)) return true;

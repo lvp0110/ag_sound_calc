@@ -24,6 +24,7 @@ export const calculateAreaAndPerimeter = (lenX, lenY, lenZ, currentSubCategory) 
 
 import {
   HANGER_ULTRACOUSTIC,
+  hasGklaChoice,
   hasHangerChoice,
   stripHangerSuffix,
   stripTapeSuffix,
@@ -41,15 +42,16 @@ export const getConstructionCode = (
 ) => {
   const { base: baseWithHanger, tape } = stripTapeSuffix(currentConstr);
   const { base } = stripHangerSuffix(baseWithHanger);
+  const gkla = hasGklaChoice(base) ? currentGkla : "default";
   let code = base;
-  if (currentGkla == "default" && currentWool == "default") {
+  if (gkla == "default" && currentWool == "default") {
     code = base;
-  } else if (currentGkla == "default") {
+  } else if (gkla == "default") {
     code = `${base}_${currentWool}`;
   } else if (currentWool == "default") {
-    code = `${base}_${currentGkla}`;
+    code = `${base}_${gkla}`;
   } else {
-    code = `${base}_${currentGkla}_${currentWool}`;
+    code = `${base}_${gkla}_${currentWool}`;
   }
   code += tape;
   if (

@@ -10,6 +10,7 @@ import {
   hasCeilingTapeChoice,
   hasFacingTapeChoice,
   hasFloorSealantChoice,
+  hasGklaChoice,
   hasHangerChoice,
   UL_TAPE_SUFFIX,
 } from "../utils/calcUlTapeFallback";
@@ -237,11 +238,19 @@ const ConstructionParameters = ({
     }
   }, [mode, selectedItem?.ag_id, selectedItem?.id, currentConstr, setCurrentConstr]);
 
+  useEffect(() => {
+    if (!selectedItem?.ag_id || hasGklaChoice(selectedItem.ag_id)) return;
+    if (currentGkla !== "default") {
+      setCurrentGkla("default");
+    }
+  }, [selectedItem?.ag_id, currentGkla, setCurrentGkla]);
+
   if (mode === "ceiling") {
     const currentTemplate = template ?? selectedItem?.template;
     const isSuspendedCeiling = currentTemplate == 5;
     const showCeilingTapeChoice = hasCeilingTapeChoice(selectedItem?.ag_id);
     const showHangerChoice = hasHangerChoice(selectedItem?.ag_id);
+    const showGklaChoice = hasGklaChoice(selectedItem?.ag_id);
 
     return (
       <div className="selected-item-forms__stack">
@@ -255,60 +264,64 @@ const ConstructionParameters = ({
 
         {unvisible && (
           <>
-            <h4 className="selected-item-forms__group-heading">
-              выбрать тип гипсокартона
-            </h4>
-            <div className="radio-option">
-              <input
-                className="radio"
-                type="radio"
-                onChange={(e) => setCurrentGkla(e.target.value)}
-                id={`ceiling_gkla_default_${selectedItem.id}`}
-                name={`ceiling_gkla_${selectedItem.id}`}
-                value="default"
-                checked={currentGkla == "default"}
-              />
-              <label
-                className="label"
-                htmlFor={`ceiling_gkla_default_${selectedItem.id}`}
-              >
-                Ветонит АКУ-лайн 2500х1200х12,5 мм
-              </label>
-            </div>
-            <div className="radio-option">
-              <input
-                className="radio"
-                type="radio"
-                onChange={(e) => setCurrentGkla(e.target.value)}
-                id={`ceiling_gkla_2500P_${selectedItem.id}`}
-                name={`ceiling_gkla_${selectedItem.id}`}
-                value="2500P"
-                checked={currentGkla == "2500P"}
-              />
-              <label
-                className="label"
-                htmlFor={`ceiling_gkla_2500P_${selectedItem.id}`}
-              >
-                Ветонит АКУ-лайн Про 2500х1200х12,5 мм
-              </label>
-            </div>
-            <div className="radio-option">
-              <input
-                className="radio"
-                type="radio"
-                onChange={(e) => setCurrentGkla(e.target.value)}
-                id={`ceiling_gkla_2000_${selectedItem.id}`}
-                name={`ceiling_gkla_${selectedItem.id}`}
-                value="2000"
-                checked={currentGkla == "2000"}
-              />
-              <label
-                className="label"
-                htmlFor={`ceiling_gkla_2000_${selectedItem.id}`}
-              >
-                Ветонит АКУ-лайн 2000х1200х12,5 мм
-              </label>
-            </div>
+            {showGklaChoice && (
+              <>
+                <h4 className="selected-item-forms__group-heading">
+                  выбрать тип гипсокартона
+                </h4>
+                <div className="radio-option">
+                  <input
+                    className="radio"
+                    type="radio"
+                    onChange={(e) => setCurrentGkla(e.target.value)}
+                    id={`ceiling_gkla_default_${selectedItem.id}`}
+                    name={`ceiling_gkla_${selectedItem.id}`}
+                    value="default"
+                    checked={currentGkla == "default"}
+                  />
+                  <label
+                    className="label"
+                    htmlFor={`ceiling_gkla_default_${selectedItem.id}`}
+                  >
+                    Ветонит АКУ-лайн 2500х1200х12,5 мм
+                  </label>
+                </div>
+                <div className="radio-option">
+                  <input
+                    className="radio"
+                    type="radio"
+                    onChange={(e) => setCurrentGkla(e.target.value)}
+                    id={`ceiling_gkla_2500P_${selectedItem.id}`}
+                    name={`ceiling_gkla_${selectedItem.id}`}
+                    value="2500P"
+                    checked={currentGkla == "2500P"}
+                  />
+                  <label
+                    className="label"
+                    htmlFor={`ceiling_gkla_2500P_${selectedItem.id}`}
+                  >
+                    Ветонит АКУ-лайн Про 2500х1200х12,5 мм
+                  </label>
+                </div>
+                <div className="radio-option">
+                  <input
+                    className="radio"
+                    type="radio"
+                    onChange={(e) => setCurrentGkla(e.target.value)}
+                    id={`ceiling_gkla_2000_${selectedItem.id}`}
+                    name={`ceiling_gkla_${selectedItem.id}`}
+                    value="2000"
+                    checked={currentGkla == "2000"}
+                  />
+                  <label
+                    className="label"
+                    htmlFor={`ceiling_gkla_2000_${selectedItem.id}`}
+                  >
+                    Ветонит АКУ-лайн 2000х1200х12,5 мм
+                  </label>
+                </div>
+              </>
+            )}
 
             {isSuspendedCeiling && (
               <>
@@ -711,54 +724,59 @@ const ConstructionParameters = ({
 
   const showFacingTapeChoice = hasFacingTapeChoice(selectedItem?.ag_id);
   const showHangerChoice = hasHangerChoice(selectedItem?.ag_id);
+  const showGklaChoice = hasGklaChoice(selectedItem?.ag_id);
 
   return (
     <div className="selected-item-forms__stack">
-      <h4 className="selected-item-forms__group-heading">
-        выбрать тип гипсокартона
-      </h4>
-      <div className="radio-option">
-        <input
-          className="radio"
-          type="radio"
-          onChange={(e) => setCurrentGkla(e.target.value)}
-          id={`gkla_default_${selectedItem.id}`}
-          name={`gkla_${selectedItem.id}`}
-          value="default"
-          checked={currentGkla == "default"}
-        />
-        <label className="label" htmlFor={`gkla_default_${selectedItem.id}`}>
-          Ветонит АКУ-лайн 2500х1200х12,5 мм
-        </label>
-      </div>
-      <div className="radio-option">
-        <input
-          className="radio"
-          type="radio"
-          onChange={(e) => setCurrentGkla(e.target.value)}
-          id={`gkla_2500P_${selectedItem.id}`}
-          name={`gkla_${selectedItem.id}`}
-          value="2500P"
-          checked={currentGkla == "2500P"}
-        />
-        <label className="label" htmlFor={`gkla_2500P_${selectedItem.id}`}>
-          Ветонит АКУ-лайн Про 2500x1200x12,5 мм
-        </label>
-      </div>
-      <div className="radio-option">
-        <input
-          className="radio"
-          type="radio"
-          onChange={(e) => setCurrentGkla(e.target.value)}
-          id={`gkla_2000_${selectedItem.id}`}
-          name={`gkla_${selectedItem.id}`}
-          value="2000"
-          checked={currentGkla == "2000"}
-        />
-        <label className="label" htmlFor={`gkla_2000_${selectedItem.id}`}>
-          Ветонит АКУ-лайн 2000х1200х12,5 мм
-        </label>
-      </div>
+      {showGklaChoice && (
+        <>
+          <h4 className="selected-item-forms__group-heading">
+            выбрать тип гипсокартона
+          </h4>
+          <div className="radio-option">
+            <input
+              className="radio"
+              type="radio"
+              onChange={(e) => setCurrentGkla(e.target.value)}
+              id={`gkla_default_${selectedItem.id}`}
+              name={`gkla_${selectedItem.id}`}
+              value="default"
+              checked={currentGkla == "default"}
+            />
+            <label className="label" htmlFor={`gkla_default_${selectedItem.id}`}>
+              Ветонит АКУ-лайн 2500х1200х12,5 мм
+            </label>
+          </div>
+          <div className="radio-option">
+            <input
+              className="radio"
+              type="radio"
+              onChange={(e) => setCurrentGkla(e.target.value)}
+              id={`gkla_2500P_${selectedItem.id}`}
+              name={`gkla_${selectedItem.id}`}
+              value="2500P"
+              checked={currentGkla == "2500P"}
+            />
+            <label className="label" htmlFor={`gkla_2500P_${selectedItem.id}`}>
+              Ветонит АКУ-лайн Про 2500x1200x12,5 мм
+            </label>
+          </div>
+          <div className="radio-option">
+            <input
+              className="radio"
+              type="radio"
+              onChange={(e) => setCurrentGkla(e.target.value)}
+              id={`gkla_2000_${selectedItem.id}`}
+              name={`gkla_${selectedItem.id}`}
+              value="2000"
+              checked={currentGkla == "2000"}
+            />
+            <label className="label" htmlFor={`gkla_2000_${selectedItem.id}`}>
+              Ветонит АКУ-лайн 2000х1200х12,5 мм
+            </label>
+          </div>
+        </>
+      )}
 
       {!isZIPSFacing && (
         <>

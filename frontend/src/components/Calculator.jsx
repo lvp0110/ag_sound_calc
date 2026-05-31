@@ -28,6 +28,7 @@ import {
 import {
   hangerTypeFromCode,
   hasFloorSealantChoice,
+  hasGklaChoice,
   HANGER_VIBROSTEK,
   stripHangerSuffix,
 } from "../utils/calcUlTapeFallback";
@@ -376,6 +377,9 @@ const Calculator = () => {
         setCurrentConstr(item.ag_id);
         setCurrentFloorSealant("vibrosil");
         setCurrentHangerType(hangerTypeFromCode(item.ag_id));
+        if (!hasGklaChoice(item.ag_id)) {
+          setCurrentGkla("default");
+        }
         if (isFacingTemplate(item.template)) {
           setFacingProfileStep(600);
         }
@@ -384,7 +388,7 @@ const Calculator = () => {
         }
       }
     },
-    [currentItems, setFacingProfileStep]
+    [currentItems, setFacingProfileStep, setCurrentGkla]
   );
 
   useEffect(() => {
