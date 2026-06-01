@@ -8,6 +8,7 @@ import MaterialsList, {
   montageLineProductRub,
 } from "./MaterialsList";
 import { sectionLabelForConstruction } from "../../utils/constructionSection";
+import { constructionDisplayCipher } from "../../utils/calcUlTapeFallback";
 import "./ConstructionList.css";
 
 /** Строка итога «Стоимость конструкций» (экспорт для КП: итог после блока «Услуги»). */
@@ -237,10 +238,43 @@ function constructionLegacyTitle(item) {
   return display;
 }
 
-function constructionDisplayNameOrCode(item) {
+function resolveCalcCodeForItem(constructions, constrToCalcToSent, item, index) {
+  if (!Array.isArray(constrToCalcToSent) || constrToCalcToSent.length === 0) {
+    return "";
+  }
+  const byIndex = constrToCalcToSent[index]?.Code;
+  if (byIndex) return String(byIndex);
+  const idx = constructions.findIndex((c) => c.key_id === item.key_id);
+  if (idx < 0) return "";
+  return String(constrToCalcToSent[idx]?.Code ?? "");
+}
+
+function constructionTableCipher(
+  item,
+  { constructions, constrToCalcToSent, index },
+) {
+  return constructionDisplayCipher({
+    agId: item.ag_id,
+    calcCode: resolveCalcCodeForItem(
+      constructions,
+      constrToCalcToSent,
+      item,
+      index,
+    ),
+  });
+}
+
+function constructionDisplayNameOrCode(
+  item,
+  { constructions, constrToCalcToSent, index } = {},
+) {
   const title = constructionLegacyTitle(item);
   if (title) return title;
-  return String(item.ag_id ?? "").trim() || "—";
+  return constructionTableCipher(item, {
+    constructions,
+    constrToCalcToSent,
+    index,
+  });
 }
 
 /** Как в колонке «артикул»: без цифры в начале кода показывается «---». */
@@ -306,9 +340,11 @@ function LegacyConstructionMaterialsPanels({
  * @param {Record<number, { price?: string, quantity?: string, unit?: string }>} [montageByKeyId] — монтаж по карточке (КП); для итога под карточкой
  * @param {(key_id: number, indexInFullMaterialsData: number, field: 'KpPricePerM2'|'KpPricePerUnit', value: string) => void} [onGeneralMaterialKpPriceChange] — правка цен «Общестроительные материалы»
  * @param {boolean} [legacyTableWithMaterials] — таблица-список: по клику на название под строкой показываются материалы (калькулятор)
+ * @param {Array<{ Code?: string }>} [constrToCalcToSent] — calc_params параллельно constructions (для колонки «шифр»)
  */
 const ConstructionList = ({
   constructions,
+  constrToCalcToSent,
   onDelete = () => {},
   readOnly = false,
   showHeadingDeleteButton = false,
@@ -361,6 +397,8 @@ const ConstructionList = ({
   if (!constructions || constructions.length === 0) {
     return null;
   }
+
+  const cipherCtx = { constructions, constrToCalcToSent };
 
   /** Карточки КП: конструкция и материалы в одном блоке (не legacy-таблица калькулятора). */
   const interleaved =
@@ -465,8 +503,14 @@ const ConstructionList = ({
                         )}
                         <td className="tbl-in__cipher-col">
                           {readOnly
-                            ? constructionDisplayNameOrCode(constRItem)
-                            : constRItem.ag_id}
+                            ? constructionDisplayNameOrCode(constRItem, {
+                                ...cipherCtx,
+                                index,
+                              })
+                            : constructionTableCipher(constRItem, {
+                                ...cipherCtx,
+                                index,
+                              })}
                         </td>
                         <td className="construction-card__dim-td">
                           {constructionDimensionsMm(constRItem)}
@@ -641,7 +685,10 @@ const ConstructionList = ({
                             шифр
                           </span>
                           <span className="construction-list-legacy-card__meta-value">
-                            {constRItem.ag_id ?? "—"}
+                            {constructionTableCipher(constRItem, {
+                              ...cipherCtx,
+                              index,
+                            })}
                           </span>
                         </span>
                         <span className="construction-list-legacy-card__meta-item">
@@ -754,7 +801,10 @@ const ConstructionList = ({
                     </td>
                   )}
                   <td className="construction-list-legacy__code-td tbl-in__cipher-col">
-                    {constRItem.ag_id}
+                    {constructionTableCipher(constRItem, {
+                      ...cipherCtx,
+                      index,
+                    })}
                   </td>
                   <td className="construction-list-legacy__title-td">
                     {titleExpandable ? (

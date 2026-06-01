@@ -48,17 +48,58 @@ const installShutdownHooks = () => {
   process.once("SIGINT", close);
 };
 
+export class OfferPdfError extends Error {
+  constructor(message: string, public readonly cause?: unknown) {
+    super(message);
+    this.name = "OfferPdfError";
+  }
+}
+
+const PUPPETEER_ARGS = [
+  "--no-sandbox",
+  "--disable-setuid-sandbox",
+  "--disable-dev-shm-usage",
+  "--disable-gpu",
+  "--font-render-hinting=none",
+] as const;
+
+const isMissingBundledChromeError = (err: unknown): boolean => {
+  if (!(err instanceof Error)) return false;
+  const msg = err.message.toLowerCase();
+  return msg.includes("could not find chrome") || msg.includes("could not find chromium");
+};
+
+/**
+ * Локально после `npm install` bundled Chromium часто не скачан (в Docker он
+ * кладётся в PUPPETEER_CACHE_DIR на build-стадии). Сначала пробуем bundled /
+ * PUPPETEER_EXECUTABLE_PATH, затем установленный Google Chrome (`channel`).
+ */
 const launchBrowser = async (): Promise<Browser> => {
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: [
-      "--no-sandbox",
-      "--disable-setuid-sandbox",
-      "--disable-dev-shm-usage",
-      "--disable-gpu",
-      "--font-render-hinting=none",
-    ],
-  });
+  const baseOpts = {
+    headless: true as const,
+    args: [...PUPPETEER_ARGS],
+    ...(process.env.PUPPETEER_EXECUTABLE_PATH
+      ? { executablePath: process.env.PUPPETEER_EXECUTABLE_PATH }
+      : {}),
+  };
+
+  let browser: Browser;
+  try {
+    browser = await puppeteer.launch(baseOpts);
+  } catch (first) {
+    if (process.env.PUPPETEER_EXECUTABLE_PATH || !isMissingBundledChromeError(first)) {
+      throw first;
+    }
+    try {
+      browser = await puppeteer.launch({ ...baseOpts, channel: "chrome" });
+    } catch {
+      throw new OfferPdfError(
+        "Chromium для PDF не найден. В каталоге backend выполните: npx puppeteer browsers install chrome — или установите Google Chrome.",
+        first
+      );
+    }
+  }
+
   browserInstance = browser;
   browser.on("disconnected", () => {
     if (browserInstance === browser) {
@@ -101,13 +142,6 @@ export const closeBrowser = async (): Promise<void> => {
     // ignore — процесс завершается
   }
 };
-
-export class OfferPdfError extends Error {
-  constructor(message: string, public readonly cause?: unknown) {
-    super(message);
-    this.name = "OfferPdfError";
-  }
-}
 
 const renderPdfFromHtml = async (
   html: string,

@@ -80,6 +80,40 @@ export function applyUltrasonicHangerDisplayText({
   };
 }
 
+/** Базовый шифр «Акуфлор S20» (template 2.1) — в колонке «шифр» показываем «—». */
+export const AG_F_BASE_CIPHER = "AG.F";
+
+/** AG.F / AG.F_vibrostek / AG.F_ul_tape — не AG.F601 и т.п. */
+export const isAgFConstructionCipher = (agId = "", calcCode = "") => {
+  const id = String(agId ?? "").trim();
+  if (id === AG_F_BASE_CIPHER) return true;
+  const code = String(calcCode ?? "").trim();
+  if (!code) return false;
+  return /^AG\.F(?:_|$)/i.test(code);
+};
+
+/** Шифр в таблице: AG.F → «—»; AG.C501–503 / AG.L404–405 + Ультракустик → «—». */
+export function constructionDisplayCipher({
+  agId = "",
+  calcCode = "",
+  hangerType,
+} = {}) {
+  if (isAgFConstructionCipher(agId, calcCode)) {
+    return "—";
+  }
+
+  const useUl =
+    hangerType === HANGER_ULTRACOUSTIC ||
+    (calcCode && isUlHangerCalcCode(String(calcCode)));
+
+  if (useUl && hasHangerChoice(agId)) {
+    return "—";
+  }
+
+  const code = String(agId ?? "").trim();
+  return code || "—";
+}
+
 /** Подвесы Виброфлекс в ответе calc для базового шифра (AG.C501 … AG.L405). */
 const VIBROFLEX_HANGER_ARTICLE_CODES = new Set([
   "2316.3010",

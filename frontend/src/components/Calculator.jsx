@@ -588,6 +588,7 @@ const Calculator = () => {
     try {
       const patchBody = buildDraftSyncFromCalculator({
         constrToCalcToSent: ConstrToCalcToSent,
+        constrToCalc: ConstrToCalc,
         materialsByConstruction,
         kpSnapshot,
       });
@@ -610,6 +611,7 @@ const Calculator = () => {
     }
   }, [
     activeOfferId,
+    ConstrToCalc,
     ConstrToCalcToSent,
     materialsByConstruction,
     kpSnapshot,
@@ -747,6 +749,8 @@ const Calculator = () => {
       Openings: openingsWithNumbers,
       SectionId: sectionId,
       SectionType: IconType?.title ?? "",
+      ...(displayTitle ? { DisplayTitle: displayTitle } : {}),
+      ...(displayDescription ? { DisplayDescription: displayDescription } : {}),
     };
 
     if (code == "AG.L401" || code == "AG.W101" || code == "AG.W105") {
@@ -1124,6 +1128,7 @@ const Calculator = () => {
                               ConstrToCalc.length > 0 && (
                                 <ConstructionList
                                   constructions={ConstrToCalc}
+                                  constrToCalcToSent={ConstrToCalcToSent}
                                   onDelete={delConstrFromList}
                                   materialsByConstruction={
                                     materialsByConstruction

@@ -6,6 +6,42 @@ import { resolveDisplayCipher } from "./calculations.js";
 import { calculateAreaAndPerimeter } from "./calculations.js";
 import { applyUltrasonicHangerDisplayText } from "./calcUlTapeFallback.js";
 
+const CONSTRUCTION_CODE_RE = /^AG\.[A-Z0-9._-]+$/i;
+
+function looksLikeConstructionCode(value) {
+  return CONSTRUCTION_CODE_RE.test(String(value ?? "").trim());
+}
+
+/** Первое непустое название, не похожее на шифр AG.* */
+function pickHumanTitle(...candidates) {
+  for (const raw of candidates) {
+    const t = String(raw ?? "").trim();
+    if (t && !looksLikeConstructionCode(t)) return t;
+  }
+  return "";
+}
+
+/** Сохраняет UI-название в calc_params (каталог для AG.F и др. отдаёт шифр). */
+function mergeUiDisplayIntoCalcParams(calcParams, ui) {
+  if (!calcParams || typeof calcParams !== "object") return calcParams;
+  const title = pickHumanTitle(calcParams.DisplayTitle, ui?.title);
+  const description = String(
+    ui?.description ?? calcParams.DisplayDescription ?? "",
+  ).trim();
+  const next = { ...calcParams };
+  if (title) next.DisplayTitle = title;
+  if (description) next.DisplayDescription = description;
+  return next;
+}
+
+function resolveConstructionTitle(cp, { cipher, meta, fallbackTitle }) {
+  return (
+    pickHumanTitle(cp?.DisplayTitle, fallbackTitle, meta?.Name) ||
+    cipher ||
+    "—"
+  );
+}
+
 /**
  * Маппинг между состоянием Calculator / KpPage и бэкендовым DTO Offer.
  *
@@ -28,17 +64,15 @@ export function buildCreateOfferPayload({
   services = [],
   kpSettings = null,
 }) {
-  const constructions = constrToCalcToSent.map((calcParams) => ({
-    calc_params: calcParams,
+  const constructions = constrToCalcToSent.map((calcParams, index) => ({
+    calc_params: mergeUiDisplayIntoCalcParams(
+      calcParams,
+      (constrToCalc || [])[index],
+    ),
     // materials серверная ручка пересчитает сама (POST всегда свежий calc),
     // montage пустой — пользователь заполнит на /kp/:id.
     montage: [],
-    // сохраним UI-метаданные (title/type/ag_id/...) отдельным передачей
-    // — см. buildUpdateOfferPayload. При создании они не нужны, бэк не хранит
-    // этот блок на POST — на reload он реконструируется из AllIsolationConstr.
   }));
-
-  void constrToCalc; // unused here — достаточно calc_params.Code для reload-а
 
   return {
     form: form ? mapFormToApi(form) : undefined,
@@ -68,14 +102,23 @@ export function enrichConstructionsWithTitles(
     const stored = item?.ag_id || "";
     const cipher = resolveDisplayCipher(stored, titleByCode);
     const meta = titleByCode.get(cipher) || {};
+    const cp = constrToCalcToSent[index] || {};
     const keepHumanTitle =
       item.title &&
       item.title !== stored &&
       item.title !== cipher &&
       item.title !== meta.Name;
-    let nextTitle = meta.Name || (keepHumanTitle ? item.title : "") || cipher || "—";
-    let nextDescription = meta.Description ?? item.description ?? "";
-    const calcCode = constrToCalcToSent[index]?.Code ?? "";
+    let nextTitle = resolveConstructionTitle(cp, {
+      cipher,
+      meta,
+      fallbackTitle: keepHumanTitle ? item.title : "",
+    });
+    let nextDescription =
+      String(cp.DisplayDescription ?? "").trim() ||
+      meta.Description ||
+      item.description ||
+      "";
+    const calcCode = cp.Code ?? "";
     ({ title: nextTitle, description: nextDescription } =
       applyUltrasonicHangerDisplayText({
         title: nextTitle,
@@ -121,8 +164,9 @@ export function mapOfferResponseToKpView(offer, { titleByCode = new Map() } = {}
     const cipher = resolveDisplayCipher(code, titleByCode);
     const meta = titleByCode.get(cipher) || {};
     const sectionId = cp.SectionId || sectionIdFromCode(code);
-    let title = meta.Name || cipher || "—";
-    let description = meta.Description || "";
+    let title = resolveConstructionTitle(cp, { cipher, meta });
+    let description =
+      String(cp.DisplayDescription ?? "").trim() || meta.Description || "";
     ({ title, description } = applyUltrasonicHangerDisplayText({
       title,
       description,
@@ -220,6 +264,7 @@ export function buildCalculatorSyncFromKp({ calcTables, constrToCalcToSent }) {
  */
 export function buildDraftSyncFromCalculator({
   constrToCalcToSent,
+  constrToCalc = null,
   materialsByConstruction,
   kpSnapshot = null,
 }) {
@@ -241,7 +286,14 @@ export function buildDraftSyncFromCalculator({
           },
         ]
       : [];
-    return { calc_params: calcParams, materials, montage };
+    return {
+      calc_params: mergeUiDisplayIntoCalcParams(
+        calcParams,
+        (constrToCalc || [])[i],
+      ),
+      materials,
+      montage,
+    };
   });
 
   const payload = { constructions };
@@ -356,17 +408,19 @@ export function buildUpdateOfferPayload({
  */
 function resolveCalcParamsForConstruction(ui, index, { calcParamsById, sentList }) {
   const fromDb = calcParamsById.get(ui.key_id);
-  if (fromDb) return fromDb;
+  if (fromDb) return mergeUiDisplayIntoCalcParams(fromDb, ui);
 
-  if (sentList[index]) return sentList[index];
+  if (sentList[index]) {
+    return mergeUiDisplayIntoCalcParams(sentList[index], ui);
+  }
 
   const code = String(ui.ag_id ?? "").trim();
   if (code) {
     const fromSent = sentList.find((p) => p && String(p.Code) === code);
-    if (fromSent) return fromSent;
+    if (fromSent) return mergeUiDisplayIntoCalcParams(fromSent, ui);
   }
 
-  return uiCardToCalcParams(ui);
+  return mergeUiDisplayIntoCalcParams(uiCardToCalcParams(ui), ui);
 }
 
 /** Минимальный calc_params из полей карточки KpPage (если нет снимка калькулятора). */
@@ -381,7 +435,7 @@ function uiCardToCalcParams(ui) {
     lenZ,
     sectionId,
   );
-  return {
+  const params = {
     Code: String(ui.ag_id ?? "").trim(),
     LenX: lenX,
     LenY: lenY,
@@ -394,6 +448,7 @@ function uiCardToCalcParams(ui) {
     Openings: [],
     SectionId: sectionId,
   };
+  return mergeUiDisplayIntoCalcParams(params, ui);
 }
 
 /** Собирает constrToCalcToSent для save: калькулятор, snapshot, затем ref оффера. */

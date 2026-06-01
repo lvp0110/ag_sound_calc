@@ -389,6 +389,9 @@ const KpPage = () => {
   const [manualMontagePriceByKeyId, setManualMontagePriceByKeyId] = useState(
     () => ({}),
   );
+  const constrToCalcToSentForTable = useCalculatorStore(
+    (s) => s.ConstrToCalcToSent,
+  );
   const visibleRegionOptions = useMemo(
     () => filterVisibleRegionOptions(regions),
     [regions]
@@ -2026,6 +2029,7 @@ const KpPage = () => {
             <>
               <ConstructionList
                 constructions={calcTables.ConstrToCalc}
+                constrToCalcToSent={constrToCalcToSentForTable}
                 readOnly
                 showHeadingDeleteButton
                 onDelete={removeConstructionFromKp}

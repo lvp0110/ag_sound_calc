@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { CatalogEntry } from "../services/catalogData.js";
 import type { PriceLookup } from "../services/priceData.js";
+import { constructionKpCardHeading } from "../utils/constructionKpDisplay.js";
 import { formatDateRu } from "../utils/formatDateRu.js";
 import { numberToWordsRu, pluralRu, rublesToWordsRu } from "../utils/numberToWordsRu.js";
 import { UPLOADS_DIR } from "../routes/uploads.js";
@@ -185,6 +186,29 @@ const materialDisplayName = (m: MaterialLike): string => {
   return name || article || "—";
 };
 
+/**
+ * Как `filterVariable` на фронте (formatters.js): в колонке «артикул» показывается
+ * код только если он начинается с цифры, иначе «---» (блок «Общестроительные»).
+ */
+const hasKpTableArticle = (code: unknown): boolean => {
+  if (code == null) return false;
+  return /^\d/.test(String(code).trim());
+};
+
+/**
+ * Порядок строк материалов как в таблице КП (ConstructionList.splitMaterialsByArticleDisplay):
+ * сначала позиции с артикулом, затем «общестроительные»; внутри групп — порядок из массива.
+ */
+const orderMaterialsLikeKpTable = (materials: MaterialLike[]): MaterialLike[] => {
+  const withArticle: MaterialLike[] = [];
+  const noArticle: MaterialLike[] = [];
+  for (const m of materials) {
+    if (hasKpTableArticle(m.Code)) withArticle.push(m);
+    else noArticle.push(m);
+  }
+  return [...withArticle, ...noArticle];
+};
+
 // ─── helpers ────────────────────────────────────────────────────────────────
 
 const fmtRub = (v: number | null | undefined): string => {
@@ -251,17 +275,6 @@ const esc = (s: unknown): string => {
     .replace(/'/g, "&#39;");
 };
 
-const constructionDisplayName = (
-  cp: Record<string, unknown> | null,
-  catalog: Map<string, CatalogEntry>
-): string => {
-  if (!cp) return "Конструкция";
-  const code = typeof cp.Code === "string" ? cp.Code.trim() : "";
-  const fromCatalog = code ? catalog.get(code) : undefined;
-  if (fromCatalog && fromCatalog.name.trim()) return fromCatalog.name.trim();
-  return code || "Конструкция";
-};
-
 // ─── render ─────────────────────────────────────────────────────────────────
 
 export function renderOfferKpHtml({ offer, priceLookup, catalog }: RenderInput): string {
@@ -286,10 +299,56 @@ export function renderOfferKpHtml({ offer, priceLookup, catalog }: RenderInput):
   const hasPositivePrice = (price: number | null | undefined): boolean =>
     price != null && Number.isFinite(price) && price > 0;
 
-  for (const c of offer.constructions || []) {
-    const materials = Array.isArray(c.materials) ? c.materials : [];
-    const rows: RenderedSection["rows"] = [];
-    let sectionTotal = 0;
+  type RenderedRow = RenderedSection["rows"][number];
+
+  const pushPricedServiceRow = (
+    rows: RenderedRow[],
+    sectionTotal: { value: number },
+    item: ServiceLike,
+    fallbackName: string
+  ): void => {
+    const price = Number(item.price) || 0;
+    if (!hasPositivePrice(price)) return;
+    const count = Number(item.count) || 0;
+    const lineSum = price * count;
+    sectionTotal.value += lineSum;
+    rows.push({
+      name: String(item.name ?? fallbackName),
+      unit: String(item.unit ?? ""),
+      qty: count,
+      unitPrice: price,
+      lineSum,
+    });
+  };
+
+  /** Порядок как в offer.additional_materials (PATCH сохраняет порядок строк по карточкам). */
+  const additionalByConstructionId = new Map<string, ServiceLike[]>();
+  for (const m of offer.additional_materials || []) {
+    const raw = m.construction_key_id;
+    const keyId =
+      typeof raw === "string"
+        ? raw.trim()
+        : typeof raw === "number"
+          ? String(raw)
+          : "";
+    if (!keyId) continue;
+    const bucket = additionalByConstructionId.get(keyId);
+    if (bucket) bucket.push(m);
+    else additionalByConstructionId.set(keyId, [m]);
+  }
+
+  const constructionsOrdered = [...(offer.constructions || [])].sort(
+    (a, b) => a.position - b.position
+  );
+
+  // Карточка конструкции на КП: материалы → монтаж → доп. материалы (в одной секции PDF).
+  for (const c of constructionsOrdered) {
+    const materials = orderMaterialsLikeKpTable(
+      Array.isArray(c.materials) ? c.materials : []
+    );
+    const rows: RenderedRow[] = [];
+    const sectionTotal = { value: 0 };
+
     for (const m of materials) {
       const article = materialArticle(m);
       const { pricePerM2, pricePerUnit } = priceLookup(article);
@@ -297,7 +356,7 @@ export function renderOfferKpHtml({ offer, priceLookup, catalog }: RenderInput):
       if (!hasPositivePrice(unitPrice)) continue;
       const qty = materialQuantityForDisplay(m);
       const lineSum = materialLineSum(m, pricePerM2, pricePerUnit);
-      if (lineSum != null) sectionTotal += lineSum;
+      if (lineSum != null) sectionTotal.value += lineSum;
       rows.push({
         name: materialDisplayName(m),
         unit: typeof m.Units === "string" ? m.Units : "—",
@@ -306,10 +365,20 @@ export function renderOfferKpHtml({ offer, priceLookup, catalog }: RenderInput):
         lineSum,
       });
     }
+
+    const montageArr = Array.isArray(c.montage) ? c.montage : [];
+    if (montageArr[0]) {
+      pushPricedServiceRow(rows, sectionTotal, montageArr[0], "Монтаж");
+    }
+
+    for (const m of additionalByConstructionId.get(c.id) || []) {
+      pushPricedServiceRow(rows, sectionTotal, m, "");
+    }
+
     if (rows.length === 0) continue;
     sections.push({
-      name: constructionDisplayName(c.calc_params, catalog),
-      sectionTotal,
+      name: constructionKpCardHeading(c.calc_params, catalog),
+      sectionTotal: sectionTotal.value,
       rows,
     });
   }
@@ -335,53 +404,6 @@ export function renderOfferKpHtml({ offer, priceLookup, catalog }: RenderInput):
     if (rows.length > 0) {
       sections.push({ name: "Услуги", sectionTotal: total, rows });
     }
-  }
-
-  // Доп. материалы — то же правило.
-  {
-    const rows: RenderedSection["rows"] = [];
-    let total = 0;
-    for (const m of offer.additional_materials || []) {
-      const price = Number(m.price) || 0;
-      if (!hasPositivePrice(price)) continue;
-      const count = Number(m.count) || 0;
-      const lineSum = price * count;
-      total += lineSum;
-      rows.push({
-        name: String(m.name ?? ""),
-        unit: String(m.unit ?? ""),
-        qty: count,
-        unitPrice: price,
-        lineSum,
-      });
-    }
-    if (rows.length > 0) {
-      sections.push({ name: "Дополнительные материалы", sectionTotal: total, rows });
-    }
-  }
-
-  // Монтаж по конструкциям — одна строка на конструкцию. Без цены не выводим.
-  const montageRows: RenderedSection["rows"] = [];
-  let montageTotal = 0;
-  for (const c of offer.constructions || []) {
-    const arr = Array.isArray(c.montage) ? c.montage : [];
-    const row = arr[0];
-    if (!row) continue;
-    const price = Number(row.price) || 0;
-    if (!hasPositivePrice(price)) continue;
-    const count = Number(row.count) || 0;
-    const lineSum = price * count;
-    montageTotal += lineSum;
-    montageRows.push({
-      name: `Монтаж: ${constructionDisplayName(c.calc_params, catalog)}`,
-      unit: String(row.unit ?? ""),
-      qty: count,
-      unitPrice: price,
-      lineSum,
-    });
-  }
-  if (montageRows.length > 0) {
-    sections.push({ name: "Монтаж", sectionTotal: montageTotal, rows: montageRows });
   }
 
   const grandTotal = sections.reduce((acc, s) => acc + s.sectionTotal, 0);

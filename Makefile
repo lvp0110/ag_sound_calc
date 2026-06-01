@@ -38,6 +38,8 @@ setup: install env db-up db-migrate ## Первая инициализация: 
 install: ## Установить зависимости (backend + frontend)
 	@echo "→ backend deps"
 	cd $(BACKEND_DIR) && npm install
+	@echo "→ puppeteer Chromium (PDF КП; пропустится, если уже в кэше)"
+	cd $(BACKEND_DIR) && npx puppeteer browsers install chrome
 	@echo "→ prisma client (postinstall; на случай пропуска — явный generate)"
 	cd $(BACKEND_DIR) && npx prisma generate
 	@echo "→ frontend deps"
