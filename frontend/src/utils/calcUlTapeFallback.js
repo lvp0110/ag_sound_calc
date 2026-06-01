@@ -220,6 +220,74 @@ export const GKLA_NO_CHOICE_AG_IDS = new Set(["AG.W108"]);
 export const hasGklaChoice = (agId) =>
   Boolean(agId) && !GKLA_NO_CHOICE_AG_IDS.has(String(agId).trim());
 
+/** Значение currentWool → суффикс *_eco_s в шифре расчёта. */
+export const WOOL_ECO_S = "eco_s";
+
+export const WOOL_ECO_S_SUFFIX = `_${WOOL_ECO_S}`;
+
+/** Артикул минваты «Шуманет-ЭКО» в расчёте базового шифра (default wool). */
+const DEFAULT_ECO_WOOL_ARTICLE_CODES = new Set(["1222.2202"]);
+
+/** Минвата «Шуманет-Eco S» в прайсе 1С (/api/v2/data). */
+export const WOOL_ECO_S_ARTICLE = {
+  Code: "961747",
+  Name: "Плита звукопоглощающая Шуманет-Eco S, 1200х600х50 мм (в упак. 10шт/7,2м2/0,360м3)",
+  Units: "уп",
+};
+
+/** Конструкции с вариантом минваты «Шуманет-Eco S». */
+export const WOOL_ECO_S_CHOICE_AG_IDS = new Set([
+  "AG.C501",
+  "AG.C502",
+  "AG.C503",
+  "AG.L401",
+  "AG.L402",
+  "AG.L403",
+  "AG.L404",
+  "AG.L405",
+  "AG.W101",
+  "AG.W102",
+  "AG.W103",
+  "AG.W104",
+  "AG.W105",
+  "AG.W106",
+  "AG.W107",
+  "AG.W108",
+]);
+
+export const hasEcoSWoolChoice = (agId) =>
+  Boolean(agId) && WOOL_ECO_S_CHOICE_AG_IDS.has(String(agId).trim());
+
+export const isEcoSWoolCalcCode = (code) =>
+  typeof code === "string" && code.includes(WOOL_ECO_S_SUFFIX);
+
+/** Убирает *_eco_s из шифра (AG.W101_2500P_eco_s → AG.W101_2500P). */
+export const ecoSWoolFallbackCalcCode = (code) =>
+  String(code ?? "").split(WOOL_ECO_S_SUFFIX).join("");
+
+/**
+ * Внешний calc пока не знает *_eco_s: считаем вариант без суффикса (default wool)
+ * и подменяем Шуманет-ЭКО на Шуманет-Eco S; количество — как у расчёта.
+ */
+export const mapDefaultEcoWoolToEcoS = (materials) => {
+  if (!Array.isArray(materials) || materials.length === 0) return null;
+
+  let replaced = false;
+  const mapped = materials.map((row) => {
+    const code = String(row?.Code ?? row?.code ?? "").trim();
+    if (!DEFAULT_ECO_WOOL_ARTICLE_CODES.has(code)) return row;
+    replaced = true;
+    return {
+      ...row,
+      Code: WOOL_ECO_S_ARTICLE.Code,
+      Name: WOOL_ECO_S_ARTICLE.Name,
+      Units: WOOL_ECO_S_ARTICLE.Units,
+    };
+  });
+
+  return replaced ? mapped : null;
+};
+
 export const hasFacingTapeChoice = (agId) => {
   if (!agId || FACING_NO_TAPE_AG_IDS.has(agId)) return false;
   if (FACING_TAPE_L_AG_IDS.has(agId)) return true;

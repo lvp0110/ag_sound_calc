@@ -1,8 +1,11 @@
 import { env } from "../config/env.js";
 import {
+  ecoSWoolFallbackCalcCode,
+  isEcoSWoolCalcCode,
   isUlHangerCalcCode,
   isUlTapeCalcCode,
   isUltracousticFloorSealant,
+  mapDefaultEcoWoolToEcoS,
   mapVibroflexHangerToUltracoustic,
   mapVibrosilSealantToUltracoustic,
   mapVibrostekMaterialsToUlTape,
@@ -135,6 +138,19 @@ const calculateOne = async (params: CalcParams): Promise<CalcMaterial[]> => {
         materials = mapped as CalcMaterial[];
         break;
       }
+    }
+  }
+
+  // Внешний calc пока не знает *_eco_s — считаем без суффикса и подменяем минвату.
+  if (materials.length === 0 && isEcoSWoolCalcCode(params.Code)) {
+    const fallbackParams = {
+      ...params,
+      Code: ecoSWoolFallbackCalcCode(params.Code),
+    };
+    const fallbackMaterials = await calculateOne(fallbackParams);
+    const woolMapped = mapDefaultEcoWoolToEcoS(fallbackMaterials);
+    if (woolMapped) {
+      materials = woolMapped as CalcMaterial[];
     }
   }
 

@@ -124,6 +124,46 @@ const UL_SEALANT_BY_VIBROSIL_CODE: Record<
 export const isUltracousticFloorSealant = (sealant: unknown): boolean =>
   sealant === FLOOR_SEALANT_ULTRACOUSTIC;
 
+export const WOOL_ECO_S = "eco_s";
+export const WOOL_ECO_S_SUFFIX = `_${WOOL_ECO_S}`;
+
+const DEFAULT_ECO_WOOL_ARTICLE_CODES = new Set(["1222.2202"]);
+
+export const WOOL_ECO_S_ARTICLE = {
+  Code: "961747",
+  Name: "Плита звукопоглощающая Шуманет-Eco S, 1200х600х50 мм (в упак. 10шт/7,2м2/0,360м3)",
+  Units: "уп",
+};
+
+export const isEcoSWoolCalcCode = (code: string): boolean =>
+  code.includes(WOOL_ECO_S_SUFFIX);
+
+export const ecoSWoolFallbackCalcCode = (code: string): string =>
+  String(code ?? "").split(WOOL_ECO_S_SUFFIX).join("");
+
+export const mapDefaultEcoWoolToEcoS = (
+  materials: unknown[]
+): unknown[] | null => {
+  if (!Array.isArray(materials) || materials.length === 0) return null;
+
+  let replaced = false;
+  const mapped = materials.map((row) => {
+    const rec =
+      row && typeof row === "object" ? (row as Record<string, unknown>) : {};
+    const code = String(rec.Code ?? rec.code ?? "").trim();
+    if (!DEFAULT_ECO_WOOL_ARTICLE_CODES.has(code)) return row;
+    replaced = true;
+    return {
+      ...rec,
+      Code: WOOL_ECO_S_ARTICLE.Code,
+      Name: WOOL_ECO_S_ARTICLE.Name,
+      Units: WOOL_ECO_S_ARTICLE.Units,
+    };
+  });
+
+  return replaced ? mapped : null;
+};
+
 export const mapVibrosilSealantToUltracoustic = (
   materials: unknown[]
 ): unknown[] | null => {

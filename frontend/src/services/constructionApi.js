@@ -4,9 +4,12 @@
 
 import { BASE_URL } from "./apiClient";
 import {
+  ecoSWoolFallbackCalcCode,
+  isEcoSWoolCalcCode,
   isUlHangerCalcCode,
   isUlTapeCalcCode,
   isUltracousticFloorSealant,
+  mapDefaultEcoWoolToEcoS,
   mapVibroflexHangerToUltracoustic,
   mapVibrosilSealantToUltracoustic,
   mapVibrostekMaterialsToUlTape,
@@ -106,6 +109,24 @@ export const calculateConstruction = async (constrList) => {
       if (mapped?.length) {
         return { data: mapped };
       }
+    }
+  }
+
+  // Внешний calc пока не знает *_eco_s (пустой data при HTTP 200).
+  if (
+    rows.length === 0 &&
+    constrList.length === 1 &&
+    isEcoSWoolCalcCode(constrList[0]?.Code)
+  ) {
+    const fallbackCode = ecoSWoolFallbackCalcCode(constrList[0].Code);
+    const fallbackPayload = constrList.map((item) => ({
+      ...item,
+      Code: fallbackCode,
+    }));
+    const fallback = await calculateConstruction(fallbackPayload);
+    const mapped = mapDefaultEcoWoolToEcoS(fallback?.data ?? []);
+    if (mapped?.length) {
+      return { data: mapped };
     }
   }
 

@@ -10,9 +10,11 @@ import {
   hasCeilingTapeChoice,
   hasFacingTapeChoice,
   hasFloorSealantChoice,
+  hasEcoSWoolChoice,
   hasGklaChoice,
   hasHangerChoice,
   UL_TAPE_SUFFIX,
+  WOOL_ECO_S,
 } from "../utils/calcUlTapeFallback";
 import {
   getMaxLenZInMeters,
@@ -95,6 +97,80 @@ function HangerChoiceRadios({ idPrefix, itemId, value, onChange }) {
           Ультракустик
         </label>
       </div>
+    </>
+  );
+}
+
+function WoolChoiceRadios({ idPrefix, itemId, value, onChange, showEcoS }) {
+  return (
+    <>
+      <h4 className="selected-item-forms__group-heading">
+        выбрать тип минваты
+      </h4>
+      <div className="radio-option">
+        <input
+          className="radio"
+          type="radio"
+          onChange={(e) => onChange(e.target.value)}
+          id={`${idPrefix}_wool_default_${itemId}`}
+          name={`${idPrefix}_wool_${itemId}`}
+          value="default"
+          checked={value == "default"}
+        />
+        <label
+          className="label"
+          htmlFor={`${idPrefix}_wool_default_${itemId}`}
+        >
+          Шуманет-Эко
+        </label>
+      </div>
+      <div className="radio-option">
+        <input
+          className="radio"
+          type="radio"
+          onChange={(e) => onChange(e.target.value)}
+          id={`${idPrefix}_wool_bm_${itemId}`}
+          name={`${idPrefix}_wool_${itemId}`}
+          value="bm"
+          checked={value == "bm"}
+        />
+        <label className="label" htmlFor={`${idPrefix}_wool_bm_${itemId}`}>
+          Шуманет-БМ
+        </label>
+      </div>
+      <div className="radio-option">
+        <input
+          className="radio"
+          type="radio"
+          onChange={(e) => onChange(e.target.value)}
+          id={`${idPrefix}_wool_sk_${itemId}`}
+          name={`${idPrefix}_wool_${itemId}`}
+          value="skNeo"
+          checked={value == "skNeo"}
+        />
+        <label className="label" htmlFor={`${idPrefix}_wool_sk_${itemId}`}>
+          Шуманет-СК Neo
+        </label>
+      </div>
+      {showEcoS && (
+        <div className="radio-option">
+          <input
+            className="radio"
+            type="radio"
+            onChange={(e) => onChange(e.target.value)}
+            id={`${idPrefix}_wool_eco_s_${itemId}`}
+            name={`${idPrefix}_wool_${itemId}`}
+            value={WOOL_ECO_S}
+            checked={value == WOOL_ECO_S}
+          />
+          <label
+            className="label"
+            htmlFor={`${idPrefix}_wool_eco_s_${itemId}`}
+          >
+            Шуманет-Eco S
+          </label>
+        </div>
+      )}
     </>
   );
 }
@@ -189,6 +265,16 @@ const ConstructionParameters = ({
       setProfileStep(normalized);
     }
   }, [mode, selectedItem?.id, isZIPSFacing, profileStep, setProfileStep]);
+
+  useEffect(() => {
+    if (
+      hasEcoSWoolChoice(selectedItem?.ag_id) ||
+      currentWool !== WOOL_ECO_S
+    ) {
+      return;
+    }
+    setCurrentWool("default");
+  }, [selectedItem?.ag_id, currentWool, setCurrentWool]);
 
   useEffect(() => {
     if (mode !== "floor" || !selectedItem?.ag_id) return;
@@ -325,60 +411,13 @@ const ConstructionParameters = ({
 
             {isSuspendedCeiling && (
               <>
-                <h4 className="selected-item-forms__group-heading">
-                  выбрать тип минваты
-                </h4>
-                <div className="radio-option">
-                  <input
-                    className="radio"
-                    type="radio"
-                    onChange={(e) => setCurrentWool(e.target.value)}
-                    id={`ceiling_wool_default_${selectedItem.id}`}
-                    name={`ceiling_wool_${selectedItem.id}`}
-                    value="default"
-                    checked={currentWool == "default"}
-                  />
-                  <label
-                    className="label"
-                    htmlFor={`ceiling_wool_default_${selectedItem.id}`}
-                  >
-                    Шуманет-Эко
-                  </label>
-                </div>
-                <div className="radio-option">
-                  <input
-                    className="radio"
-                    type="radio"
-                    onChange={(e) => setCurrentWool(e.target.value)}
-                    id={`ceiling_wool_bm_${selectedItem.id}`}
-                    name={`ceiling_wool_${selectedItem.id}`}
-                    value="bm"
-                    checked={currentWool == "bm"}
-                  />
-                  <label
-                    className="label"
-                    htmlFor={`ceiling_wool_bm_${selectedItem.id}`}
-                  >
-                    Шуманет-БМ
-                  </label>
-                </div>
-                <div className="radio-option">
-                  <input
-                    className="radio"
-                    type="radio"
-                    onChange={(e) => setCurrentWool(e.target.value)}
-                    id={`ceiling_wool_sk_${selectedItem.id}`}
-                    name={`ceiling_wool_${selectedItem.id}`}
-                    value="skNeo"
-                    checked={currentWool == "skNeo"}
-                  />
-                  <label
-                    className="label"
-                    htmlFor={`ceiling_wool_sk_${selectedItem.id}`}
-                  >
-                    Шуманет-СК Neo
-                  </label>
-                </div>
+                <WoolChoiceRadios
+                  idPrefix="ceiling"
+                  itemId={selectedItem.id}
+                  value={currentWool}
+                  onChange={setCurrentWool}
+                  showEcoS={hasEcoSWoolChoice(selectedItem?.ag_id)}
+                />
 
                 {selectedItem.id == 503 && (
                   <>
@@ -779,56 +818,13 @@ const ConstructionParameters = ({
       )}
 
       {!isZIPSFacing && (
-        <>
-          <h4 className="selected-item-forms__group-heading">
-            выбрать тип минваты
-          </h4>
-          <div className="radio-option">
-            <input
-              className="radio"
-              type="radio"
-              onChange={(e) => setCurrentWool(e.target.value)}
-              id={`wool_default_${selectedItem.id}`}
-              name={`wool_${selectedItem.id}`}
-              value="default"
-              checked={currentWool == "default"}
-            />
-            <label
-              className="label"
-              htmlFor={`wool_default_${selectedItem.id}`}
-            >
-              Шуманет-Эко
-            </label>
-          </div>
-          <div className="radio-option">
-            <input
-              className="radio"
-              type="radio"
-              onChange={(e) => setCurrentWool(e.target.value)}
-              id={`wool_bm_${selectedItem.id}`}
-              name={`wool_${selectedItem.id}`}
-              value="bm"
-              checked={currentWool == "bm"}
-            />
-            <label className="label" htmlFor={`wool_bm_${selectedItem.id}`}>
-              Шуманет-БМ
-            </label>
-          </div>
-          <div className="radio-option">
-            <input
-              className="radio"
-              type="radio"
-              onChange={(e) => setCurrentWool(e.target.value)}
-              id={`wool_sk_${selectedItem.id}`}
-              name={`wool_${selectedItem.id}`}
-              value="skNeo"
-              checked={currentWool == "skNeo"}
-            />
-            <label className="label" htmlFor={`wool_sk_${selectedItem.id}`}>
-              Шуманет-СК Neo
-            </label>
-          </div>
-        </>
+        <WoolChoiceRadios
+          idPrefix="facing"
+          itemId={selectedItem.id}
+          value={currentWool}
+          onChange={setCurrentWool}
+          showEcoS={hasEcoSWoolChoice(selectedItem?.ag_id)}
+        />
       )}
 
       {!isZIPSFacing && (
