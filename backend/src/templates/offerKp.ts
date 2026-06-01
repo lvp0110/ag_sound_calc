@@ -181,6 +181,10 @@ const materialDisplayName = (m: MaterialLike): string => {
     : typeof m.name === "string" && m.name.trim() !== ""
       ? m.name.trim()
       : "";
+  // Общестроительные (колонка «артикул» = «---»): только название, без кода.
+  if (!hasKpTableArticle(m.Code)) {
+    return name || "—";
+  }
   const article = materialArticle(m);
   if (article && name) return `${article}, ${name}`;
   return name || article || "—";
@@ -341,7 +345,7 @@ export function renderOfferKpHtml({ offer, priceLookup, catalog }: RenderInput):
     (a, b) => a.position - b.position
   );
 
-  // Карточка конструкции на КП: материалы → монтаж → доп. материалы (в одной секции PDF).
+  // Карточка конструкции на КП: материалы → доп. материалы → монтаж (в одной секции PDF).
   for (const c of constructionsOrdered) {
     const materials = orderMaterialsLikeKpTable(
       Array.isArray(c.materials) ? c.materials : []
@@ -366,13 +370,13 @@ export function renderOfferKpHtml({ offer, priceLookup, catalog }: RenderInput):
       });
     }
 
+    for (const m of additionalByConstructionId.get(c.id) || []) {
+      pushPricedServiceRow(rows, sectionTotal, m, "");
+    }
+
     const montageArr = Array.isArray(c.montage) ? c.montage : [];
     if (montageArr[0]) {
       pushPricedServiceRow(rows, sectionTotal, montageArr[0], "Монтаж");
-    }
-
-    for (const m of additionalByConstructionId.get(c.id) || []) {
-      pushPricedServiceRow(rows, sectionTotal, m, "");
     }
 
     if (rows.length === 0) continue;
@@ -424,8 +428,8 @@ export function renderOfferKpHtml({ offer, priceLookup, catalog }: RenderInput):
     const sectionNo = sIdx + 1;
     sectionsHtml += `
       <tr class="section-row">
-        <td class="num">${sectionNo}</td>
-        <td class="name" colspan="5"><strong>${esc(sec.name)}</strong></td>
+        <td class="num"><strong>${sectionNo}</strong></td>
+        <td class="name section-title" colspan="5"><strong>${esc(sec.name)}</strong></td>
         <td class="sum"><strong>${fmtRub(sec.sectionTotal)}</strong></td>
       </tr>`;
     sec.rows.forEach((row, rIdx) => {
@@ -525,7 +529,7 @@ export const buildFooterHtml = (offer: OfferForRender): string => {
   font-size: 8pt;
   color: #1c1c1c;
   text-align: center;
-  padding: 0 12mm;
+  padding: 0 4mm;
   border-top: 1px solid #4a4a4a;
   padding-top: 2mm;
 ">

@@ -153,7 +153,7 @@ const renderPdfFromHtml = async (
     await page.setContent(html, { waitUntil: "domcontentloaded" });
     const pdf = await page.pdf({
       format: "A4",
-      margin: { top: "25mm", bottom: "32mm", left: "28mm", right: "28mm" },
+      margin: { top: "20mm", bottom: "28mm", left: "12mm", right: "12mm" },
       printBackground: true,
       displayHeaderFooter: true,
       headerTemplate: KP_HEADER_TEMPLATE,

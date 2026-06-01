@@ -74,41 +74,91 @@
     padding: 0 2mm;
   }
 
-  /* ─── главная таблица ─── */
+  /* ─── главная таблица (как в образце КП) ─── */
   table.items {
     width: 100%;
     border-collapse: collapse;
     table-layout: fixed;
+    border: 1px solid #000000;
+    border-bottom: 2.5px solid #808080;
   }
-  table.items th, table.items td {
-    border: 1px solid #4a4a4a;
-    padding: 2mm 2.5mm;
-    vertical-align: top;
+  table.items th,
+  table.items td {
+    border: 1px solid #000000;
+    padding: 1.5mm 2mm;
+    vertical-align: middle;
+    box-sizing: border-box;
+  }
+  table.items thead {
+    display: table-header-group;
   }
   table.items thead th {
-    background: #f1f1f1;
+    background: #ffffff;
     text-align: center;
     font-weight: 700;
     font-size: 8.5pt;
-    padding: 2.5mm 2mm;
+    line-height: 1.2;
+    padding: 2mm 1.5mm;
   }
-  table.items col.c-num { width: 7mm; }
+  table.items col.c-num { width: 10mm; }
   table.items col.c-name { width: auto; }
-  table.items col.c-lead { width: 18mm; }
-  table.items col.c-unit { width: 13mm; }
-  table.items col.c-qty { width: 14mm; }
+  table.items col.c-lead { width: 14mm; }
+  table.items col.c-unit { width: 10mm; }
+  table.items col.c-qty { width: 12mm; }
   table.items col.c-price { width: 22mm; }
-  table.items col.c-sum { width: 26mm; }
-  table.items td.num { text-align: center; white-space: nowrap; }
-  table.items td.name { text-align: left; line-height: 1.35; }
+  table.items col.c-sum { width: 23mm; }
+  table.items thead th:first-child,
+  table.items td.num {
+    width: 10mm;
+    min-width: 10mm;
+    max-width: 10mm;
+    padding: 1.5mm 0.5mm;
+    font-size: 8pt;
+    text-align: center;
+    white-space: nowrap;
+    font-weight: 400;
+    overflow: hidden;
+  }
+  tr.section-row td.num {
+    font-weight: 700;
+  }
+  table.items td.name {
+    text-align: left;
+    line-height: 1.3;
+    font-weight: 400;
+  }
+  table.items td.lead { text-align: center; }
   table.items td.unit { text-align: center; }
-  table.items td.qty { text-align: right; }
-  table.items td.price { text-align: right; }
-  table.items td.sum { text-align: right; white-space: nowrap; }
-  tr.section-row { background: #e6e6e6; break-after: avoid; }
-  tr.section-row td { padding-top: 2.5mm; padding-bottom: 2.5mm; }
-  tr.item-row { break-inside: avoid; }
-  tr.item-row td.num { background: #ffffff; }
+  table.items td.qty,
+  table.items td.price,
+  table.items td.sum {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  table.items td.sum { white-space: nowrap; }
+  tr.section-row {
+    background: #d9d9d9;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  tr.section-row td {
+    font-weight: 700;
+    padding-top: 2mm;
+    padding-bottom: 2mm;
+    vertical-align: middle;
+  }
+  tr.section-row td.section-title {
+    text-align: left;
+  }
+  tr.section-row td.sum {
+    text-align: right;
+    white-space: nowrap;
+  }
+  tr.item-row {
+    background: #ffffff;
+    break-inside: auto;
+    page-break-inside: auto;
+  }
 
   /* ─── итог ─── */
   .totals {
