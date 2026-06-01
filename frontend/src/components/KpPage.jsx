@@ -547,6 +547,8 @@ const KpPage = () => {
         const rawCalcTables = effectiveSnap?.calcTables
           ? effectiveSnap.calcTables
           : viewCalcTables;
+        const constrToCalcToSent =
+          effectiveSnap?.constrToCalcToSent ?? viewConstrToCalcToSent;
         const nextCalcTablesRaw =
           rawCalcTables.ConstrToCalc?.length > 0
             ? {
@@ -559,10 +561,9 @@ const KpPage = () => {
           ConstrToCalc: enrichConstructionsWithTitles(
             nextCalcTablesRaw?.ConstrToCalc ?? [],
             titleByCode,
+            constrToCalcToSent,
           ),
         };
-        const constrToCalcToSent =
-          effectiveSnap?.constrToCalcToSent ?? viewConstrToCalcToSent;
 
         setCalcTables(nextCalcTables);
         useCalculatorStore
@@ -652,11 +653,13 @@ const KpPage = () => {
         const titleByCode = buildTitleByCodeMap(constrList);
         setCalcTables((prev) => {
           if (!prev?.ConstrToCalc?.length) return prev;
+          const sent = useCalculatorStore.getState().ConstrToCalcToSent ?? [];
           return {
             ...prev,
             ConstrToCalc: enrichConstructionsWithTitles(
               prev.ConstrToCalc,
               titleByCode,
+              sent,
             ),
           };
         });

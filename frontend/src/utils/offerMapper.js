@@ -4,6 +4,7 @@ import {
 } from "./constructionSection.js";
 import { resolveDisplayCipher } from "./calculations.js";
 import { calculateAreaAndPerimeter } from "./calculations.js";
+import { applyUltrasonicHangerDisplayText } from "./calcUlTapeFallback.js";
 
 /**
  * Маппинг между состоянием Calculator / KpPage и бэкендовым DTO Offer.
@@ -55,11 +56,15 @@ export function buildCreateOfferPayload({
 // ─── load ───────────────────────────────────────────────────────────────────
 
 /** Обновляет title/description карточек после фоновой загрузки каталога. */
-export function enrichConstructionsWithTitles(constructions, titleByCode) {
+export function enrichConstructionsWithTitles(
+  constructions,
+  titleByCode,
+  constrToCalcToSent = [],
+) {
   if (!Array.isArray(constructions) || !(titleByCode instanceof Map)) {
     return constructions;
   }
-  return constructions.map((item) => {
+  return constructions.map((item, index) => {
     const stored = item?.ag_id || "";
     const cipher = resolveDisplayCipher(stored, titleByCode);
     const meta = titleByCode.get(cipher) || {};
@@ -68,8 +73,16 @@ export function enrichConstructionsWithTitles(constructions, titleByCode) {
       item.title !== stored &&
       item.title !== cipher &&
       item.title !== meta.Name;
-    const nextTitle = meta.Name || (keepHumanTitle ? item.title : "") || cipher || "—";
-    const nextDescription = meta.Description ?? item.description ?? "";
+    let nextTitle = meta.Name || (keepHumanTitle ? item.title : "") || cipher || "—";
+    let nextDescription = meta.Description ?? item.description ?? "";
+    const calcCode = constrToCalcToSent[index]?.Code ?? "";
+    ({ title: nextTitle, description: nextDescription } =
+      applyUltrasonicHangerDisplayText({
+        title: nextTitle,
+        description: nextDescription,
+        agId: cipher,
+        calcCode,
+      }));
     if (
       item.ag_id === cipher &&
       item.title === nextTitle &&
@@ -108,10 +121,18 @@ export function mapOfferResponseToKpView(offer, { titleByCode = new Map() } = {}
     const cipher = resolveDisplayCipher(code, titleByCode);
     const meta = titleByCode.get(cipher) || {};
     const sectionId = cp.SectionId || sectionIdFromCode(code);
+    let title = meta.Name || cipher || "—";
+    let description = meta.Description || "";
+    ({ title, description } = applyUltrasonicHangerDisplayText({
+      title,
+      description,
+      agId: cipher,
+      calcCode: code,
+    }));
     return {
       key_id: c.id,
-      title: meta.Name || cipher || "—",
-      description: meta.Description || "",
+      title,
+      description,
       type: constructionTypeFromCalcParams(cp),
       section_id: sectionId,
       ag_id: cipher,

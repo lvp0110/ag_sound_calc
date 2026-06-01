@@ -42,6 +42,44 @@ export const stripHangerSuffix = (code) => {
 export const hasHangerChoice = (agId) =>
   Boolean(agId) && HANGER_CHOICE_AG_IDS.has(String(agId).trim());
 
+/** «креплениях/креплений/применением Виброфлекс-…» → «… Ультракустик» в UI-названии. */
+const UL_HANGER_TITLE_SUFFIX_PATTERN =
+  /(креплениях|креплений|применением)\s+Виброфлекс.*$/iu;
+
+/**
+ * Подмена типа подвеса в title/description для AG.C501–503 и AG.L404–405,
+ * если выбран Ультракустик (по hangerType или суффиксу *_ul_hanger в calcCode).
+ */
+export function applyUltrasonicHangerDisplayText({
+  title = "",
+  description = "",
+  agId = "",
+  calcCode = "",
+  hangerType,
+} = {}) {
+  const useUl =
+    hangerType === HANGER_ULTRACOUSTIC ||
+    (calcCode && isUlHangerCalcCode(String(calcCode)));
+
+  if (!useUl || !hasHangerChoice(agId)) {
+    return { title: title ?? "", description: description ?? "" };
+  }
+
+  const mapLine = (text) => {
+    const s = String(text ?? "");
+    if (!s) return s;
+    return s.replace(
+      UL_HANGER_TITLE_SUFFIX_PATTERN,
+      (_, word) => `${word} Ультракустик`,
+    );
+  };
+
+  return {
+    title: mapLine(title),
+    description: mapLine(description),
+  };
+}
+
 /** Подвесы Виброфлекс в ответе calc для базового шифра (AG.C501 … AG.L405). */
 const VIBROFLEX_HANGER_ARTICLE_CODES = new Set([
   "2316.3010",

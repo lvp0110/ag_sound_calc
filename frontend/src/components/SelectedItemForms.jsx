@@ -4,7 +4,10 @@ import CeilingForm from "./forms/CeilingForm";
 import FacingForm from "./forms/FacingForm";
 import SoundboardForm from "./forms/SoundboardForm";
 import ConstructionParameters from "./ConstructionParameters";
-import { hasFloorSealantChoice } from "../utils/calcUlTapeFallback";
+import {
+  applyUltrasonicHangerDisplayText,
+  hasFloorSealantChoice,
+} from "../utils/calcUlTapeFallback";
 import { isFacingTemplate } from "../utils/validation";
 
 /**
@@ -62,16 +65,24 @@ const SelectedItemForms = ({
     navigate(`/info/${selectedItem.ag_id}`, { state: { c_id: selectedItem.c_id } });
   };
 
+  const displayTitle = selectedItem
+    ? applyUltrasonicHangerDisplayText({
+        title: selectedItem.title,
+        agId: selectedItem.ag_id,
+        hangerType: currentHangerType,
+      }).title
+    : "";
+
   return (
     <div className="selected-item-forms">
       <button
         type="button"
         className="selected-item-header"
         onClick={handleInfoClick}
-        aria-label={`Информация: ${selectedItem.title}`}
+        aria-label={`Информация: ${displayTitle}`}
         title="Информация"
       >
-        <h3>{selectedItem.title}</h3>
+        <h3>{displayTitle}</h3>
         <span className="selected-item-header-icon" aria-hidden="true">
           <svg
             width="20"

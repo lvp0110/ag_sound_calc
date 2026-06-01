@@ -78,7 +78,7 @@ function HangerChoiceRadios({ idPrefix, itemId, value, onChange }) {
           className="label"
           htmlFor={`${idPrefix}_hanger_vibrostek_${itemId}`}
         >
-          Вибростек
+          Виброфлекс
         </label>
       </div>
       <div className="radio-option">

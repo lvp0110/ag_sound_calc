@@ -26,6 +26,7 @@ import {
   resolveDisplayCipher,
 } from "../utils/calculations";
 import {
+  applyUltrasonicHangerDisplayText,
   hangerTypeFromCode,
   hasFloorSealantChoice,
   hasGklaChoice,
@@ -693,12 +694,21 @@ const Calculator = () => {
     const sectionId =
       sectionIdFromSubCategory(currentSubCategory) || sectionIdFromCode(code);
 
+    const { title: displayTitle, description: displayDescription } =
+      applyUltrasonicHangerDisplayText({
+        title: Constr?.title,
+        description: Constr?.description,
+        agId: Constr?.ag_id,
+        calcCode: code,
+        hangerType: currentHangerType,
+      });
+
     const newConstR = {
       ...constR,
       imgBlack: IconType?.imgBlack ? getImageUrl(IconType.imgBlack) : undefined,
-      description: Constr?.description,
+      description: displayDescription,
       key_id: Date.now(),
-      title: Constr?.title,
+      title: displayTitle,
       type: IconType?.title,
       section_id: sectionId,
       // Для UI показываем базовый шифр без суффиксов (AG.F...),
