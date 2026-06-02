@@ -96,13 +96,16 @@
     background: #ffffff;
     text-align: center;
     font-weight: 700;
-    font-size: 8.5pt;
-    line-height: 1.2;
+    font-size: 8pt;
+    line-height: 1.15;
     padding: 2mm 1.5mm;
+    white-space: normal;
+    overflow-wrap: break-word;
+    word-break: normal;
   }
   table.items col.c-num { width: 10mm; }
-  table.items col.c-name { width: auto; }
-  table.items col.c-lead { width: 14mm; }
+  table.items col.c-name { width: 66mm; }
+  table.items col.c-lead { width: 20mm; }
   table.items col.c-unit { width: 10mm; }
   table.items col.c-qty { width: 12mm; }
   table.items col.c-price { width: 22mm; }
@@ -128,6 +131,10 @@
     font-weight: 400;
   }
   table.items td.lead { text-align: center; }
+  table.items thead th:nth-child(3) {
+    padding-left: 1mm;
+    padding-right: 1mm;
+  }
   table.items td.unit { text-align: center; }
   table.items td.qty,
   table.items td.price,

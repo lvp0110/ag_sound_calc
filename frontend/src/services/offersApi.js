@@ -1,4 +1,4 @@
-import { BASE_URL, request } from "./apiClient.js";
+import { request, requestRawResponse } from "./apiClient.js";
 
 /**
  * POST /api/offers — { form, offerDraft } → полный Offer DTO c пересчитанными materials.
@@ -52,10 +52,8 @@ export const uploadLogo = (file) => {
  * не отдал — используем дефолт.
  */
 export async function downloadOfferPdf(id, fallbackFilename = "КП.pdf") {
-  const url = `${BASE_URL}/api/offers/${encodeURIComponent(id)}/pdf`;
-  const response = await fetch(url, {
+  const response = await requestRawResponse(`/api/offers/${encodeURIComponent(id)}/pdf`, {
     method: "GET",
-    credentials: "include",
     headers: { accept: "application/pdf" },
   });
   if (!response.ok) {

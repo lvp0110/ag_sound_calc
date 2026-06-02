@@ -103,6 +103,33 @@ const doFetch = async (path, init) => {
   });
 };
 
+const fetchWithAuthRetry = async (path, init = {}, options = {}) => {
+  let response = await doFetch(path, init);
+  let hasRefreshed = false;
+
+  if (response.status === 401 && !options.skipAuthRetry) {
+    const refreshed = await tryRefreshAccessToken();
+    if (refreshed) {
+      hasRefreshed = true;
+      response = await doFetch(path, init);
+    } else {
+      if (!options.silent401) dispatchUnauthorized();
+      const body = await parseResponse(response);
+      throw new ApiError("Unauthorized", { status: 401, body });
+    }
+  }
+
+  // Если access/refresh устарели или отозваны, повтор после refresh может тоже
+  // вернуть 401. В этом случае нужно явно перевести UI в anon-состояние.
+  if (response.status === 401 && hasRefreshed) {
+    if (!options.silent401) dispatchUnauthorized();
+    const body = await parseResponse(response);
+    throw new ApiError("Unauthorized", { status: 401, body });
+  }
+
+  return response;
+};
+
 /**
  * Главный метод для запросов.
  *  - path: '/api/...' или полный URL
@@ -111,18 +138,7 @@ const doFetch = async (path, init) => {
  *  - options.silent401: не эмитить auth:unauthorized, просто пробросить ошибку
  */
 export const request = async (path, init = {}, options = {}) => {
-  let response = await doFetch(path, init);
-
-  if (response.status === 401 && !options.skipAuthRetry) {
-    const refreshed = await tryRefreshAccessToken();
-    if (refreshed) {
-      response = await doFetch(path, init);
-    } else {
-      if (!options.silent401) dispatchUnauthorized();
-      const body = await parseResponse(response);
-      throw new ApiError("Unauthorized", { status: 401, body });
-    }
-  }
+  const response = await fetchWithAuthRetry(path, init, options);
 
   if (!response.ok) {
     const body = await parseResponse(response);
@@ -134,5 +150,12 @@ export const request = async (path, init = {}, options = {}) => {
 
   return parseResponse(response);
 };
+
+/**
+ * Возвращает сырой Response, но с тем же auth-retry, что и request().
+ * Полезно для бинарных ответов (PDF/файлы), где нельзя парсить JSON/text заранее.
+ */
+export const requestRawResponse = (path, init = {}, options = {}) =>
+  fetchWithAuthRetry(path, init, options);
 
 export { ApiError };
