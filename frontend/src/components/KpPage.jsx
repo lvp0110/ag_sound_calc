@@ -18,6 +18,7 @@ import {
   parseKpDecimal,
 } from "./tables/MaterialsList";
 import {
+  deleteOffer,
   downloadOfferPdf,
   getOffer,
   updateOffer,
@@ -343,6 +344,8 @@ const KpPage = () => {
     markDraftSaved,
     markDraftDirty,
     isOfferPdfExportBlocked,
+    isNewDraftOffer,
+    clearNewDraftOfferFlag,
     setSelectedPriceArticles,
     setActiveConstructionId,
     setSelectedArticlesForConstruction,
@@ -893,6 +896,8 @@ const KpPage = () => {
         useCalculatorStore.getState().setField("ConstrToCalcToSent", sent);
       }
       markDraftSaved();
+      clearKpSnapshot();
+      clearNewDraftOfferFlag(id);
       ignoreDirtyTrackingRef.current = true;
       shouldResetDirtyBaselineRef.current = true;
     } catch (err) {
@@ -1172,8 +1177,25 @@ const KpPage = () => {
     kpSettings,
   ]);
 
-  const handleExit = useCallback(() => {
+  const handleExit = useCallback(async () => {
     if (!id) return;
+    if (hasUnsavedChanges) {
+      const confirmed = window.confirm(
+        "Есть не сохраненные данные. Выйти без сохранения?",
+      );
+      if (!confirmed) return;
+    }
+    if (isNewDraftOffer(id)) {
+      try {
+        await deleteOffer(id);
+        clearNewDraftOfferFlag(id);
+      } catch (err) {
+        setSaveError(
+          err?.message || "Не удалось отменить новое КП. Попробуйте еще раз.",
+        );
+        return;
+      }
+    }
     // «Выйти» — только выход из КП: без автосохранения и без сохранения snapshot.
     clearKpSnapshot();
     useOfferEditSessionStore.getState().leaveToOfferList();
@@ -1181,7 +1203,14 @@ const KpPage = () => {
       replace: true,
       state: { kpExit: true },
     });
-  }, [id, clearKpSnapshot, navigate]);
+  }, [
+    id,
+    hasUnsavedChanges,
+    isNewDraftOffer,
+    clearNewDraftOfferFlag,
+    clearKpSnapshot,
+    navigate,
+  ]);
 
   const openPriceForConstruction = useCallback((key_id) => {
     setActiveConstructionId(key_id);

@@ -28,6 +28,8 @@ const initialState = {
   activeConstructionId: null,
   /** Одноразовый пропуск OfferDraftGuard для /kp/list (кнопка «Выйти»). */
   allowExitToList: false,
+  /** Новые КП, созданные и ещё не подтвержденные сохранением. */
+  newDraftOfferIds: {},
 };
 
 export const useOfferEditSessionStore = create(
@@ -220,6 +222,30 @@ export const useOfferEditSessionStore = create(
       /** Кнопка «Выйти» на KpPage — разрешить переход в список без PATCH. */
       requestExitToList: () => set({ allowExitToList: true }),
 
+      markNewDraftOffer: (offerId) => {
+        if (offerId == null) return;
+        set((state) => ({
+          newDraftOfferIds: {
+            ...state.newDraftOfferIds,
+            [String(offerId)]: true,
+          },
+        }));
+      },
+
+      clearNewDraftOfferFlag: (offerId) => {
+        if (offerId == null) return;
+        set((state) => {
+          const next = { ...state.newDraftOfferIds };
+          delete next[String(offerId)];
+          return { newDraftOfferIds: next };
+        });
+      },
+
+      isNewDraftOffer: (offerId) => {
+        if (offerId == null) return false;
+        return Boolean(get().newDraftOfferIds[String(offerId)]);
+      },
+
       /**
        * «Выйти» в список: сбросить калькулятор, завершить режим черновика.
        * kpSnapshot и activeOfferId сохраняются — при повторном открытии КП подтянутся.
@@ -272,6 +298,7 @@ export const useOfferEditSessionStore = create(
         kpSnapshotsByOfferId: state.kpSnapshotsByOfferId,
         selectedPriceArticlesByKeyId: state.selectedPriceArticlesByKeyId,
         activeConstructionId: state.activeConstructionId,
+        newDraftOfferIds: state.newDraftOfferIds,
       }),
     }
   )
@@ -282,6 +309,9 @@ export function useOfferEditSession() {
   const isDraft = useOfferEditSessionStore((s) => s.isDraft);
   const hasUnsavedChanges = useOfferEditSessionStore((s) => s.hasUnsavedChanges);
   const kpSnapshot = useOfferEditSessionStore((s) => s.kpSnapshot);
+  const kpSnapshotsByOfferId = useOfferEditSessionStore(
+    (s) => s.kpSnapshotsByOfferId
+  );
   const selectedPriceArticlesByKeyId = useOfferEditSessionStore(
     (s) => s.selectedPriceArticlesByKeyId
   );
@@ -320,9 +350,17 @@ export function useOfferEditSession() {
   const isOfferPdfExportBlocked = useOfferEditSessionStore(
     (s) => s.isOfferPdfExportBlocked
   );
+  const markNewDraftOffer = useOfferEditSessionStore((s) => s.markNewDraftOffer);
+  const clearNewDraftOfferFlag = useOfferEditSessionStore(
+    (s) => s.clearNewDraftOfferFlag
+  );
+  const isNewDraftOffer = useOfferEditSessionStore((s) => s.isNewDraftOffer);
 
   const isEditingDraft = isDraft && Boolean(activeOfferId);
-  const hasUnsavedKpEdits = isEditingDraft && hasUnsavedChanges;
+  const hasSnapshotForActiveOffer =
+    Boolean(activeOfferId) && Boolean(kpSnapshotsByOfferId[String(activeOfferId)]);
+  const hasUnsavedKpEdits =
+    isEditingDraft && (hasUnsavedChanges || Boolean(kpSnapshot) || hasSnapshotForActiveOffer);
 
   /** Плоский список артикулов активной конструкции (для PricePage). */
   const selectedPriceArticles = activeConstructionId
@@ -357,5 +395,8 @@ export function useOfferEditSession() {
     updateKpSnapshotMaterialRowsForConstruction,
     isPathAllowedDuringDraft,
     isOfferPdfExportBlocked,
+    markNewDraftOffer,
+    clearNewDraftOfferFlag,
+    isNewDraftOffer,
   };
 }

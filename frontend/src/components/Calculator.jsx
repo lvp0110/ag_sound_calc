@@ -27,6 +27,7 @@ import {
 } from "../utils/calculations";
 import {
   applyUltrasonicHangerDisplayText,
+  hasEcoSWoolChoice,
   hangerTypeFromCode,
   hasFloorSealantChoice,
   hasGklaChoice,
@@ -38,10 +39,9 @@ import {
   sectionIdFromSubCategory,
 } from "../utils/constructionSection";
 import { calculateConstruction } from "../services/constructionApi";
-import { createOffer, getOffer, updateOffer } from "../services/offersApi";
+import { createOffer, getOffer } from "../services/offersApi";
 import {
   buildCreateOfferPayload,
-  buildDraftSyncFromCalculator,
   mapOfferToCalculatorState,
 } from "../utils/offerMapper";
 import { useAuth } from "../context/AuthContext.jsx";
@@ -63,6 +63,8 @@ const Calculator = () => {
     isEditingDraft,
     kpSnapshot,
     startDraft,
+    markNewDraftOffer,
+    stashKpSnapshot,
     clearKpSnapshot,
   } = useOfferEditSession();
 
@@ -381,6 +383,9 @@ const Calculator = () => {
         if (!hasGklaChoice(item.ag_id)) {
           setCurrentGkla("default");
         }
+        if (!hasEcoSWoolChoice(item.ag_id)) {
+          setCurrentWool("default");
+        }
         if (isFacingTemplate(item.template)) {
           setFacingProfileStep(600);
         }
@@ -389,7 +394,7 @@ const Calculator = () => {
         }
       }
     },
-    [currentItems, setFacingProfileStep, setCurrentGkla]
+    [currentItems, setCurrentWool, setFacingProfileStep, setCurrentGkla]
   );
 
   useEffect(() => {
@@ -528,6 +533,7 @@ const Calculator = () => {
       });
       const offer = await createOffer(payload);
       startDraft(offer.id);
+      markNewDraftOffer(offer.id);
       navigate("/kp/list", { state: { autoOpenOfferId: offer.id } });
     } catch (err) {
       setModal({
@@ -542,7 +548,7 @@ const Calculator = () => {
     } finally {
       setIsSubmittingKp(false);
     }
-  }, [ConstrToCalcToSent, ConstrToCalc, navigate, startDraft]);
+  }, [ConstrToCalcToSent, ConstrToCalc, navigate, startDraft, markNewDraftOffer]);
 
   /**
    * «Сделать КП»: либо сразу создаёт оффер (если авторизован), либо открывает
@@ -586,21 +592,30 @@ const Calculator = () => {
     }
     setIsSubmittingKp(true);
     try {
-      const patchBody = buildDraftSyncFromCalculator({
+      const tablesForSnapshot =
+        ConstrToCalc.length > 0
+          ? {
+              tableConstrToCalc: tableConstrToCalc ?? {},
+              ConstrToCalc,
+              materialsByConstruction,
+            }
+          : {
+              tableConstrToCalc: null,
+              ConstrToCalc,
+              materialsByConstruction,
+            };
+      stashKpSnapshot({
+        ...(kpSnapshot ?? {}),
+        calcTables: tablesForSnapshot,
         constrToCalcToSent: ConstrToCalcToSent,
-        constrToCalc: ConstrToCalc,
-        materialsByConstruction,
-        kpSnapshot,
       });
-      await updateOffer(activeOfferId, patchBody);
-      clearKpSnapshot();
       hydratedOfferIdRef.current = null;
       navigate(`/kp/${activeOfferId}`);
     } catch (err) {
       setModal({
         isOpen: true,
         title: "Ошибка",
-        html: `Не удалось обновить КП.<br><br>${err?.message || ""}`,
+        html: `Не удалось вернуть изменения в черновик КП.<br><br>${err?.message || ""}`,
         icon: "error",
         imageUrl: null,
         confirmButtonText: "OK",
@@ -614,9 +629,10 @@ const Calculator = () => {
     ConstrToCalc,
     ConstrToCalcToSent,
     materialsByConstruction,
+    tableConstrToCalc,
     kpSnapshot,
     navigate,
-    clearKpSnapshot,
+    stashKpSnapshot,
   ]);
 
   const showMakeKpButton =

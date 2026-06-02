@@ -38,8 +38,13 @@ export default function KpList() {
   const navigate = useNavigate();
   const location = useLocation();
   const { isAuthed, status } = useAuth();
-  const { isEditingDraft, activeOfferId, startDraft, isOfferPdfExportBlocked } =
+  const { isEditingDraft, activeOfferId, startDraft, markNewDraftOffer } =
     useOfferEditSession();
+  const hasUnsavedChanges = useOfferEditSessionStore((s) => s.hasUnsavedChanges);
+  const kpSnapshot = useOfferEditSessionStore((s) => s.kpSnapshot);
+  const kpSnapshotsByOfferId = useOfferEditSessionStore(
+    (s) => s.kpSnapshotsByOfferId,
+  );
   const allowExitToList = useOfferEditSessionStore((s) => s.allowExitToList);
   const [offers, setOffers] = useState([]);
   const [loadStatus, setLoadStatus] = useState("idle");
@@ -110,7 +115,23 @@ export default function KpList() {
     }
   };
 
-  const isOfferPdfBlocked = (offerId) => isOfferPdfExportBlocked(offerId);
+  const isOfferPdfBlocked = (offerId) => {
+    if (offerId == null) return false;
+    const offerKey = String(offerId);
+    const hasSnapshotInMap = Boolean(kpSnapshotsByOfferId?.[offerKey]);
+    const hasActiveSnapshot =
+      kpSnapshot != null &&
+      activeOfferId != null &&
+      String(activeOfferId) === offerKey;
+    if (
+      hasUnsavedChanges &&
+      activeOfferId != null &&
+      String(activeOfferId) === offerKey
+    ) {
+      return true;
+    }
+    return hasSnapshotInMap || hasActiveSnapshot;
+  };
 
   const handleDownloadPdf = async (offer) => {
     if (downloadingId) return;
@@ -164,6 +185,7 @@ export default function KpList() {
       });
       if (offer?.id) {
         startDraft(offer.id);
+        markNewDraftOffer(offer.id);
         navigate(`/kp/${offer.id}`);
       }
     } catch (err) {
