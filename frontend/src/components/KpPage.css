@@ -212,21 +212,10 @@ textarea.kp-page__input {
   padding: 0;
 }
 
-/* Одна карточка на конструкцию: таблицы разделены линией */
+/* Карточки таблиц КП: одна рамка на контейнере, внутри — горизонтальные разделители */
 .kp-page .kp-table-card--group {
   display: flex;
   flex-direction: column;
-}
-
-.kp-page .kp-table-card--group > .tbl-in + .tbl-in {
-  border-top: 1px solid var(--table-border);
-}
-
-/* Нижние углы карточки конструкции (border-collapse ломает radius на td) */
-.kp-page .kp-table-card--group > .kp-card-sections-total-wrap {
-  border-bottom-left-radius: 10px;
-  border-bottom-right-radius: 10px;
-  overflow: hidden;
 }
 
 .kp-page .kp-table-card {
@@ -234,17 +223,21 @@ textarea.kp-page__input {
   max-width: 100%;
   box-sizing: border-box;
   background: #ffffff;
+  border: 1px solid var(--table-border);
+  border-radius: 10px;
   box-shadow:
     0 4px 18px rgba(26, 42, 58, 0.08),
     0 1px 3px rgba(26, 42, 58, 0.05);
-  overflow-x: auto;
-  overflow-y: visible;
+  overflow: hidden;
+}
+
+.kp-page .kp-table-card--group > .tbl-in + .tbl-in,
+.kp-page .kp-table-card > .kp-section-collapsible-toggle + .tbl-in {
+  border-top: 1px solid var(--table-border);
 }
 
 .kp-page .kp-table-card .data {
   border: none;
-  border-left: 1px solid var(--table-border);
-  border-right: 1px solid var(--table-border);
   background: transparent;
 }
 
@@ -313,22 +306,9 @@ textarea.kp-page__input {
   font-weight: 700;
 }
 
-.kp-page
-  .kp-table-card
-  .data:not(.kp-data-table--starts-with-column-headers)
-  thead:first-of-type
-  tr:first-child
-  th:first-child {
-  border-top-left-radius: 12px;
-}
-
-.kp-page
-  .kp-table-card
-  .data:not(.kp-data-table--starts-with-column-headers)
-  thead:first-of-type
-  tr:first-child
-  th:last-child {
-  border-top-right-radius: 12px;
+/* Шапка конструкции — тот же фон, что у сворачиваемых разделов */
+.kp-page .construction-card__heading-th {
+  background-color: #dde9ef;
 }
 
 /* «Итого» под карточкой: как заголовок сворачиваемого раздела (.kp-section-collapsible-toggle) */
@@ -484,7 +464,8 @@ textarea.kp-page__input {
   color: #6d7277;
 }
 
-/* Таблицы на странице КП (отдельно от калькулятора — там .content-calc .data) */
+/* Таблицы на странице КП (отдельно от калькулятора — там .content-calc .data).
+   Рамка у одиночных таблиц; внутри .kp-table-card рамка только на карточке. */
 .kp-page .data {
   font-size: 14px;
   background-color: #ffffff;
@@ -512,6 +493,7 @@ textarea.kp-page__input {
   align-items: stretch;
   width: 100%;
   min-width: 0;
+  overflow-x: auto;
 }
 
 .kp-page .data th {
