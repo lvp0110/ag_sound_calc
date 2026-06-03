@@ -337,6 +337,9 @@ function LegacyConstructionMaterialsPanels({
  * @param {Array<{ key_id: number, data: unknown[] }>} [materialsByConstruction] — если задано, под каждой конструкцией выводится свой список материалов (без суммирования между конструкциями)
  * @param {boolean} [showGeneralConstructionMaterials=true] — блок «Общестроительные материалы» (без артикула)
  * @param {(ctx: { key_id: number, cardIndex: number }) => import("react").ReactNode} [renderKpMontageSlot] — раздел «Монтаж» в каждой карточке конструкции на КП (не в «Услугах» и не в строке итога)
+ * @param {boolean} [defaultCardsCollapsed] — карточки свёрнуты при первом показе; на КП передаётся `true`
+ * @param {Record<number, boolean>} [cardCollapseOverrides] — явное состояние свёрнутости (КП, из kpSnapshot)
+ * @param {(key_id: number) => void} [onToggleCardCollapsed] — переключение карточки (controlled mode)
  * @param {Record<number, { price?: string, quantity?: string, unit?: string }>} [montageByKeyId] — монтаж по карточке (КП); для итога под карточкой
  * @param {(key_id: number, indexInFullMaterialsData: number, field: 'KpPricePerM2'|'KpPricePerUnit', value: string) => void} [onGeneralMaterialKpPriceChange] — правка цен «Общестроительные материалы»
  * @param {boolean} [legacyTableWithMaterials] — таблица-список: по клику на название под строкой показываются материалы (калькулятор)
@@ -359,13 +362,22 @@ const ConstructionList = ({
   /** На КП итог выводится отдельным блоком ниже «Услуги». */
   showGrandTotalInline = true,
   onGeneralMaterialKpPriceChange,
+  /** На странице КП — свёрнуты при открытии; в калькуляторе по умолчанию тоже свёрнуты. */
+  defaultCardsCollapsed,
+  cardCollapseOverrides: controlledCardCollapseOverrides,
+  onToggleCardCollapsed,
 }) => {
-  const [collapseOverrides, setCollapseOverrides] = useState({});
+  const [internalCollapseOverrides, setInternalCollapseOverrides] = useState({});
   const [expandedLegacyKeyId, setExpandedLegacyKeyId] = useState(null);
   const legacyCardsLayout = useCalcConstructionCardsViewport();
 
-  // Если есть renderKpAdditionalMaterialsSlot — карточки развёрнуты по умолчанию.
-  const defaultCollapsed = !renderKpAdditionalMaterialsSlot;
+  const isCardCollapseControlled = onToggleCardCollapsed != null;
+  const collapseOverrides = isCardCollapseControlled
+    ? (controlledCardCollapseOverrides ?? {})
+    : internalCollapseOverrides;
+
+  const defaultCollapsed =
+    defaultCardsCollapsed ?? !renderKpAdditionalMaterialsSlot;
 
   const collapsedCardsByKeyId = useMemo(() => {
     if (!Array.isArray(constructions) || constructions.length === 0) return {};
@@ -383,12 +395,16 @@ const ConstructionList = ({
       : null;
   }, [constructions, expandedLegacyKeyId]);
 
-  const toggleCardCollapsed = useCallback((key_id) => {
-    setCollapseOverrides((prev) => ({
+  const toggleCardCollapsedInternal = useCallback((key_id) => {
+    setInternalCollapseOverrides((prev) => ({
       ...prev,
-      [key_id]: !(prev[key_id] ?? true),
+      [key_id]: !(prev[key_id] ?? defaultCollapsed),
     }));
-  }, []);
+  }, [defaultCollapsed]);
+
+  const toggleCardCollapsed = isCardCollapseControlled
+    ? onToggleCardCollapsed
+    : toggleCardCollapsedInternal;
 
   const toggleLegacyMaterials = useCallback((key_id) => {
     setExpandedLegacyKeyId((prev) => (prev === key_id ? null : key_id));

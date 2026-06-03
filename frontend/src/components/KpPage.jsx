@@ -387,6 +387,9 @@ const KpPage = () => {
   const [additionalMaterialsSectionOpenByKeyId, setAdditionalMaterialsSectionOpenByKeyId] =
     useState(() => ({}));
   const [servicesSectionOpen, setServicesSectionOpen] = useState(false);
+  /** Свёрнутость карточек конструкций: key_id → collapsed (true = свёрнута). */
+  const [cardCollapseOverridesByKeyId, setCardCollapseOverridesByKeyId] =
+    useState(() => ({}));
   const isKpNarrow = useKpNarrowViewport();
   const { expandedKey, toggleRow } = useKpExpandedRow();
   const [manualMontagePriceByKeyId, setManualMontagePriceByKeyId] = useState(
@@ -485,7 +488,6 @@ const KpPage = () => {
 
     let cancelled = false;
     setSettingsSectionOpen(false);
-    setAdditionalMaterialsSectionOpenByKeyId({});
     setServicesSectionOpen(false);
     setLoadStatus("loading");
     setLoadError(null);
@@ -545,6 +547,22 @@ const KpPage = () => {
         }
         if (!effectiveSnap) {
           markDraftSaved();
+        }
+
+        if (effectiveSnap) {
+          setCardCollapseOverridesByKeyId(
+            effectiveSnap.cardCollapseOverridesByKeyId ?? {},
+          );
+          setMontageSectionOpenByKeyId(
+            effectiveSnap.montageSectionOpenByKeyId ?? {},
+          );
+          setAdditionalMaterialsSectionOpenByKeyId(
+            effectiveSnap.additionalMaterialsSectionOpenByKeyId ?? {},
+          );
+        } else {
+          setCardCollapseOverridesByKeyId({});
+          setMontageSectionOpenByKeyId({});
+          setAdditionalMaterialsSectionOpenByKeyId({});
         }
 
         setForm(effectiveSnap?.form ?? view.form);
@@ -711,6 +729,17 @@ const KpPage = () => {
     if (snap.kpSettings) setKpSettings(snap.kpSettings);
     if (snap.manualMontagePriceByKeyId) {
       setManualMontagePriceByKeyId(snap.manualMontagePriceByKeyId);
+    }
+    if (snap.cardCollapseOverridesByKeyId) {
+      setCardCollapseOverridesByKeyId(snap.cardCollapseOverridesByKeyId);
+    }
+    if (snap.montageSectionOpenByKeyId) {
+      setMontageSectionOpenByKeyId(snap.montageSectionOpenByKeyId);
+    }
+    if (snap.additionalMaterialsSectionOpenByKeyId) {
+      setAdditionalMaterialsSectionOpenByKeyId(
+        snap.additionalMaterialsSectionOpenByKeyId,
+      );
     }
 
     didApplyDraftSnapshotRef.current = true;
@@ -1138,6 +1167,13 @@ const KpPage = () => {
     setSettingsSectionOpen((prev) => !prev);
   };
 
+  const toggleCardCollapsed = useCallback((key_id) => {
+    setCardCollapseOverridesByKeyId((prev) => ({
+      ...prev,
+      [key_id]: !(prev[key_id] ?? true),
+    }));
+  }, []);
+
   const stashAndLeaveKp = useCallback(() => {
     const calcParamsById = new Map(
       (originalConstructionsRef.current || []).map((c) => [
@@ -1165,6 +1201,9 @@ const KpPage = () => {
       materialRowsByKeyId,
       manualMontagePriceByKeyId,
       kpSettings,
+      cardCollapseOverridesByKeyId,
+      montageSectionOpenByKeyId,
+      additionalMaterialsSectionOpenByKeyId,
     });
   }, [
     stashKpSnapshot,
@@ -1175,6 +1214,9 @@ const KpPage = () => {
     materialRowsByKeyId,
     manualMontagePriceByKeyId,
     kpSettings,
+    cardCollapseOverridesByKeyId,
+    montageSectionOpenByKeyId,
+    additionalMaterialsSectionOpenByKeyId,
   ]);
 
   const handleExit = useCallback(async () => {
@@ -1310,8 +1352,30 @@ const KpPage = () => {
         delete m[key_id];
         patch.manualMontagePriceByKeyId = m;
       }
+      if (prevSnap.cardCollapseOverridesByKeyId) {
+        const m = { ...prevSnap.cardCollapseOverridesByKeyId };
+        delete m[key_id];
+        patch.cardCollapseOverridesByKeyId = m;
+      }
+      if (prevSnap.montageSectionOpenByKeyId) {
+        const m = { ...prevSnap.montageSectionOpenByKeyId };
+        delete m[key_id];
+        patch.montageSectionOpenByKeyId = m;
+      }
+      if (prevSnap.additionalMaterialsSectionOpenByKeyId) {
+        const m = { ...prevSnap.additionalMaterialsSectionOpenByKeyId };
+        delete m[key_id];
+        patch.additionalMaterialsSectionOpenByKeyId = m;
+      }
       sess.stashKpSnapshot(patch);
     }
+
+    setCardCollapseOverridesByKeyId((prev) => {
+      if (!(key_id in prev)) return prev;
+      const next = { ...prev };
+      delete next[key_id];
+      return next;
+    });
 
     setMontageByKeyId((prev) => {
       if (!(key_id in prev)) return prev;
@@ -2063,6 +2127,9 @@ const KpPage = () => {
                 showHeadingDeleteButton
                 onDelete={removeConstructionFromKp}
                 materialsByConstruction={calcTables.materialsByConstruction}
+                defaultCardsCollapsed
+                cardCollapseOverrides={cardCollapseOverridesByKeyId}
+                onToggleCardCollapsed={toggleCardCollapsed}
                 renderKpMontageSlot={renderKpMontageSlot}
                 renderKpAdditionalMaterialsSlot={renderKpAdditionalMaterialsSlot}
                 additionalMaterialsRubByKeyId={additionalMaterialsRubByKeyId}
