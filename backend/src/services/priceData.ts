@@ -1,4 +1,5 @@
 import { env } from "../config/env.js";
+import { resolvePriceRegionKey } from "../utils/priceRegion.js";
 import { fetchUpstreamCached } from "./upstreamCache.js";
 
 /**
@@ -135,23 +136,30 @@ const collectRows = (payload: unknown): unknown[] => {
   return [];
 };
 
+const storePriceRow = (out: Map<string, PriceRow>, key: string, row: PriceRow): void => {
+  out.set(key, row);
+  const lower = key.toLowerCase();
+  if (lower !== key) out.set(lower, row);
+};
+
 const buildByArticle = (rows: PriceRow[]): Map<string, PriceRow> => {
   const out = new Map<string, PriceRow>();
   for (const row of rows) {
     const key = row.article.trim();
     if (!key) continue;
-    const existing = out.get(key);
+    const existing = out.get(key) ?? out.get(key.toLowerCase());
     if (!existing) {
-      out.set(key, row);
+      storePriceRow(out, key, row);
       continue;
     }
-    out.set(key, {
+    const merged: PriceRow = {
       ...existing,
       name: row.name && row.name.trim() ? row.name : existing.name,
       pricePerM2: existing.pricePerM2 ?? row.pricePerM2,
       pricePerUnit: existing.pricePerUnit ?? row.pricePerUnit,
       regionalPrices: { ...existing.regionalPrices, ...row.regionalPrices },
-    });
+    };
+    storePriceRow(out, key, merged);
   }
   return out;
 };
@@ -185,10 +193,8 @@ const fetchPriceRows = async (): Promise<Map<string, PriceRow>> => {
   return buildByArticle(rows);
 };
 
-const normalizeRegion = (region: string | null | undefined): string => {
-  if (region == null) return "";
-  return String(region).trim();
-};
+const normalizeRegion = (region: string | null | undefined): string =>
+  resolvePriceRegionKey(region);
 
 export type PriceLookup = (article: string | null | undefined) => {
   pricePerM2?: number;
@@ -221,7 +227,7 @@ export const buildPriceLookup = async (
   return (article) => {
     if (article == null || article === "") return {};
     const key = String(article).trim();
-    const row = byArticle.get(key);
+    const row = byArticle.get(key) ?? byArticle.get(key.toLowerCase());
     if (!row) return {};
     return {
       pricePerM2: pickRegionalOrBase(row, reg, "pricePerM2"),

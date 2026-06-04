@@ -1,5 +1,24 @@
 import type { CatalogEntry } from "../services/catalogData.js";
-import { UL_HANGER_SUFFIX } from "../services/calcUlTapeFallback.js";
+import {
+  stripHangerSuffix,
+  stripTapeSuffix,
+  UL_HANGER_SUFFIX,
+} from "../services/calcUlTapeFallback.js";
+
+/** Базовый шифр «Акуфлор S20» (template 2.1) — порт frontend AG_F_BASE_CIPHER. */
+export const AG_F_BASE_CIPHER = "AG.F";
+
+/**
+ * AG.F / AG.F_vibrostek / AG.F_ul_tape — не AG.F601 и т.п.
+ * Порт frontend `isAgFConstructionCipher`.
+ */
+export const isAgFConstructionCipher = (agId = "", calcCode = ""): boolean => {
+  const id = String(agId ?? "").trim();
+  if (id === AG_F_BASE_CIPHER) return true;
+  const code = String(calcCode ?? "").trim();
+  if (!code) return false;
+  return /^AG\.F(?:_|$)/i.test(code);
+};
 
 /** Порт frontend `resolveDisplayCipher` — шифр каталога по calc Code с суффиксами. */
 export const resolveDisplayCipher = (
@@ -36,6 +55,47 @@ const isUlHangerCalcCode = (code: string): boolean => code.includes(UL_HANGER_SU
 
 const hasHangerChoice = (agId: string): boolean =>
   Boolean(agId) && HANGER_CHOICE_AG_IDS.has(String(agId).trim());
+
+const HANGER_ULTRACOUSTIC = "ultracoustic";
+
+const hangerChoiceBaseId = (
+  calcCode: string,
+  catalog: Map<string, CatalogEntry>
+): string => {
+  const cipher = resolveDisplayCipher(calcCode, catalog);
+  if (hasHangerChoice(cipher)) return cipher;
+  const { base: withoutHanger } = stripHangerSuffix(calcCode);
+  const { base: withoutTape } = stripTapeSuffix(withoutHanger);
+  if (hasHangerChoice(withoutTape)) return withoutTape;
+  if (hasHangerChoice(withoutHanger)) return withoutHanger;
+  return "";
+};
+
+const isUltrasonicHangerSelected = (
+  calcParams: Record<string, unknown> | null,
+  calcCode: string,
+  hangerBaseId: string
+): boolean => {
+  if (!hasHangerChoice(hangerBaseId)) return false;
+  const hangerType = String(calcParams?.HangerType ?? calcParams?.hangerType ?? "").trim();
+  if (hangerType === HANGER_ULTRACOUSTIC) return true;
+  return calcCode !== "" && isUlHangerCalcCode(calcCode);
+};
+
+/**
+ * Блок «Информация о конструкциях» в PDF не выводится для AG.F без цифр
+ * и для AG.C501–503 / AG.L404–405 с подвесом Ультракустик (как «—» в шифре на КП).
+ */
+export const shouldOmitConstructionInfoInPdf = (
+  calcParams: Record<string, unknown> | null,
+  catalog: Map<string, CatalogEntry>
+): boolean => {
+  const calcCode = typeof calcParams?.Code === "string" ? calcParams.Code.trim() : "";
+  const cipher = resolveDisplayCipher(calcCode, catalog);
+  if (isAgFConstructionCipher(cipher, calcCode)) return true;
+  const hangerBaseId = hangerChoiceBaseId(calcCode, catalog);
+  return isUltrasonicHangerSelected(calcParams, calcCode, hangerBaseId);
+};
 
 const UL_HANGER_TITLE_SUFFIX_PATTERN =
   /(креплениях|креплений|применением)\s+Виброфлекс.*$/iu;

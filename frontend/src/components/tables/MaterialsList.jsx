@@ -3,6 +3,7 @@ import {
   convertUnits,
   filterVariable,
   isM2Units,
+  quantityInSquareMeters,
 } from "../../utils/formatters";
 import {
   getPriceName,
@@ -87,7 +88,7 @@ const lineSumRub = (material, pricePerM2, pricePerUnit) => {
   );
   const units = material.Units;
   if (isM2Units(units)) {
-    const qtyM2 = Number(material.Quantity) / 1e6;
+    const qtyM2 = quantityInSquareMeters(material.Quantity);
     if (Number.isNaN(qtyM2)) return null;
     if (effM2 != null) return qtyM2 * effM2;
     if (effUnit != null) return qtyM2 * effUnit;

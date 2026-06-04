@@ -214,6 +214,112 @@
   .signature .who { font-weight: 700; margin-top: 2mm; }
   .signature .email { margin-top: 3mm; color: #1a1a1a; }
   .signature .email:empty { display: none; }
+
+  /* ─── информация о конструкциях (как страница Info) ─── */
+  .construction-info-wrap {
+    margin-top: 8mm;
+    page-break-before: auto;
+  }
+  .signature + .construction-info-wrap {
+    margin-top: 10mm;
+  }
+  .construction-info-wrap__rules {
+    margin: 0 0 5mm;
+  }
+  .construction-info-wrap__rules hr {
+    display: block;
+    border: none;
+    border-top: 1px solid #808080;
+    margin: 0;
+    height: 0;
+    padding: 0;
+  }
+  .construction-info-wrap__rules hr + hr {
+    margin-top: 2.5mm;
+  }
+  .construction-info-wrap__title {
+    font-size: 11pt;
+    font-weight: 700;
+    margin: 0 0 4mm;
+    text-align: center;
+  }
+  .construction-info {
+    margin-bottom: 7mm;
+    padding-bottom: 5mm;
+    border-bottom: 1px solid #ccc;
+    page-break-inside: avoid;
+  }
+  .construction-info:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+  }
+  .construction-info__heading {
+    font-size: 10pt;
+    font-weight: 700;
+    margin: 0 0 3mm;
+  }
+  .construction-info__layout {
+    display: flex;
+    gap: 5mm;
+    align-items: flex-start;
+  }
+  .construction-info__text {
+    flex: 1 1 55%;
+    min-width: 0;
+  }
+  .construction-info__images {
+    flex: 0 1 42%;
+    display: flex;
+    flex-direction: column;
+    gap: 3mm;
+  }
+  .construction-info__specs {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 8.5pt;
+    margin-bottom: 3mm;
+  }
+  .construction-info__specs th {
+    text-align: left;
+    vertical-align: top;
+    font-weight: 600;
+    width: 42%;
+    padding: 1mm 2mm 1mm 0;
+    color: #444;
+  }
+  .construction-info__specs td {
+    padding: 1mm 0;
+    vertical-align: top;
+  }
+  .construction-info__subtitle {
+    font-size: 9pt;
+    font-weight: 700;
+    margin: 2mm 0 1.5mm;
+  }
+  .construction-info__composition {
+    margin: 0;
+    padding-left: 4mm;
+    font-size: 8.5pt;
+  }
+  .construction-info__composition li {
+    margin-bottom: 1mm;
+  }
+  .construction-info__figure {
+    margin: 0;
+    text-align: center;
+  }
+  .construction-info__figure img {
+    max-width: 100%;
+    max-height: 55mm;
+    height: auto;
+    object-fit: contain;
+  }
+  .construction-info__figure figcaption {
+    font-size: 7.5pt;
+    color: #555;
+    margin-top: 1mm;
+  }
 </style>
 </head>
 <body>
@@ -308,6 +414,8 @@
     <div class="who">{{MANAGER_NAME}}</div>
     <div class="email">{{MANAGER_EMAIL}}</div>
   </div>
+
+  {{CONSTRUCTION_DETAILS}}
 
 </div>
 </body>

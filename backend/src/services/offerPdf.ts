@@ -1,5 +1,6 @@
 import puppeteer, { type Browser } from "puppeteer";
-import { buildTitleByCode } from "./catalogData.js";
+import { buildConstructionCatalog, type ConstructionCatalogEntry } from "./catalogData.js";
+import { buildConstructionDetailsHtml } from "./offerKpConstructionDetails.js";
 import { buildPriceLookup } from "./priceData.js";
 import {
   buildFooterHtml,
@@ -173,12 +174,15 @@ const renderPdfFromHtml = async (
  * upstreamCache — повторные запросы не бьют по dev3).
  */
 export const renderOfferPdf = async (offer: OfferForRender): Promise<Buffer> => {
-  const [catalog, priceLookup] = await Promise.all([
-    buildTitleByCode().catch(() => new Map()),
-    buildPriceLookup(offer.region).catch(() => (() => ({}))),
+  const catalog = await buildConstructionCatalog().catch(
+    () => new Map<string, ConstructionCatalogEntry>()
+  );
+  const [priceLookup, constructionDetailsHtml] = await Promise.all([
+    buildPriceLookup(offer.region),
+    buildConstructionDetailsHtml(offer, catalog).catch(() => ""),
   ]);
 
-  const html = renderOfferKpHtml({ offer, priceLookup, catalog });
+  const html = renderOfferKpHtml({ offer, priceLookup, catalog, constructionDetailsHtml });
   const footerHtml = buildFooterHtml(offer);
 
   let lastError: unknown;

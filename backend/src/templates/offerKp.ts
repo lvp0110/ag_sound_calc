@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import type { CatalogEntry } from "../services/catalogData.js";
+import type { ConstructionCatalogEntry } from "../services/catalogData.js";
 import type { PriceLookup } from "../services/priceData.js";
 import { constructionKpCardHeading } from "../utils/constructionKpDisplay.js";
 import { formatDateRu } from "../utils/formatDateRu.js";
@@ -94,7 +94,9 @@ export type OfferForRender = {
 export type RenderInput = {
   offer: OfferForRender;
   priceLookup: PriceLookup;
-  catalog: Map<string, CatalogEntry>;
+  catalog: Map<string, ConstructionCatalogEntry>;
+  /** HTML-блок «Информация о конструкциях» (характеристики, состав, изображения). */
+  constructionDetailsHtml?: string;
 };
 
 // ─── pricing math (порт из frontend/src/components/tables/MaterialsList.jsx) ──
@@ -113,6 +115,15 @@ const isM2Units = (units: unknown): boolean => {
   return u === "м2" || u === "м²";
 };
 
+/** Порт quantityInSquareMeters из frontend/src/utils/formatters.js */
+const quantityInSquareMeters = (quantity: unknown): number => {
+  const q = Number(quantity);
+  if (!Number.isFinite(q)) return NaN;
+  if (Math.abs(q) >= 1_000_000) return q / 1e6;
+  if (Math.abs(q) > 1000) return q / 1e6;
+  return q;
+};
+
 const effectivePrices = (m: MaterialLike, pPerM2?: number, pPerUnit?: number) => {
   const kpM2 = parseKpDecimal(m.KpPricePerM2);
   const kpUnit = parseKpDecimal(m.KpPricePerUnit);
@@ -129,7 +140,7 @@ const materialLineSum = (
 ): number | null => {
   const { effM2, effUnit } = effectivePrices(m, pPerM2, pPerUnit);
   if (isM2Units(m.Units)) {
-    const qtyM2 = Number(m.Quantity) / 1e6;
+    const qtyM2 = quantityInSquareMeters(m.Quantity);
     if (!Number.isFinite(qtyM2)) return null;
     if (effM2 != null) return qtyM2 * effM2;
     if (effUnit != null) return qtyM2 * effUnit;
@@ -161,7 +172,7 @@ const materialUnitPriceForDisplay = (
 
 const materialQuantityForDisplay = (m: MaterialLike): number => {
   if (isM2Units(m.Units)) {
-    const q = Number(m.Quantity) / 1e6;
+    const q = quantityInSquareMeters(m.Quantity);
     return Number.isFinite(q) ? q : 0;
   }
   const q = Number(m.Quantity);
@@ -281,7 +292,12 @@ const esc = (s: unknown): string => {
 
 // ─── render ─────────────────────────────────────────────────────────────────
 
-export function renderOfferKpHtml({ offer, priceLookup, catalog }: RenderInput): string {
+export function renderOfferKpHtml({
+  offer,
+  priceLookup,
+  catalog,
+  constructionDetailsHtml = "",
+}: RenderInput): string {
   // Подготовка строк таблицы + промежуточных сумм.
   type RenderedSection = {
     name: string;
@@ -297,13 +313,27 @@ export function renderOfferKpHtml({ offer, priceLookup, catalog }: RenderInput):
 
   const sections: RenderedSection[] = [];
 
-  // Правило: строка попадает в PDF, только если у неё цена > 0. Заголовок
-  // секции рендерится только при наличии хотя бы одной строки. Без этого
-  // пустые конструкции / нулевые услуги создают «висящие» секции в КП.
-  const hasPositivePrice = (price: number | null | undefined): boolean =>
-    price != null && Number.isFinite(price) && price > 0;
+  // Правило: в PDF — те же строки, что на КП, кроме позиций с суммой 0,00
+  // (null/NaN с экрана КП считаем нулём). Заголовок секции — если есть ≥1 такая строка.
+  const materialLineSumForFilter = (
+    m: MaterialLike,
+    pPerM2: number | undefined,
+    pPerUnit: number | undefined
+  ): number => {
+    const sum = materialLineSum(m, pPerM2, pPerUnit);
+    return typeof sum === "number" && Number.isFinite(sum) ? sum : 0;
+  };
+
+  const hasPositiveLineSum = (lineSum: number | null | undefined): boolean =>
+    (typeof lineSum === "number" && Number.isFinite(lineSum) ? lineSum : 0) > 0;
 
   type RenderedRow = RenderedSection["rows"][number];
+
+  const serviceLineSum = (item: ServiceLike): number => {
+    const price = parseKpDecimal(item.price) ?? 0;
+    const count = parseKpDecimal(item.count) ?? 0;
+    return price * count;
+  };
 
   const pushPricedServiceRow = (
     rows: RenderedRow[],
@@ -311,10 +341,10 @@ export function renderOfferKpHtml({ offer, priceLookup, catalog }: RenderInput):
     item: ServiceLike,
     fallbackName: string
   ): void => {
-    const price = Number(item.price) || 0;
-    if (!hasPositivePrice(price)) return;
-    const count = Number(item.count) || 0;
-    const lineSum = price * count;
+    const lineSum = serviceLineSum(item);
+    if (!hasPositiveLineSum(lineSum)) return;
+    const price = parseKpDecimal(item.price) ?? 0;
+    const count = parseKpDecimal(item.count) ?? 0;
     sectionTotal.value += lineSum;
     rows.push({
       name: String(item.name ?? fallbackName),
@@ -357,10 +387,10 @@ export function renderOfferKpHtml({ offer, priceLookup, catalog }: RenderInput):
       const article = materialArticle(m);
       const { pricePerM2, pricePerUnit } = priceLookup(article);
       const unitPrice = materialUnitPriceForDisplay(m, pricePerM2, pricePerUnit);
-      if (!hasPositivePrice(unitPrice)) continue;
       const qty = materialQuantityForDisplay(m);
       const lineSum = materialLineSum(m, pricePerM2, pricePerUnit);
-      if (lineSum != null) sectionTotal.value += lineSum;
+      if (!hasPositiveLineSum(materialLineSumForFilter(m, pricePerM2, pricePerUnit))) continue;
+      sectionTotal.value += materialLineSumForFilter(m, pricePerM2, pricePerUnit);
       rows.push({
         name: materialDisplayName(m),
         unit: typeof m.Units === "string" ? m.Units : "—",
@@ -387,15 +417,15 @@ export function renderOfferKpHtml({ offer, priceLookup, catalog }: RenderInput):
     });
   }
 
-  // Услуги — оставляем только строки с положительной ценой.
+  // Услуги — только строки с положительной суммой (цена × кол-во).
   {
     const rows: RenderedSection["rows"] = [];
     let total = 0;
     for (const s of offer.services || []) {
-      const price = Number(s.price) || 0;
-      if (!hasPositivePrice(price)) continue;
-      const count = Number(s.count) || 0;
-      const lineSum = price * count;
+      const lineSum = serviceLineSum(s);
+      if (!hasPositiveLineSum(lineSum)) continue;
+      const price = parseKpDecimal(s.price) ?? 0;
+      const count = parseKpDecimal(s.count) ?? 0;
       total += lineSum;
       rows.push({
         name: String(s.name ?? ""),
@@ -454,6 +484,7 @@ export function renderOfferKpHtml({ offer, priceLookup, catalog }: RenderInput):
     ISSUE_DATE: dateStr ? `от ${esc(dateStr)}` : "",
     OBJECT_NAME: esc(offer.object_name ?? ""),
     SECTIONS: sectionsHtml,
+    CONSTRUCTION_DETAILS: constructionDetailsHtml,
     NDS_AMOUNT: fmtRub(ndsAmount),
     GRAND_TOTAL: fmtRub(grandTotal),
     ITEMS_NOUN: esc(itemsNoun),
