@@ -46,16 +46,26 @@ export const uploadLogo = (file) => {
 /**
  * GET /api/offers/:id/pdf — генерирует PDF КП на бэке и инициирует скачивание.
  *
+ * `recipient` («кому адресовано») — транзитный параметр: уходит query-строкой,
+ * в БД не сохраняется, влияет только на вступительную фразу PDF.
+ *
  * Не идём через общий request()/parseResponse: тот ждёт JSON, а нам нужен
  * Blob. credentials: 'include' — httpOnly cookie уйдут как обычно. Имя файла
  * берём из Content-Disposition (RFC 5987 filename* для кириллицы); если бэк
  * не отдал — используем дефолт.
  */
-export async function downloadOfferPdf(id, fallbackFilename = "КП.pdf") {
-  const response = await requestRawResponse(`/api/offers/${encodeURIComponent(id)}/pdf`, {
-    method: "GET",
-    headers: { accept: "application/pdf" },
-  });
+export async function downloadOfferPdf(id, fallbackFilename = "КП.pdf", recipient = "") {
+  const query =
+    recipient && recipient.trim() !== ""
+      ? `?recipient=${encodeURIComponent(recipient.trim())}`
+      : "";
+  const response = await requestRawResponse(
+    `/api/offers/${encodeURIComponent(id)}/pdf${query}`,
+    {
+      method: "GET",
+      headers: { accept: "application/pdf" },
+    }
+  );
   if (!response.ok) {
     const text = await response.text().catch(() => "");
     const error = new Error(

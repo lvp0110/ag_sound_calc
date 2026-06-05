@@ -430,7 +430,7 @@ const KpPage = () => {
   const [saveError, setSaveError] = useState(null);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [isPdfDialogOpen, setIsPdfDialogOpen] = useState(false);
-  const [pdfDialogCompanyName, setPdfDialogCompanyName] = useState("");
+  const [pdfDialogRecipient, setPdfDialogRecipient] = useState("");
   const [pdfDialogError, setPdfDialogError] = useState(null);
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const [logoUploadError, setLogoUploadError] = useState(null);
@@ -860,9 +860,10 @@ const KpPage = () => {
       );
       return;
     }
-    // Сначала диалог с обязательными данными для печати (пока — только
-    // название фирмы); фактическая выгрузка — в handleConfirmPdfDownload.
-    setPdfDialogCompanyName(form.companyName ?? "");
+    // Сначала диалог с обязательными данными для печати (адресат — «кому
+    // адресовано»); фактическая выгрузка — в handleConfirmPdfDownload.
+    // Адресат в БД не хранится, поэтому каждый раз начинаем с пустого поля.
+    setPdfDialogRecipient("");
     setPdfDialogError(null);
     setIsPdfDialogOpen(true);
   };
@@ -875,27 +876,20 @@ const KpPage = () => {
 
   const handleConfirmPdfDownload = async () => {
     if (!id || isDownloadingPdf) return;
-    const trimmed = (pdfDialogCompanyName ?? "").trim();
+    const trimmed = (pdfDialogRecipient ?? "").trim();
     if (trimmed === "") {
-      setPdfDialogError("Введите название фирмы.");
+      setPdfDialogError("Укажите, кому адресовано КП.");
       return;
     }
     setIsDownloadingPdf(true);
     setPdfDialogError(null);
     setSaveError(null);
     try {
-      if (trimmed !== (form.companyName ?? "")) {
-        // PATCH частично: только company_name. Backend читает PDF из БД,
-        // поэтому правка должна попасть туда до вызова /pdf.
-        await updateOffer(id, { form: { company_name: trimmed } });
-        setForm((prev) => ({ ...prev, companyName: trimmed }));
-        // Сбросить dirty-baseline тем же способом, что и handleSave —
-        // иначе экран зацепит «несохранённые изменения».
-        ignoreDirtyTrackingRef.current = true;
-        shouldResetDirtyBaselineRef.current = true;
-      }
+      // Адресат («кому адресовано») уходит транзитным query-параметром в /pdf
+      // и в БД не сохраняется. Колонтитулы PDF берут название фирмы из формы
+      // (company_name), уже сохранённое в базе.
       const objectPart = form.object?.trim() || id;
-      await downloadOfferPdf(id, `КП ${objectPart}.pdf`);
+      await downloadOfferPdf(id, `КП ${objectPart}.pdf`, trimmed);
       setIsPdfDialogOpen(false);
     } catch (err) {
       setPdfDialogError(err?.message || "Не удалось сгенерировать PDF.");
@@ -2422,16 +2416,16 @@ const KpPage = () => {
             >
               <label
                 className="kp-pdf-dialog__label"
-                htmlFor="kp-pdf-dialog-company"
+                htmlFor="kp-pdf-dialog-recipient"
               >
-                Название фирмы
+                Кому адресовано
               </label>
               <input
-                id="kp-pdf-dialog-company"
+                id="kp-pdf-dialog-recipient"
                 type="text"
                 className="kp-pdf-dialog__input"
-                value={pdfDialogCompanyName}
-                onChange={(e) => setPdfDialogCompanyName(e.target.value)}
+                value={pdfDialogRecipient}
+                onChange={(e) => setPdfDialogRecipient(e.target.value)}
                 autoFocus
                 disabled={isDownloadingPdf}
               />

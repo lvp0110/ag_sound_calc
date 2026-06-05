@@ -86,6 +86,11 @@ export type OfferForRender = {
   ogrn: string | null;
   kpp: string | null;
   inn: string | null;
+  /**
+   * Адресат КП («кому адресовано») — транзитное поле: приходит параметром
+   * запроса на /pdf, в БД НЕ хранится. Используется только во вступлении.
+   */
+  recipient?: string | null;
   services: ServiceLike[] | null;
   additional_materials: ServiceLike[] | null;
   constructions: ConstructionLike[];
@@ -496,12 +501,13 @@ export function renderOfferKpHtml({
     MANAGER_EMAIL: esc(offer.email ?? ""),
     // HTML, не esc(): либо <img data: URI>, либо дефолтный брендовый блок.
     LOGO_BLOCK: buildLogoBlockHtml(offer.logo_url),
-    // Название фирмы во вступительной фразе «Компания ООО «...» предлагает Вам».
-    // В шаблоне «ООО «»» — обёртка зафиксирована, в плейсхолдер кладём только
-    // «голое» название (как ввёл пользователь). При пустом поле — «Шуманет Шоп».
+    // Адресат во вступительной фразе «Компания ООО «...» предлагает Вам».
+    // Это «кому адресовано» (offer.recipient) — транзитное поле из запроса
+    // на /pdf, в БД не хранится. Обёртка «ООО «»» зафиксирована в шаблоне, в
+    // плейсхолдер кладём «голое» название. При пустом поле — «Шуманет Шоп».
     INTRO_COMPANY: esc(
-      (offer.company_name ?? "").trim() !== ""
-        ? (offer.company_name as string).trim()
+      (offer.recipient ?? "").trim() !== ""
+        ? (offer.recipient as string).trim()
         : "Шуманет Шоп"
     ),
   };
