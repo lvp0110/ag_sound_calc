@@ -493,6 +493,32 @@ export function renderOfferKpHtml({
 
   const dateStr = formatDateRu(offer.kp_date);
 
+  // Блок условий: только транзитные значения из диалога печати. Дефолтов нет —
+  // строки с пустым значением в PDF НЕ выводим.
+  const conditionRows: Array<[string, string]> = [];
+  const pushCondition = (label: string, value: string): void => {
+    const v = value.trim();
+    if (v !== "") conditionRows.push([label, v]);
+  };
+  pushCondition("График оплаты", (offer.payment_schedule ?? "").trim());
+  pushCondition("Способ доставки", (offer.delivery_method ?? "").trim());
+  pushCondition("Склад", (offer.warehouse ?? "").trim());
+  pushCondition(
+    "Срок действия предложения",
+    (offer.offer_validity ?? "").trim()
+  );
+  const conditionsBlock =
+    conditionRows.length === 0
+      ? ""
+      : `<div class="conditions">
+    <h3>Также предлагаем Вам ознакомиться с остальными условиями нашего предложения:</h3>
+    <table>
+      ${conditionRows
+        .map(([k, v]) => `<tr><td class="k">${esc(k)}</td><td>${esc(v)}</td></tr>`)
+        .join("\n      ")}
+    </table>
+  </div>`;
+
   const placeholders: Record<string, string> = {
     TITLE: esc(offer.id),
     ISSUE_DATE: dateStr ? `от ${esc(dateStr)}` : "",
@@ -505,12 +531,8 @@ export function renderOfferKpHtml({
     ITEMS_COUNT: String(itemsCount),
     ITEMS_COUNT_WORDS: esc(itemsCountWordsCap),
     GRAND_TOTAL_WORDS: esc(grandWords),
-    // Блок условий: транзитные значения из диалога печати. Дефолтов нет —
-    // пустое поле → пустая строка в PDF.
-    PAYMENT_SCHEDULE: esc((offer.payment_schedule ?? "").trim()),
-    DELIVERY_METHOD: esc((offer.delivery_method ?? "").trim()),
-    WAREHOUSE: esc((offer.warehouse ?? "").trim()),
-    VALIDITY: esc((offer.offer_validity ?? "").trim()),
+    // Готовый HTML блока условий (пустые строки исключены; пустой блок → "").
+    CONDITIONS_BLOCK: conditionsBlock,
     MANAGER_NAME: esc(offer.manager_name ?? ""),
     MANAGER_EMAIL: esc(offer.email ?? ""),
     // HTML, не esc(): либо <img data: URI>, либо дефолтный брендовый блок.
