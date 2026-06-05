@@ -87,10 +87,19 @@ export type OfferForRender = {
   kpp: string | null;
   inn: string | null;
   /**
-   * Адресат КП («кому адресовано») — транзитное поле: приходит параметром
-   * запроса на /pdf, в БД НЕ хранится. Используется только во вступлении.
+   * Транзитные параметры печати: приходят query-параметрами запроса на /pdf,
+   * в БД НЕ хранятся. Пустое значение → в PDF подставляется дефолт.
+   *   recipient        — адресат («кому адресовано»), вступление;
+   *   payment_schedule — график оплаты, блок условий;
+   *   delivery_method  — способ доставки, блок условий;
+   *   warehouse        — склад, блок условий;
+   *   offer_validity   — срок действия предложения, блок условий.
    */
   recipient?: string | null;
+  payment_schedule?: string | null;
+  delivery_method?: string | null;
+  warehouse?: string | null;
+  offer_validity?: string | null;
   services: ServiceLike[] | null;
   additional_materials: ServiceLike[] | null;
   constructions: ConstructionLike[];
@@ -496,7 +505,12 @@ export function renderOfferKpHtml({
     ITEMS_COUNT: String(itemsCount),
     ITEMS_COUNT_WORDS: esc(itemsCountWordsCap),
     GRAND_TOTAL_WORDS: esc(grandWords),
-    VALIDITY: dateStr ? "действует с даты КП" : "",
+    // Блок условий: транзитные значения из диалога печати. Дефолтов нет —
+    // пустое поле → пустая строка в PDF.
+    PAYMENT_SCHEDULE: esc((offer.payment_schedule ?? "").trim()),
+    DELIVERY_METHOD: esc((offer.delivery_method ?? "").trim()),
+    WAREHOUSE: esc((offer.warehouse ?? "").trim()),
+    VALIDITY: esc((offer.offer_validity ?? "").trim()),
     MANAGER_NAME: esc(offer.manager_name ?? ""),
     MANAGER_EMAIL: esc(offer.email ?? ""),
     // HTML, не esc(): либо <img data: URI>, либо дефолтный брендовый блок.

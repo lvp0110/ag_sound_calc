@@ -317,10 +317,14 @@ router.get(
     const dto = await loadOfferDto(userId, req.params.id);
     if (!dto) return res.status(404).json({ error: "Offer not found" });
 
-    // «Кому адресовано» — транзитный параметр печати: в БД не хранится,
-    // влияет только на вступительную фразу. Колонтитулы берут company_name из БД.
-    const recipientRaw = req.query.recipient;
-    const recipient = typeof recipientRaw === "string" ? recipientRaw : null;
+    // Транзитные параметры печати: в БД не хранятся, влияют только на текст PDF
+    // (вступление + блок условий). Колонтитулы берут company_name из БД.
+    const qStr = (v: unknown): string | null => (typeof v === "string" ? v : null);
+    const recipient = qStr(req.query.recipient);
+    const payment_schedule = qStr(req.query.payment_schedule);
+    const delivery_method = qStr(req.query.delivery_method);
+    const warehouse = qStr(req.query.warehouse);
+    const offer_validity = qStr(req.query.offer_validity);
 
     const pdf = await renderOfferPdf({
       id: dto.id,
@@ -337,6 +341,10 @@ router.get(
       kpp: dto.kpp,
       inn: dto.inn,
       recipient,
+      payment_schedule,
+      delivery_method,
+      warehouse,
+      offer_validity,
       services: (Array.isArray(dto.services) ? dto.services : null) as Array<
         Record<string, unknown>
       > | null,

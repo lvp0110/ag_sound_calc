@@ -49,6 +49,7 @@ import {
 } from "../stores/offerEditSessionStore.js";
 import { useCalculatorStore } from "../stores/calculatorStore.js";
 import { KpNarrowExpandableRow } from "./kp/KpNarrowExpandableRow";
+import PdfPrintDialog from "./PdfPrintDialog.jsx";
 import { useKpExpandedRow } from "../hooks/useKpExpandedRow";
 import { useKpNarrowViewport } from "../hooks/useKpNarrowViewport";
 import "./Calculator.css";
@@ -430,7 +431,6 @@ const KpPage = () => {
   const [saveError, setSaveError] = useState(null);
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [isPdfDialogOpen, setIsPdfDialogOpen] = useState(false);
-  const [pdfDialogRecipient, setPdfDialogRecipient] = useState("");
   const [pdfDialogError, setPdfDialogError] = useState(null);
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const [logoUploadError, setLogoUploadError] = useState(null);
@@ -860,10 +860,8 @@ const KpPage = () => {
       );
       return;
     }
-    // Сначала диалог с обязательными данными для печати (адресат — «кому
-    // адресовано»); фактическая выгрузка — в handleConfirmPdfDownload.
-    // Адресат в БД не хранится, поэтому каждый раз начинаем с пустого поля.
-    setPdfDialogRecipient("");
+    // Сначала диалог с данными для печати (адресат + условия); фактическая
+    // выгрузка — в handleConfirmPdfDownload. Поля диалога в БД не хранятся.
     setPdfDialogError(null);
     setIsPdfDialogOpen(true);
   };
@@ -874,22 +872,18 @@ const KpPage = () => {
     setPdfDialogError(null);
   }, [isDownloadingPdf]);
 
-  const handleConfirmPdfDownload = async () => {
+  const handleConfirmPdfDownload = async (printParams) => {
     if (!id || isDownloadingPdf) return;
-    const trimmed = (pdfDialogRecipient ?? "").trim();
-    if (trimmed === "") {
-      setPdfDialogError("Укажите, кому адресовано КП.");
-      return;
-    }
     setIsDownloadingPdf(true);
     setPdfDialogError(null);
     setSaveError(null);
     try {
-      // Адресат («кому адресовано») уходит транзитным query-параметром в /pdf
-      // и в БД не сохраняется. Колонтитулы PDF берут название фирмы из формы
-      // (company_name), уже сохранённое в базе.
+      // Поля диалога уходят транзитными query-параметрами в /pdf и в БД не
+      // сохраняются (адресат — вступление, остальные — блок условий).
+      // Колонтитулы PDF берут название фирмы из формы (company_name), уже
+      // сохранённое в базе.
       const objectPart = form.object?.trim() || id;
-      await downloadOfferPdf(id, `КП ${objectPart}.pdf`, trimmed);
+      await downloadOfferPdf(id, `КП ${objectPart}.pdf`, printParams);
       setIsPdfDialogOpen(false);
     } catch (err) {
       setPdfDialogError(err?.message || "Не удалось сгенерировать PDF.");
@@ -2384,77 +2378,13 @@ const KpPage = () => {
           </div>
         </div>
       </main>
-      {isPdfDialogOpen && (
-        <div
-          className="kp-pdf-dialog__backdrop"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="kp-pdf-dialog-title"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) handleClosePdfDialog();
-          }}
-        >
-          <div className="kp-pdf-dialog">
-            <button
-              type="button"
-              className="kp-pdf-dialog__close"
-              onClick={handleClosePdfDialog}
-              aria-label="Закрыть"
-              disabled={isDownloadingPdf}
-            >
-              ×
-            </button>
-            <h3 id="kp-pdf-dialog-title" className="kp-pdf-dialog__title">
-              Данные для печати КП
-            </h3>
-            <form
-              className="kp-pdf-dialog__form"
-              onSubmit={(e) => {
-                e.preventDefault();
-                void handleConfirmPdfDownload();
-              }}
-            >
-              <label
-                className="kp-pdf-dialog__label"
-                htmlFor="kp-pdf-dialog-recipient"
-              >
-                Кому адресовано
-              </label>
-              <input
-                id="kp-pdf-dialog-recipient"
-                type="text"
-                className="kp-pdf-dialog__input"
-                value={pdfDialogRecipient}
-                onChange={(e) => setPdfDialogRecipient(e.target.value)}
-                autoFocus
-                disabled={isDownloadingPdf}
-              />
-              {pdfDialogError && (
-                <div className="kp-pdf-dialog__error" role="alert">
-                  {pdfDialogError}
-                </div>
-              )}
-              <div className="kp-pdf-dialog__actions">
-                <button
-                  type="button"
-                  className="kp-pdf-dialog__btn kp-pdf-dialog__btn--ghost"
-                  onClick={handleClosePdfDialog}
-                  disabled={isDownloadingPdf}
-                >
-                  Отмена
-                </button>
-                <button
-                  type="submit"
-                  className="kp-pdf-dialog__btn kp-pdf-dialog__btn--primary"
-                  disabled={isDownloadingPdf}
-                >
-                  {isDownloadingPdf ? "Готовим PDF..." : "Скачать PDF"}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <PdfPrintDialog
+        open={isPdfDialogOpen}
+        isDownloading={isDownloadingPdf}
+        error={pdfDialogError}
+        onClose={handleClosePdfDialog}
+        onConfirm={handleConfirmPdfDownload}
+      />
     </div>
   );
 };

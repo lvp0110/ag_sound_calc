@@ -13,6 +13,7 @@ import {
   listOffers,
 } from "../services/offersApi";
 import { getRegionCityLabel } from "../constants/regionSelectOptions.js";
+import PdfPrintDialog from "./PdfPrintDialog.jsx";
 import "./KpList.css";
 
 function formatRegionCell(region) {
@@ -53,6 +54,9 @@ export default function KpList() {
   const [deletingId, setDeletingId] = useState(null);
   const [creatingNew, setCreatingNew] = useState(false);
   const [downloadingId, setDownloadingId] = useState(null);
+  // Оффер, для которого открыт диалог печати (null → диалог закрыт).
+  const [pdfDialogOffer, setPdfDialogOffer] = useState(null);
+  const [pdfDialogError, setPdfDialogError] = useState(null);
 
   const load = useCallback(async () => {
     setLoadStatus("loading");
@@ -133,7 +137,9 @@ export default function KpList() {
     return hasSnapshotInMap || hasActiveSnapshot;
   };
 
-  const handleDownloadPdf = async (offer) => {
+  // Открыть диалог печати: фактическая выгрузка — после заполнения полей
+  // (адресат + условия) в handleConfirmPdf.
+  const handleDownloadPdf = (offer) => {
     if (downloadingId) return;
     if (isOfferPdfBlocked(offer.id)) {
       setError(
@@ -141,13 +147,28 @@ export default function KpList() {
       );
       return;
     }
-    setDownloadingId(offer.id);
     setError(null);
+    setPdfDialogError(null);
+    setPdfDialogOffer(offer);
+  };
+
+  const handleClosePdfDialog = () => {
+    if (downloadingId) return;
+    setPdfDialogOffer(null);
+    setPdfDialogError(null);
+  };
+
+  const handleConfirmPdf = async (printParams) => {
+    const offer = pdfDialogOffer;
+    if (!offer || downloadingId) return;
+    setDownloadingId(offer.id);
+    setPdfDialogError(null);
     try {
       const objectPart = offer.object_name?.trim() || offer.id;
-      await downloadOfferPdf(offer.id, `КП ${objectPart}.pdf`);
+      await downloadOfferPdf(offer.id, `КП ${objectPart}.pdf`, printParams);
+      setPdfDialogOffer(null);
     } catch (err) {
-      setError(err?.message || "Не удалось сгенерировать PDF.");
+      setPdfDialogError(err?.message || "Не удалось сгенерировать PDF.");
     } finally {
       setDownloadingId(null);
     }
@@ -346,6 +367,14 @@ export default function KpList() {
           </table>
         </>
       )}
+
+      <PdfPrintDialog
+        open={pdfDialogOffer != null}
+        isDownloading={downloadingId != null && downloadingId === pdfDialogOffer?.id}
+        error={pdfDialogError}
+        onClose={handleClosePdfDialog}
+        onConfirm={handleConfirmPdf}
+      />
     </div>
   );
 }
