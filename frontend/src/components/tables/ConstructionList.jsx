@@ -435,7 +435,7 @@ const ConstructionList = ({
             materialsData
           );
           const materialsRubTotal =
-            computeTotalRubForMaterialsData(materialsData);
+            computeTotalRubForMaterialsData(materialsData, { forKp: readOnly });
           const montageRubCard = montageLineProductRub(
             montageByKeyId?.[constRItem.key_id]
           );
@@ -629,7 +629,8 @@ const ConstructionList = ({
             readOnly={readOnly}
             grandTotalRub={computeGrandTotalRubForConstructions(
               constructions,
-              materialsByConstruction
+              materialsByConstruction,
+              { forKp: readOnly },
             )}
           />
         )}

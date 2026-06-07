@@ -2248,6 +2248,7 @@ const KpPage = () => {
               grandTotalRub={computeGrandTotalRubForConstructions(
                 calcTables.ConstrToCalc,
                 calcTables.materialsByConstruction,
+                { forKp: true },
               )}
               montageGrandTotalRub={montageGrandTotalRubForKp(
                 calcTables.ConstrToCalc,

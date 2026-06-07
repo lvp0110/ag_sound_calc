@@ -5,6 +5,11 @@ import type { ConstructionCatalogEntry } from "../services/catalogData.js";
 import type { PriceLookup } from "../services/priceData.js";
 import { constructionKpCardHeading } from "../utils/constructionKpDisplay.js";
 import { formatDateRu } from "../utils/formatDateRu.js";
+import {
+  isPackPricedMaterial,
+  kpPackDisplayUnits,
+  kpPackQuantity,
+} from "../utils/materialPackUnits.js";
 import { numberToWordsRu, pluralRu, rublesToWordsRu } from "../utils/numberToWordsRu.js";
 import { UPLOADS_DIR } from "../routes/uploads.js";
 
@@ -160,6 +165,12 @@ const materialLineSum = (
     if (effUnit != null) return qtyM2 * effUnit;
     return null;
   }
+  if (isPackPricedMaterial(m)) {
+    const packs = kpPackQuantity(m);
+    if (packs == null || !Number.isFinite(packs)) return null;
+    if (effUnit != null) return packs * effUnit;
+    return null;
+  }
   if (effUnit != null) {
     const q = Number(m.Quantity);
     if (!Number.isFinite(q)) return null;
@@ -185,6 +196,10 @@ const materialUnitPriceForDisplay = (
 };
 
 const materialQuantityForDisplay = (m: MaterialLike): number => {
+  if (isPackPricedMaterial(m)) {
+    const packs = kpPackQuantity(m);
+    return packs ?? 0;
+  }
   if (isM2Units(m.Units)) {
     const q = quantityInSquareMeters(m.Quantity);
     return Number.isFinite(q) ? q : 0;
@@ -407,7 +422,11 @@ export function renderOfferKpHtml({
       sectionTotal.value += materialLineSumForFilter(m, pricePerM2, pricePerUnit);
       rows.push({
         name: materialDisplayName(m),
-        unit: typeof m.Units === "string" ? m.Units : "—",
+        unit: isPackPricedMaterial(m)
+          ? kpPackDisplayUnits(m)
+          : typeof m.Units === "string"
+            ? m.Units
+            : "—",
         qty,
         unitPrice,
         lineSum,

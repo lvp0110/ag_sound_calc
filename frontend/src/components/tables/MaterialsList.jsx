@@ -6,6 +6,12 @@ import {
   quantityInSquareMeters,
 } from "../../utils/formatters";
 import {
+  formatMaterialQuantity,
+  isPackPricedMaterial,
+  kpPackQuantity,
+  materialDisplayUnits,
+} from "../../utils/materialPackUnits";
+import {
   getPriceName,
   getPricePerM2,
   getPricePerUnit,
@@ -80,7 +86,7 @@ export function effectiveSingleMaterialPrice(
   return isM2Units(material?.Units) ? (effM2 ?? effUnit) : effUnit;
 }
 
-const lineSumRub = (material, pricePerM2, pricePerUnit) => {
+const lineSumRub = (material, pricePerM2, pricePerUnit, { forKp = false } = {}) => {
   const { effM2, effUnit } = effectiveMaterialPrices(
     material,
     pricePerM2,
@@ -94,6 +100,12 @@ const lineSumRub = (material, pricePerM2, pricePerUnit) => {
     if (effUnit != null) return qtyM2 * effUnit;
     return null;
   }
+  if (forKp && isPackPricedMaterial(material)) {
+    const packs = kpPackQuantity(material);
+    if (packs == null || !Number.isFinite(packs)) return null;
+    if (effUnit != null) return packs * effUnit;
+    return null;
+  }
   if (effUnit != null) {
     const q = Number(material.Quantity);
     if (Number.isNaN(q)) return null;
@@ -103,13 +115,13 @@ const lineSumRub = (material, pricePerM2, pricePerUnit) => {
 };
 
 /** Сумма в ₽ по списку материалов (те же правила, что колонка «сумма»). */
-export function computeTotalRubForMaterialsData(data) {
+export function computeTotalRubForMaterialsData(data, { forKp = false } = {}) {
   if (!Array.isArray(data) || data.length === 0) return 0;
   return data.reduce((acc, Material) => {
     const codeRaw = Material.Code != null ? String(Material.Code).trim() : "";
     const pricePerM2 = getPricePerM2(codeRaw);
     const pricePerUnit = getPricePerUnit(codeRaw);
-    const sumRub = lineSumRub(Material, pricePerM2, pricePerUnit);
+    const sumRub = lineSumRub(Material, pricePerM2, pricePerUnit, { forKp });
     return typeof sumRub === "number" && !Number.isNaN(sumRub)
       ? acc + sumRub
       : acc;
@@ -119,7 +131,8 @@ export function computeTotalRubForMaterialsData(data) {
 /** Сумма в ₽ по всем конструкциям (материалы по key_id). */
 export function computeGrandTotalRubForConstructions(
   constructions,
-  materialsByConstruction
+  materialsByConstruction,
+  { forKp = false } = {},
 ) {
   if (!Array.isArray(constructions) || constructions.length === 0) return 0;
   if (!Array.isArray(materialsByConstruction)) return 0;
@@ -127,7 +140,7 @@ export function computeGrandTotalRubForConstructions(
     const matEntry = materialsByConstruction.find(
       (m) => m.key_id === constRItem.key_id
     );
-    return sum + computeTotalRubForMaterialsData(matEntry?.data ?? []);
+    return sum + computeTotalRubForMaterialsData(matEntry?.data ?? [], { forKp });
   }, 0);
 }
 
@@ -160,6 +173,8 @@ const MaterialsList = ({
 
   const data = dataProp ?? calculatedMaterials?.data;
   const hasData = Array.isArray(data) && data.length > 0;
+  /** КП: collapsible без compositionOnly — упаковки для материалов «цена за уп». */
+  const forKp = collapsible && !compositionOnly;
 
   /** Одна модель строки: те же sumRub, что в колонке «сумма» — итог = их сумма. */
   const rowModels = hasData
@@ -168,12 +183,12 @@ const MaterialsList = ({
           Material.Code != null ? String(Material.Code).trim() : "";
         const pricePerM2 = getPricePerM2(codeRaw);
         const pricePerUnit = getPricePerUnit(codeRaw);
-        const sumRub = lineSumRub(Material, pricePerM2, pricePerUnit);
+        const sumRub = lineSumRub(Material, pricePerM2, pricePerUnit, { forKp });
         return { Material, pricePerM2, pricePerUnit, sumRub };
       })
     : [];
 
-  const totalSumRub = computeTotalRubForMaterialsData(data);
+  const totalSumRub = computeTotalRubForMaterialsData(data, { forKp });
 
   const showBody = !collapsible || sectionOpen;
   /** Состав конструкции в калькуляторе: < 430px без колонки «артикул». */
@@ -411,12 +426,14 @@ const MaterialsList = ({
                       {
                         id: "units",
                         label: "Ед.изм",
-                        children: Material.Units ?? "—",
+                        children: materialDisplayUnits(Material, { forKp }),
                       },
                       {
                         id: "qty",
                         label: "Кол-во",
-                        children: convertUnits(Material),
+                        children: forKp
+                          ? formatMaterialQuantity(Material, { forKp })
+                          : convertUnits(Material),
                       },
                       ...(singlePriceColumn
                         ? [
@@ -455,7 +472,7 @@ const MaterialsList = ({
                     <td>{materialName}</td>
                     {colInDom && (
                       <td className={hideOnKpNarrow.trim() || undefined}>
-                        {Material.Units ?? "—"}
+                        {materialDisplayUnits(Material, { forKp: false })}
                       </td>
                     )}
                     {colInDom && (
@@ -481,12 +498,12 @@ const MaterialsList = ({
                     />
                     {colInDom && (
                       <td className={hideOnKpNarrow.trim() || undefined}>
-                        {convertUnits(Material)}
+                        {formatMaterialQuantity(Material, { forKp })}
                       </td>
                     )}
                     {colInDom && (
                       <td className={hideOnKpNarrow.trim() || undefined}>
-                        {Material.Units}
+                        {materialDisplayUnits(Material, { forKp })}
                       </td>
                     )}
                     {colInDom && singlePriceColumn && (
