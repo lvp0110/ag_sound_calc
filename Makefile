@@ -16,7 +16,7 @@ BACKEND_DIR := backend
 FRONTEND_DIR := frontend
 
 .PHONY: help setup install reinstall env db-up db-down db-migrate db-reset db-ui \
-        backend frontend dev stop build clean status \
+        backend frontend frontend-docker dev dev-docker stop build clean status \
         deploy-bootstrap deploy-backend deploy-frontend deploy-migrate \
         deploy-create-admin deploy-nginx-sync deploy-nginx-reload deploy-status
 
@@ -92,6 +92,10 @@ backend: ## Запустить backend (tsx watch) на :3006
 frontend: ## Запустить frontend (vite) на :5173
 	cd $(FRONTEND_DIR) && npm run dev
 
+frontend-docker: ## Запустить только frontend (vite) в docker на :5173 (поднимет и backend как зависимость)
+	@docker info >/dev/null 2>&1 || { echo "✗ Docker не запущен. Запустите Docker Desktop."; exit 1; }
+	docker compose up --build frontend
+
 dev: ## Запустить postgres + миграции + backend + frontend (Ctrl-C остановит всё)
 	@$(MAKE) --no-print-directory db-up
 	@$(MAKE) --no-print-directory db-migrate
@@ -104,9 +108,17 @@ dev: ## Запустить postgres + миграции + backend + frontend (Ctr
 	 ( cd $(FRONTEND_DIR) && npm run dev ) & \
 	 wait
 
-stop: ## Убить зависшие backend/frontend процессы (на случай отваливших Ctrl-C)
+dev-docker: ## Поднять ВЕСЬ стек в docker (postgres + adminer + backend + frontend) одной командой
+	@docker info >/dev/null 2>&1 || { echo "✗ Docker не запущен. Запустите Docker Desktop."; exit 1; }
+	@echo "→ backend: http://localhost:3006  |  frontend: http://localhost:5173  |  adminer: http://localhost:8080"
+	@echo "→ миграции применяются автоматически при старте backend-контейнера"
+	@echo "→ Ctrl-C остановит контейнеры"
+	docker compose up --build
+
+stop: ## Убить зависшие backend/frontend процессы (host) + остановить docker-контейнеры стека
 	@pkill -f "tsx watch src/index.ts" 2>/dev/null || true
 	@pkill -f "vite" 2>/dev/null || true
+	@docker compose stop frontend backend 2>/dev/null || true
 	@echo "✓ backend и frontend остановлены"
 
 # ─── builds ─────────────────────────────────────────────────────────────────

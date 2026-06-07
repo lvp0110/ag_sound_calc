@@ -90,3 +90,44 @@ EXPOSE 3006
 USER node
 
 CMD ["node", "dist/index.js"]
+
+# ─── dev stage ───────────────────────────────────────────────────────────────
+# Для локальной разработки в docker compose: tsx watch + prisma CLI (dev-deps),
+# chromium для PDF + runtime-библиотеки + кириллические шрифты. Исходники и
+# node_modules монтируются из compose (bind-mount + named volume), поэтому здесь
+# ставим зависимости лишь для инициализации volume и скачивания Chromium.
+FROM node:20-bookworm-slim AS dev
+WORKDIR /app
+ENV NODE_ENV=development
+ENV PUPPETEER_CACHE_DIR=/app/.cache/puppeteer
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      ca-certificates \
+      tar \
+      unzip \
+      fonts-liberation \
+      fonts-dejavu-core \
+      fonts-noto-color-emoji \
+      libnss3 \
+      libatk-bridge2.0-0 \
+      libatk1.0-0 \
+      libcups2 \
+      libdrm2 \
+      libxkbcommon0 \
+      libxcomposite1 \
+      libxdamage1 \
+      libxfixes3 \
+      libxrandr2 \
+      libgbm1 \
+      libpango-1.0-0 \
+      libcairo2 \
+      libasound2 \
+    && rm -rf /var/lib/apt/lists/*
+
+# package.json postinstall → prisma generate; puppeteer postinstall → выкачка Chromium.
+COPY package.json package-lock.json ./
+COPY prisma ./prisma
+RUN npm ci
+
+EXPOSE 3006
+CMD ["npm", "run", "dev"]

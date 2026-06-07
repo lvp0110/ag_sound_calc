@@ -97,7 +97,7 @@ export default function AppHeader() {
     const syncHeaderHeight = () => {
       document.documentElement.style.setProperty(
         "--app-header-inner-height",
-        `${el.getBoundingClientRect().height}px`
+        `${el.getBoundingClientRect().height}px`,
       );
     };
 
@@ -142,7 +142,11 @@ export default function AppHeader() {
           </NavLink>
           {user && (
             <NavLink
-              to={isEditingDraft && activeOfferId ? `/kp/${activeOfferId}` : "/kp/list"}
+              to={
+                isEditingDraft && activeOfferId
+                  ? `/kp/${activeOfferId}`
+                  : "/kp/list"
+              }
               className={`app-header__link${kpNavActive ? " app-header__link--active" : ""}${
                 hasUnsavedKpEdits ? " app-header__link--unsaved" : ""
               }`}
@@ -153,16 +157,14 @@ export default function AppHeader() {
                   : "Мои КП"
               }
               aria-label={
-                hasUnsavedKpEdits
-                  ? "Мои КП, несохранённые изменения"
-                  : "Мои КП"
+                hasUnsavedKpEdits ? "Мои КП, несохранённые изменения" : "Мои КП"
               }
               onClick={(e) =>
                 guardDraftNav(
                   e,
                   isEditingDraft && activeOfferId
                     ? `/kp/${activeOfferId}`
-                    : "/kp/list"
+                    : "/kp/list",
                 )
               }
             >
