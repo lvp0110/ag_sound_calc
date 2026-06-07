@@ -489,11 +489,6 @@ function mapFormToApi(form) {
     // logoUrl на фронте — относительный путь вида `/uploads/<filename>` (см.
     // backend/src/routes/uploads.ts). null = логотип не выбран / удалён.
     logo_url: form.logoUrl || null,
-    company_name: form.companyName || null,
-    company_address: form.companyAddress || null,
-    ogrn: form.ogrn || null,
-    kpp: form.kpp || null,
-    inn: form.inn || null,
   };
 }
 
@@ -507,11 +502,6 @@ function mapApiToForm(offer) {
     date: offer.kp_date || "",
     object: offer.object_name || "",
     logoUrl: offer.logo_url || "",
-    companyName: offer.company_name || "",
-    companyAddress: offer.company_address || "",
-    ogrn: offer.ogrn || "",
-    kpp: offer.kpp || "",
-    inn: offer.inn || "",
   };
 }
 

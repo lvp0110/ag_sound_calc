@@ -1,6 +1,6 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import type { Offer, OfferConstruction, Prisma } from "@prisma/client";
+import type { Company, Offer, OfferConstruction, Prisma } from "@prisma/client";
 import {
   Router,
   type NextFunction,
@@ -52,11 +52,6 @@ const toForm = (parsed: z.infer<typeof CreateOfferRequestSchema>["form"]) => {
     region: form.region ?? null,
     markupPercent: form.markup_percent ?? null,
     discountPercent: form.discount_percent ?? null,
-    companyName: form.company_name ?? null,
-    companyAddress: form.company_address ?? null,
-    ogrn: form.ogrn ?? null,
-    kpp: form.kpp ?? null,
-    inn: form.inn ?? null,
   };
 };
 
@@ -102,7 +97,11 @@ interface ConstructionForDto {
   montage: unknown;
 }
 
-const toOfferDto = (offer: Offer, constructions: ConstructionForDto[]) => ({
+const toOfferDto = (
+  offer: Offer,
+  constructions: ConstructionForDto[],
+  company?: Company | null
+) => ({
   id: offer.id,
   user_id: offer.userId,
   title: offer.title,
@@ -116,11 +115,16 @@ const toOfferDto = (offer: Offer, constructions: ConstructionForDto[]) => ({
   region: offer.region,
   markup_percent: decimalToNumber(offer.markupPercent),
   discount_percent: decimalToNumber(offer.discountPercent),
-  company_name: offer.companyName,
-  company_address: offer.companyAddress,
-  ogrn: offer.ogrn,
-  kpp: offer.kpp,
-  inn: offer.inn,
+  company: company
+    ? {
+        id: company.id,
+        name: company.name,
+        address: company.address,
+        ogrn: company.ogrn,
+        kpp: company.kpp,
+        inn: company.inn,
+      }
+    : null,
   services: offer.services ?? null,
   additional_materials: offer.additionalMaterials ?? null,
   kp_settings: offer.kpSettings ?? null,
@@ -151,7 +155,10 @@ router.post(
     if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
     const parsed = CreateOfferRequestSchema.parse(req.body ?? {});
-    const user = await prisma.user.findUnique({ where: { id: userId } });
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { company: true },
+    });
     if (!user) return res.status(401).json({ error: "Unauthorized" });
 
     const form = applyProfileDefaults(toForm(parsed.form), user);
@@ -195,7 +202,7 @@ router.post(
       return { offer, constructions };
     });
 
-    return res.status(201).json(toOfferDto(created.offer, created.constructions));
+    return res.status(201).json(toOfferDto(created.offer, created.constructions, user.company));
   })
 );
 
@@ -262,7 +269,7 @@ const loadOfferDto = async (
 ): Promise<ReturnType<typeof toOfferDto> | null> => {
   const offer = await prisma.offer.findFirst({
     where: { id: offerId, userId },
-    include: { constructions: true },
+    include: { constructions: true, user: { include: { company: true } } },
   });
   if (!offer) return null;
 
@@ -285,7 +292,7 @@ const loadOfferDto = async (
   const verifiedLogoUrl = await verifyLogoFile(offer.id, offer.logoUrl);
   const offerForDto = verifiedLogoUrl === offer.logoUrl ? offer : { ...offer, logoUrl: verifiedLogoUrl };
 
-  return toOfferDto(offerForDto, constructionsWithFreshMaterials);
+  return toOfferDto(offerForDto, constructionsWithFreshMaterials, offer.user.company);
 };
 
 /**
@@ -335,11 +342,11 @@ router.get(
       object_name: dto.object_name,
       region: dto.region,
       logo_url: dto.logo_url,
-      company_name: dto.company_name,
-      company_address: dto.company_address,
-      ogrn: dto.ogrn,
-      kpp: dto.kpp,
-      inn: dto.inn,
+      company_name: dto.company?.name ?? null,
+      company_address: dto.company?.address ?? null,
+      ogrn: dto.company?.ogrn ?? null,
+      kpp: dto.company?.kpp ?? null,
+      inn: dto.company?.inn ?? null,
       recipient,
       payment_schedule,
       delivery_method,
@@ -409,11 +416,6 @@ router.patch(
       if (f.region !== undefined) formData.region = f.region;
       if (f.markup_percent !== undefined) formData.markupPercent = f.markup_percent;
       if (f.discount_percent !== undefined) formData.discountPercent = f.discount_percent;
-      if (f.company_name !== undefined) formData.companyName = f.company_name;
-      if (f.company_address !== undefined) formData.companyAddress = f.company_address;
-      if (f.ogrn !== undefined) formData.ogrn = f.ogrn;
-      if (f.kpp !== undefined) formData.kpp = f.kpp;
-      if (f.inn !== undefined) formData.inn = f.inn;
     }
 
     const updated = await prisma.$transaction(async (tx) => {
@@ -509,7 +511,11 @@ router.patch(
       return { offer, constructions };
     });
 
-    return res.json(toOfferDto(updated.offer, updated.constructions));
+    const owner = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { company: true },
+    });
+    return res.json(toOfferDto(updated.offer, updated.constructions, owner?.company));
   })
 );
 
@@ -564,11 +570,6 @@ router.post(
           region: source.region,
           markupPercent: source.markupPercent,
           discountPercent: source.discountPercent,
-          companyName: source.companyName,
-          companyAddress: source.companyAddress,
-          ogrn: source.ogrn,
-          kpp: source.kpp,
-          inn: source.inn,
           services: (source.services ?? []) as unknown as Prisma.InputJsonValue,
           additionalMaterials:
             (source.additionalMaterials ?? []) as unknown as Prisma.InputJsonValue,

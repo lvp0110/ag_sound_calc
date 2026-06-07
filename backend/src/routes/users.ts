@@ -17,7 +17,10 @@ router.get(
       return res.status(401).json({ error: "Unauthorized" });
     }
 
-    const user = await prisma.user.findUnique({ where: { id: userId } });
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: { company: true },
+    });
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
@@ -58,6 +61,7 @@ router.put(
         email: email !== undefined ? String(email).trim().toLowerCase() : undefined,
         officeAddress: office_address !== undefined ? String(office_address).trim() : undefined,
       },
+      include: { company: true },
     });
 
     return res.json(toUserDto(updatedUser));

@@ -188,6 +188,16 @@
   color: #2a5f78;
   font-weight: 500;
   max-width: 180px;
+  text-decoration: none;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.app-header__user:hover {
+  background: rgba(108, 171, 200, 0.2);
+  color: #2a5f78;
 }
 
 .app-header__user .app-header__label {

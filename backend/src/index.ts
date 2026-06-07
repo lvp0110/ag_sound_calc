@@ -5,6 +5,7 @@ import swaggerUi from "swagger-ui-express";
 import { env } from "./config/env.js";
 import { openApiSpec } from "./docs/swagger.js";
 import { prisma } from "./lib/prisma.js";
+import adminRouter from "./routes/admin.js";
 import authRouter from "./routes/auth.js";
 import calcRouter from "./routes/calc.js";
 import offersRouter from "./routes/offers.js";
@@ -41,6 +42,7 @@ app.get("/api/openapi.json", (_req: Request, res: Response) => {
 
 app.use("/api/auth", authRouter);
 app.use("/api/users", usersRouter);
+app.use("/api/admin", adminRouter);
 app.use("/api/offers", offersRouter);
 app.use("/api/uploads", uploadsRouter);
 // Статическая отдача загруженных файлов (логотипы и т.п.). Содержимое

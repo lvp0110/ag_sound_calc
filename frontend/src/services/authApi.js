@@ -5,17 +5,6 @@ import { request } from "./apiClient.js";
  * httpOnly cookies (accessToken на /api, refreshToken на /api/auth).
  */
 
-/** POST /api/auth/register — { full_name, email, password, phone?, office_address? } → { user } */
-export const register = ({ full_name, email, password, phone, office_address }) =>
-  request(
-    "/api/auth/register",
-    {
-      method: "POST",
-      body: { full_name, email, password, phone, office_address },
-    },
-    { skipAuthRetry: true }
-  );
-
 /** POST /api/auth/login — { email, password } → { user } */
 export const login = ({ email, password }) =>
   request(

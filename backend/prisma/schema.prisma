@@ -7,6 +7,25 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+enum Role {
+  USER
+  ADMIN
+}
+
+model Company {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String   @db.VarChar(255)
+  address   String?
+  ogrn      String?  @db.VarChar(50)
+  kpp       String?  @db.VarChar(50)
+  inn       String?  @db.VarChar(50)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  users     User[]
+
+  @@map("companies")
+}
+
 model User {
   id            String   @id @default(uuid()) @db.Uuid
   fullName      String   @map("full_name") @db.VarChar(255)
@@ -14,10 +33,14 @@ model User {
   email         String   @unique @db.VarChar(255)
   officeAddress String?  @map("office_address")
   passwordHash  String   @map("password_hash") @db.VarChar(255)
+  role          Role     @default(USER)
+  companyId     String   @map("company_id") @db.Uuid
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
+  company       Company  @relation(fields: [companyId], references: [id])
   offers        Offer[]
 
+  @@index([companyId], map: "users_company_id_idx")
   @@map("users")
 }
 
@@ -33,11 +56,6 @@ model Offer {
   objectName      String?             @map("object_name")
   logoUrl         String?             @map("logo_url")
   region          String?             @db.VarChar(120)
-  companyName     String?             @map("company_name") @db.VarChar(255)
-  companyAddress  String?             @map("company_address")
-  ogrn            String?             @db.VarChar(50)
-  kpp             String?             @db.VarChar(50)
-  inn             String?             @db.VarChar(50)
   markupPercent   Decimal?            @map("markup_percent") @db.Decimal(6, 2)
   discountPercent Decimal?            @map("discount_percent") @db.Decimal(6, 2)
   services        Json?

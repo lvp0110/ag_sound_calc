@@ -62,14 +62,6 @@ export function AuthProvider({ children }) {
     return data;
   }, []);
 
-  const register = useCallback(async (payload) => {
-    const data = await authApi.register(payload);
-    setUser(data.user);
-    setStatus("authed");
-    setLoginModal({ isOpen: false });
-    return data;
-  }, []);
-
   const logout = useCallback(async () => {
     await authApi.logout();
     useOfferEditSessionStore.getState().clearSession();
@@ -87,12 +79,11 @@ export function AuthProvider({ children }) {
       isAuthed: status === "authed",
       loginModal,
       login,
-      register,
       logout,
       openLoginModal,
       closeLoginModal,
     }),
-    [user, status, loginModal, login, register, logout, openLoginModal, closeLoginModal]
+    [user, status, loginModal, login, logout, openLoginModal, closeLoginModal]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

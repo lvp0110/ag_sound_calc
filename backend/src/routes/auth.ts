@@ -12,7 +12,6 @@ import {
 } from "../utils/tokens.js";
 import { toUserDto } from "../utils/userDto.js";
 
-const SALT_ROUNDS = 10;
 const router = Router();
 
 type AsyncRouteHandler = (req: Request, res: Response, next: NextFunction) => Promise<Response | void>;
@@ -40,36 +39,6 @@ const clearAuthCookies = (res: Response) => {
   res.clearCookie(REFRESH_COOKIE_NAME, getRefreshCookieOptions());
 };
 router.post(
-  "/register",
-  asyncHandler(async (req, res) => {
-    const { full_name, email, phone, office_address, password } = req.body ?? {};
-    if (!full_name || !email || !password) {
-      return res.status(400).json({ error: "full_name, email and password are required" });
-    }
-
-    const normalizedEmail = String(email).trim().toLowerCase();
-    const exists = await prisma.user.findUnique({ where: { email: normalizedEmail } });
-    if (exists) {
-      return res.status(409).json({ error: "User with this email already exists" });
-    }
-
-    const passwordHash = await bcrypt.hash(String(password), SALT_ROUNDS);
-    const user = await prisma.user.create({
-      data: {
-        fullName: String(full_name).trim(),
-        email: normalizedEmail,
-        phone: phone ? String(phone).trim() : null,
-        officeAddress: office_address ? String(office_address).trim() : null,
-        passwordHash,
-      },
-    });
-
-    const tokens = issueTokens(user.id);
-    setAuthCookies(res, tokens);
-    return res.status(201).json({ user: toUserDto(user) });
-  })
-);
-router.post(
   "/login",
   asyncHandler(async (req, res) => {
     const { email, password } = req.body ?? {};
@@ -78,7 +47,10 @@ router.post(
     }
 
     const normalizedEmail = String(email).trim().toLowerCase();
-    const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+    const user = await prisma.user.findUnique({
+      where: { email: normalizedEmail },
+      include: { company: true },
+    });
     if (!user) {
       return res.status(401).json({ error: "Invalid credentials" });
     }
@@ -103,7 +75,10 @@ router.post(
 
     try {
       const payload = verifyRefreshToken(refreshToken);
-      const user = await prisma.user.findUnique({ where: { id: payload.userId } });
+      const user = await prisma.user.findUnique({
+        where: { id: payload.userId },
+        include: { company: true },
+      });
       if (!user) {
         return res.status(401).json({ error: "User not found" });
       }

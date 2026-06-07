@@ -66,12 +66,6 @@ const initialForm = {
   // Относительный URL загруженного логотипа («/uploads/...»). Пустая строка =
   // логотип не выбран. Заполняется через POST /api/uploads/logo (см. offersApi.uploadLogo).
   logoUrl: "",
-  // Реквизиты компании-клиента (отображаются в правом верхнем блоке PDF).
-  companyName: "",
-  companyAddress: "",
-  ogrn: "",
-  kpp: "",
-  inn: "",
 };
 
 /** Все обязательные поля блока «Контактные данные» (.kp-page__contact) заполнены. */
@@ -1969,7 +1963,7 @@ const KpPage = () => {
               onInput={autoResizeNameField}
             />
           </div>
-          <div className="kp-page__field-row">
+          <div className="kp-page__field-row kp-page__field-row--last">
             <label className="kp-page__label" htmlFor="kp-address">
               Адрес офиса:
             </label>
@@ -1980,76 +1974,6 @@ const KpPage = () => {
               autoComplete="street-address"
               value={form.officeAddress}
               onChange={onContactFieldChange("officeAddress")}
-              onInput={autoResizeNameField}
-            />
-          </div>
-          <div className="kp-page__field-row">
-            <label className="kp-page__label" htmlFor="kp-company-name">
-              Название фирмы:
-            </label>
-            <textarea
-              id="kp-company-name"
-              className="kp-page__input"
-              rows={1}
-              autoComplete="organization"
-              value={form.companyName}
-              onChange={onContactFieldChange("companyName")}
-              onInput={autoResizeNameField}
-            />
-          </div>
-          <div className="kp-page__field-row">
-            <label className="kp-page__label" htmlFor="kp-company-address">
-              Адрес фирмы:
-            </label>
-            <textarea
-              id="kp-company-address"
-              className="kp-page__input"
-              rows={1}
-              autoComplete="street-address"
-              value={form.companyAddress}
-              onChange={onContactFieldChange("companyAddress")}
-              onInput={autoResizeNameField}
-            />
-          </div>
-          <div className="kp-page__field-row">
-            <label className="kp-page__label" htmlFor="kp-ogrn">
-              ОГРН:
-            </label>
-            <textarea
-              id="kp-ogrn"
-              className="kp-page__input"
-              rows={1}
-              inputMode="numeric"
-              value={form.ogrn}
-              onChange={onContactFieldChange("ogrn")}
-              onInput={autoResizeNameField}
-            />
-          </div>
-          <div className="kp-page__field-row">
-            <label className="kp-page__label" htmlFor="kp-kpp">
-              КПП:
-            </label>
-            <textarea
-              id="kp-kpp"
-              className="kp-page__input"
-              rows={1}
-              inputMode="numeric"
-              value={form.kpp}
-              onChange={onContactFieldChange("kpp")}
-              onInput={autoResizeNameField}
-            />
-          </div>
-          <div className="kp-page__field-row kp-page__field-row--last">
-            <label className="kp-page__label" htmlFor="kp-inn">
-              ИНН:
-            </label>
-            <textarea
-              id="kp-inn"
-              className="kp-page__input"
-              rows={1}
-              inputMode="numeric"
-              value={form.inn}
-              onChange={onContactFieldChange("inn")}
               onInput={autoResizeNameField}
             />
           </div>

@@ -283,6 +283,8 @@ export const useOfferEditSessionStore = create(
         if (base === "/calc" || base.startsWith("/calc/")) return true;
         if (base === "/price") return true;
         if (base === "/info" || base.startsWith("/info/")) return true;
+        if (base === "/profile") return true;
+        if (base === "/admin" || base.startsWith("/admin/")) return true;
         if (base === `/kp/${activeOfferId}`) return true;
         return false;
       },

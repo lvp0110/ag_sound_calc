@@ -15,7 +15,6 @@ import {
   LoginRequestSchema,
   OfferSchema,
   OfferSummarySchema,
-  RegisterRequestSchema,
   UpdateMeRequestSchema,
   UpdateOfferRequestSchema,
   UserSchema,
@@ -42,40 +41,6 @@ registry.registerPath({
           schema: HealthResponseSchema,
         },
       },
-    },
-  },
-});
-
-registry.registerPath({
-  method: "post",
-  path: "/api/auth/register",
-  tags: ["Auth"],
-  summary: "Register user",
-  request: {
-    body: {
-      content: {
-        "application/json": {
-          schema: RegisterRequestSchema,
-        },
-      },
-    },
-  },
-  responses: {
-    201: {
-      description: "User created",
-      content: {
-        "application/json": {
-          schema: AuthSuccessSchema,
-        },
-      },
-    },
-    400: {
-      description: "Validation error",
-      content: { "application/json": { schema: ErrorResponseSchema } },
-    },
-    409: {
-      description: "User already exists",
-      content: { "application/json": { schema: ErrorResponseSchema } },
     },
   },
 });
