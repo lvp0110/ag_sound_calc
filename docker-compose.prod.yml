@@ -25,6 +25,10 @@ services:
   backend:
     build:
       context: ./backend
+      # ВАЖНО: явно target=runtime. В backend/Dockerfile есть и dev-стадия
+      # (для локального docker-compose.yml); без target Docker собрал бы
+      # ПОСЛЕДНЮЮ стадию (dev → `npm run dev`), что в prod ломает контейнер.
+      target: runtime
     restart: unless-stopped
     env_file: .env.prod
     depends_on:
