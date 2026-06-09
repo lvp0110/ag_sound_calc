@@ -1,3 +1,5 @@
+import { isM2Units, quantityInSquareMeters } from "./formatters";
+
 /**
  * Материалы, у которых calc отдаёт количество в штуках, а в прайсе цена за упаковку.
  * В калькуляторе показываем штуки; на КП — упаковки (округление вверх).
@@ -37,6 +39,13 @@ export function formatMaterialQuantity(material, { forKp = false } = {}) {
   }
   const q = material?.Quantity;
   if (q == null || q === "") return "—";
+  if (isM2Units(material?.Units)) {
+    const quantityInM2 = quantityInSquareMeters(q);
+    if (Number.isNaN(quantityInM2)) return "—";
+    return quantityInM2.toFixed(1);
+  }
+  const n = Number(q);
+  if (Number.isFinite(n)) return n.toFixed(1);
   return String(q);
 }
 

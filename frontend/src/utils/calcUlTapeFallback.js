@@ -92,13 +92,21 @@ export const isAgFConstructionCipher = (agId = "", calcCode = "") => {
   return /^AG\.F(?:_|$)/i.test(code);
 };
 
-/** Шифр в таблице: AG.F → «—»; AG.C501–503 / AG.L404–405 + Ультракустик → «—». */
+/** Шифр в таблице: AG.F / AG.Ct_eco → «—»; AG.C501–503 / AG.L404–405 + Ультракустик → «—». */
+export const AG_CT_ECO_CIPHER = "AG.Ct_eco";
+
 export function constructionDisplayCipher({
   agId = "",
   calcCode = "",
   hangerType,
 } = {}) {
   if (isAgFConstructionCipher(agId, calcCode)) {
+    return "—";
+  }
+
+  const id = String(agId ?? "").trim();
+  const code = String(calcCode ?? "").trim();
+  if (id === AG_CT_ECO_CIPHER || code === AG_CT_ECO_CIPHER) {
     return "—";
   }
 
@@ -110,8 +118,7 @@ export function constructionDisplayCipher({
     return "—";
   }
 
-  const code = String(agId ?? "").trim();
-  return code || "—";
+  return id || "—";
 }
 
 /** Подвесы Виброфлекс в ответе calc для базового шифра (AG.C501 … AG.L405). */

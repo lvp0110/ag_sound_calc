@@ -5,6 +5,7 @@ import FacingForm from "./forms/FacingForm";
 import SoundboardForm from "./forms/SoundboardForm";
 import ConstructionParameters from "./ConstructionParameters";
 import {
+  AG_CT_ECO_CIPHER,
   applyUltrasonicHangerDisplayText,
   hasFloorSealantChoice,
 } from "../utils/calcUlTapeFallback";
@@ -50,6 +51,8 @@ const SelectedItemForms = ({
   const showFloorConstructionParameters =
     hasFloorParameters || hasFloorSealantChoice({ agId: selectedItem?.ag_id });
   const isCeilingTemplate = [4, 5].includes(template);
+  const showCeilingConstructionParameters =
+    selectedItem?.ag_id !== AG_CT_ECO_CIPHER;
   const isFacing = isFacingTemplate(template);
   const isSoundboardTemplate = [201, 202].includes(template);
   const isVerticalSoundboard = template === 201 && selectedItem?.c_id === "5";
@@ -135,25 +138,27 @@ const SelectedItemForms = ({
             }
             showCeilShift={false}
           />
-          <ConstructionParameters
-            mode="ceiling"
-            selectedItem={selectedItem}
-            template={template}
-            currentConstr={currentConstr}
-            setCurrentConstr={setCurrentConstr}
-            currentGkla={currentGkla}
-            setCurrentGkla={setCurrentGkla}
-            currentWool={currentWool}
-            setCurrentWool={setCurrentWool}
-            currentFloorSealant={currentFloorSealant}
-            setCurrentFloorSealant={setCurrentFloorSealant}
-            currentHangerType={currentHangerType}
-            setCurrentHangerType={setCurrentHangerType}
-            constR={constR}
-            setConstR={setConstR}
-            unvisible={unvisible}
-            onToggleVisible={getStartParam}
-          />
+          {showCeilingConstructionParameters && (
+            <ConstructionParameters
+              mode="ceiling"
+              selectedItem={selectedItem}
+              template={template}
+              currentConstr={currentConstr}
+              setCurrentConstr={setCurrentConstr}
+              currentGkla={currentGkla}
+              setCurrentGkla={setCurrentGkla}
+              currentWool={currentWool}
+              setCurrentWool={setCurrentWool}
+              currentFloorSealant={currentFloorSealant}
+              setCurrentFloorSealant={setCurrentFloorSealant}
+              currentHangerType={currentHangerType}
+              setCurrentHangerType={setCurrentHangerType}
+              constR={constR}
+              setConstR={setConstR}
+              unvisible={unvisible}
+              onToggleVisible={getStartParam}
+            />
+          )}
         </>
       )}
 

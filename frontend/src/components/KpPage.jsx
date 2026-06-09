@@ -292,7 +292,7 @@ function constructionAreaM2(item) {
 
 function formatMontageQuantity(areaM2) {
   if (Number.isNaN(areaM2)) return "";
-  return areaM2.toFixed(4).replace(/\.?0+$/, "");
+  return areaM2.toFixed(1);
 }
 
 function kpSettingKeyByConstructionType(type) {
