@@ -81,14 +81,19 @@
 }
 
 .price-page__table th:nth-child(3),
-.price-page__table td:nth-child(3),
+.price-page__table td:nth-child(3) {
+  text-align: center;
+}
+
 .price-page__table th:nth-child(4),
-.price-page__table td:nth-child(4) {
+.price-page__table td:nth-child(4),
+.price-page__table th:nth-child(5),
+.price-page__table td:nth-child(5) {
   text-align: right;
 }
 
-.price-page__table th:nth-child(5),
-.price-page__table td:nth-child(5) {
+.price-page__table th:nth-child(6),
+.price-page__table td:nth-child(6) {
   text-align: center;
 }
 
@@ -184,6 +189,10 @@
   white-space: nowrap;
 }
 
+.price-page__units {
+  white-space: nowrap;
+}
+
 .price-page__name {
   max-width: 420px;
   line-height: 1.35;
@@ -255,10 +264,10 @@
 @media (max-width: 569px) {
   .price-page__table thead th:nth-child(1),
   .price-page__table tbody tr:not(.price-page__detail-row) > td:nth-child(1),
-  .price-page__table thead th:nth-child(3),
-  .price-page__table tbody tr:not(.price-page__detail-row) > td:nth-child(3),
   .price-page__table thead th:nth-child(4),
-  .price-page__table tbody tr:not(.price-page__detail-row) > td:nth-child(4) {
+  .price-page__table tbody tr:not(.price-page__detail-row) > td:nth-child(4),
+  .price-page__table thead th:nth-child(5),
+  .price-page__table tbody tr:not(.price-page__detail-row) > td:nth-child(5) {
     display: none;
   }
 

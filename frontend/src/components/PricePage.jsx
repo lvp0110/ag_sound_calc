@@ -45,6 +45,10 @@ function PriceRowDetailCard({ row, selectedRegion }) {
           <dd>{row.article ?? "—"}</dd>
         </div>
         <div className="price-page__detail-meta-row">
+          <dt>Ед. изм.</dt>
+          <dd>{row.units?.trim() ? row.units : "—"}</dd>
+        </div>
+        <div className="price-page__detail-meta-row">
           <dt>₽ / м²</dt>
           <dd>
             {formatPriceCell(
@@ -81,7 +85,7 @@ function newMaterialRowFromPrice(row, selectedRegion) {
     name: row.name?.trim() ? row.name : String(row.article ?? ""),
     price: price != null && !Number.isNaN(Number(price)) ? String(price) : "",
     quantity: "",
-    unit: "",
+    unit: row.units?.trim() ? row.units : "",
     sourceArticle: row.article ? String(row.article) : "",
   };
 }
@@ -280,6 +284,7 @@ const PricePage = () => {
               <tr>
                 <th scope="col">Артикул</th>
                 <th scope="col">Наименование</th>
+                <th scope="col">Ед.изм.</th>
                 <th scope="col">₽ / м²</th>
                 <th scope="col">₽ / ед.</th>
                 <th scope="col">Действие</th>
@@ -338,6 +343,9 @@ const PricePage = () => {
                           </span>
                         </span>
                       </td>
+                      <td className="price-page__units">
+                        {row.units?.trim() ? row.units : "—"}
+                      </td>
                       <td>
                         {formatPriceCell(
                           getPriceByRegion(row, selectedRegion, "pricePerM2")
@@ -370,7 +378,7 @@ const PricePage = () => {
                     </tr>
                     {isExpanded && (
                       <tr className="price-page__detail-row">
-                        <td className="price-page__detail-cell" colSpan={5}>
+                        <td className="price-page__detail-cell" colSpan={6}>
                           <PriceRowDetailCard
                             row={row}
                             selectedRegion={selectedRegion}

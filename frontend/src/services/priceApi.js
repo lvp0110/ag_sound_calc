@@ -3,6 +3,8 @@ import { findRegionOptionByValue } from "../constants/regionSelectOptions.js";
 import { BASE_URL } from "./apiClient";
 
 const PRICE_API_URL = `${BASE_URL}/api/v2/data`;
+/** Bump when normalized row shape changes — forces refetch after HMR without full reload. */
+const NORMALIZE_SCHEMA_VERSION = 2;
 
 const cache = {
   byArticle: new Map(),
@@ -14,6 +16,17 @@ const cache = {
   loaded: false,
   loadingPromise: null,
   error: null,
+  schemaVersion: 0,
+};
+
+const invalidatePriceCacheIfStale = () => {
+  if (cache.schemaVersion === NORMALIZE_SCHEMA_VERSION) return;
+  cache.schemaVersion = NORMALIZE_SCHEMA_VERSION;
+  cache.loaded = false;
+  cache.list = [];
+  cache.byArticle = new Map();
+  cache.loadingPromise = null;
+  cache.error = null;
 };
 
 const DEFAULT_REGION_CANDIDATES = ["msk", "moscow", "москва"];
@@ -68,6 +81,11 @@ const normalizeRow = (raw) => {
   if (!article) return null;
 
   const name = pick(raw, ["name", "Name", "title", "Title", "Наименование"]);
+  const unitsRaw = pick(raw, ["units", "Units", "unit", "Unit", "ЕдИзм", "Ед.изм."]);
+  const units =
+    unitsRaw == null || String(unitsRaw).trim() === ""
+      ? ""
+      : String(unitsRaw).trim();
   let pricePerM2 = toNumberOrUndefined(
     pick(raw, [
       "pricePerM2",
@@ -103,6 +121,7 @@ const normalizeRow = (raw) => {
   return {
     article,
     name: name == null ? "" : String(name),
+    units,
     pricePerM2,
     pricePerUnit,
     regionalPrices,
@@ -126,6 +145,7 @@ const normalizePayload = (payload) => {
       ...existing,
       // Если в более поздней строке есть заполненное имя, используем его.
       name: row.name?.trim() ? row.name : existing.name,
+      units: row.units?.trim() ? row.units : existing.units,
       // Сохраняем первую валидную базовую цену, а при отсутствии берём из дубля.
       pricePerM2: existing.pricePerM2 ?? row.pricePerM2,
       pricePerUnit: existing.pricePerUnit ?? row.pricePerUnit,
@@ -295,6 +315,7 @@ const pickRegionalOrBasePrice = (row, selectedRegion, key) => {
 };
 
 export const ensurePriceDataLoaded = async () => {
+  invalidatePriceCacheIfStale();
   if (cache.loaded && cache.list.length > 0) return;
   if (cache.loadingPromise) {
     await cache.loadingPromise;

@@ -275,8 +275,8 @@ const fmtQty = (v: number): string => {
  * логотипа или файл недоступен — сохраняет визуальную сетку шаблона.
  */
 const DEFAULT_LOGO_BLOCK = `
-  <div class="brand">ACOUSTIC GROUP</div>
-  <div class="brand-sub">ПРОВЕРЕНО ИНЖЕНЕРАМИ<br/>ДОКАЗАНО ВРЕМЕНЕМ</div>`;
+  <div class="brand"></div>
+  <div class="brand-sub"></div>`;
 
 const MIME_BY_EXT: Record<string, string> = {
   ".png": "image/png",
@@ -584,23 +584,22 @@ const applyPlaceholders = (template: string, values: Record<string, string>): st
 };
 
 /**
- * Дефолтные реквизиты для футера PDF (ООО «Шуманет Шоп»). Используются
- * по-полю, если соответствующее поле в Offer не заполнено — иначе подставится
- * значение из Offer (см. buildFooterHtml).
+ * Дефолтные реквизиты для футера PDF. Используются по-полю, если
+ * соответствующее поле в Offer не заполнено (см. buildFooterHtml).
  */
 const DEFAULT_FOOTER = {
-  companyName: "ООО «Шуманет Шоп»",
-  companyAddress: "115054, Москва г, Новокузнецкая ул, дом 33, строение 2",
-  phone: "+8 (495) 134-98-98",
-  ogrn: "1177746342157",
-  kpp: "770501001",
-  inn: "9705093593",
+  companyName: "",
+  companyAddress: "",
+  phone: "",
+  ogrn: "",
+  kpp: "",
+  inn: "",
 } as const;
 
 /**
- * Футер PDF собирается на каждый рендер: пользовательские значения из Offer
+ * Футер PDF собирается на каждый рендер: значения из Offer
  * (company_name / company_address / phone / ogrn / kpp / inn) подставляются
- * по-полю; пустые поля заменяются дефолтами «Шуманет Шоп».
+ * по-полю; пустые поля остаются пустыми.
  */
 export const buildFooterHtml = (offer: OfferForRender): string => {
   const pick = (val: string | null | undefined, fallback: string): string => {
