@@ -1,8 +1,10 @@
 import type { ConstructionCatalogEntry } from "./catalogData.js";
 import { loadCompositionMaterialNames } from "./constructionComposition.js";
 import {
+  constructionDisplayCipher,
   constructionKpCardHeading,
   constructionTypeFromCalcParams,
+  normalizeCatalogCipher,
   resolveDisplayCipher,
   shouldOmitConstructionInfoInPdf,
 } from "../utils/constructionKpDisplay.js";
@@ -50,9 +52,16 @@ type ConstructionBlockInput = {
 const buildOneConstructionBlock = async (input: ConstructionBlockInput): Promise<string> => {
   const { heading, cipher, entry, calcParams, composition } = input;
   const specification = entry?.specification?.trim() ?? "";
+  const calcCode =
+    typeof calcParams?.Code === "string" ? calcParams.Code.trim() : "";
+  const displayCipher = constructionDisplayCipher({
+    agId: cipher,
+    calcCode,
+    hangerType: String(calcParams?.HangerType ?? calcParams?.hangerType ?? ""),
+  });
 
   const specsHtml = [
-    specRow("Шифр конструкции", cipher),
+    specRow("Шифр конструкции", displayCipher),
     specRow("Толщина, мм", entry?.thickness ?? ""),
     specRow("Индекс звукоизоляции воздушного шума, Rw", entry?.soundIndex ?? ""),
     entry?.impactNoiseIndex != null
@@ -122,7 +131,10 @@ export const buildConstructionDetailsHtml = async (
     if (shouldOmitConstructionInfoInPdf(c.calc_params, catalog)) continue;
     const calcCode =
       typeof c.calc_params?.Code === "string" ? c.calc_params.Code.trim() : "";
-    const cipher = resolveDisplayCipher(calcCode, catalog);
+    const cipher = normalizeCatalogCipher(
+      calcCode,
+      resolveDisplayCipher(calcCode, catalog)
+    );
     if (cipher) {
       cipherById.set(c.id, cipher);
       uniqueCiphers.add(cipher);

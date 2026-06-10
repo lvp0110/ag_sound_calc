@@ -92,8 +92,18 @@ export const isAgFConstructionCipher = (agId = "", calcCode = "") => {
   return /^AG\.F(?:_|$)/i.test(code);
 };
 
-/** Шифр в таблице: AG.F / AG.Ct_eco → «—»; AG.C501–503 / AG.L404–405 + Ультракустик → «—». */
+/** Шифр в UI (таблица КП, PDF, /info): AG.F / AG.Ct_eco → «—»; AG.C501–503 / AG.L404–405 + Ультракустик → «—». */
 export const AG_CT_ECO_CIPHER = "AG.Ct_eco";
+
+export const isAgCtEcoCipher = (agId = "", calcCode = "") => {
+  const id = String(agId ?? "").trim();
+  const code = String(calcCode ?? "").trim();
+  if (id === AG_CT_ECO_CIPHER || code === AG_CT_ECO_CIPHER) return true;
+  return (
+    id.startsWith(`${AG_CT_ECO_CIPHER}_`) ||
+    code.startsWith(`${AG_CT_ECO_CIPHER}_`)
+  );
+};
 
 export function constructionDisplayCipher({
   agId = "",
@@ -106,7 +116,7 @@ export function constructionDisplayCipher({
 
   const id = String(agId ?? "").trim();
   const code = String(calcCode ?? "").trim();
-  if (id === AG_CT_ECO_CIPHER || code === AG_CT_ECO_CIPHER) {
+  if (isAgCtEcoCipher(id, code)) {
     return "—";
   }
 

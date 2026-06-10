@@ -35,44 +35,54 @@ export const calculateConstruction = async (constrList) => {
     credentials: "include",
   });
 
-  if (!response.ok) {
-    let errorText = "";
-    try {
-      const clonedResponse = response.clone();
-      const errorData = await clonedResponse.json();
-      errorText =
-        errorData.error || errorData.message || JSON.stringify(errorData);
-    } catch {
-      try {
-        const clonedResponse = response.clone();
-        errorText = await clonedResponse.text();
-      } catch {
-        errorText = `HTTP ${response.status}: ${response.statusText}`;
-      }
-    }
-
-    let errorMessage = errorText;
-    try {
-      const errorJson = JSON.parse(errorText);
-      errorMessage = errorJson.error || errorJson.message || errorText;
-    } catch {
-      // Если не JSON, используем как есть
-    }
-
-    throw new Error(
-      `HTTP error! status: ${response.status}, message: ${errorMessage}`
-    );
-  }
-
-  const data = await response.json();
+  const isUnknownUlHanger =
+    !response.ok &&
+    response.status === 404 &&
+    constrList.length === 1 &&
+    isUlHangerCalcCode(constrList[0]?.Code);
 
   let rows;
-  if (data && data.data) {
-    rows = data.data;
-  } else if (Array.isArray(data)) {
-    rows = data;
-  } else {
+  if (isUnknownUlHanger) {
     rows = [];
+  } else {
+    if (!response.ok) {
+      let errorText = "";
+      try {
+        const clonedResponse = response.clone();
+        const errorData = await clonedResponse.json();
+        errorText =
+          errorData.error || errorData.message || JSON.stringify(errorData);
+      } catch {
+        try {
+          const clonedResponse = response.clone();
+          errorText = await clonedResponse.text();
+        } catch {
+          errorText = `HTTP ${response.status}: ${response.statusText}`;
+        }
+      }
+
+      let errorMessage = errorText;
+      try {
+        const errorJson = JSON.parse(errorText);
+        errorMessage = errorJson.error || errorJson.message || errorText;
+      } catch {
+        // Если не JSON, используем как есть
+      }
+
+      throw new Error(
+        `HTTP error! status: ${response.status}, message: ${errorMessage}`
+      );
+    }
+
+    const data = await response.json();
+
+    if (data && data.data) {
+      rows = data.data;
+    } else if (Array.isArray(data)) {
+      rows = data;
+    } else {
+      rows = [];
+    }
   }
 
   // Внешний calc пока не знает *_ul_hanger (пустой data при HTTP 200).

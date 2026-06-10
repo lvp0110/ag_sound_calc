@@ -8,6 +8,26 @@ import {
 /** Базовый шифр «Акуфлор S20» (template 2.1) — порт frontend AG_F_BASE_CIPHER. */
 export const AG_F_BASE_CIPHER = "AG.F";
 
+/** Шуманет-Термо ЭКО — порт frontend AG_CT_ECO_CIPHER. */
+export const AG_CT_ECO_CIPHER = "AG.Ct_eco";
+
+export const isAgCtEcoCipher = (agId = "", calcCode = ""): boolean => {
+  const id = String(agId ?? "").trim();
+  const code = String(calcCode ?? "").trim();
+  if (id === AG_CT_ECO_CIPHER || code === AG_CT_ECO_CIPHER) return true;
+  return (
+    id.startsWith(`${AG_CT_ECO_CIPHER}_`) ||
+    code.startsWith(`${AG_CT_ECO_CIPHER}_`)
+  );
+};
+
+/** resolveDisplayCipher режет AG.Ct_eco до AG.Ct — для каталога/PDF берём полный шифр. */
+export const normalizeCatalogCipher = (calcCode: string, resolved: string): string => {
+  const code = String(calcCode ?? "").trim();
+  if (isAgCtEcoCipher("", code)) return AG_CT_ECO_CIPHER;
+  return resolved;
+};
+
 /**
  * AG.F / AG.F_vibrostek / AG.F_ul_tape — не AG.F601 и т.п.
  * Порт frontend `isAgFConstructionCipher`.
@@ -80,6 +100,33 @@ const isUltrasonicHangerSelected = (
   const hangerType = String(calcParams?.HangerType ?? calcParams?.hangerType ?? "").trim();
   if (hangerType === HANGER_ULTRACOUSTIC) return true;
   return calcCode !== "" && isUlHangerCalcCode(calcCode);
+};
+
+/**
+ * Шифр в таблице КП, PDF и на /info.
+ * Порт frontend `constructionDisplayCipher`.
+ */
+export const constructionDisplayCipher = ({
+  agId = "",
+  calcCode = "",
+  hangerType = "",
+}: {
+  agId?: string;
+  calcCode?: string;
+  hangerType?: string;
+} = {}): string => {
+  if (isAgFConstructionCipher(agId, calcCode)) return "—";
+
+  const id = String(agId ?? "").trim();
+  const code = String(calcCode ?? "").trim();
+  if (isAgCtEcoCipher(id, code)) return "—";
+
+  const useUl =
+    hangerType === HANGER_ULTRACOUSTIC || (code !== "" && isUlHangerCalcCode(code));
+
+  if (useUl && hasHangerChoice(id)) return "—";
+
+  return id || code || "—";
 };
 
 /**

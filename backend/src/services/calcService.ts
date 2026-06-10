@@ -73,6 +73,11 @@ const fetchMaterialsFromCalcService = async (
   }
 
   if (!response.ok) {
+    // Неизвестный суффикс *_ul_hanger — calc отдаёт 404, дальше сработает fallback.
+    if (response.status === 404 && isUlHangerCalcCode(params.Code)) {
+      return [];
+    }
+
     let detail = "";
     try {
       detail = await response.text();
@@ -103,26 +108,14 @@ const calculateOne = async (params: CalcParams): Promise<CalcMaterial[]> => {
 
   let materials = await fetchMaterialsFromCalcService(params);
 
-  // Внешний calc пока не знает *_ul_hanger — считаем без суффикса и подменяем подвес.
+  // Внешний calc пока не знает *_ul_hanger — считаем без суффикса (цепочка ul_tape/eco_s
+  // через calculateOne) и подменяем подвес Виброфлекс на Ультракустик.
   if (materials.length === 0 && isUlHangerCalcCode(params.Code)) {
-    const fallbackParams = {
+    const fallbackMaterials = await calculateOne({
       ...params,
       Code: ulHangerFallbackCalcCode(params.Code),
-    };
-    const fallbackMaterials = await fetchMaterialsFromCalcService(fallbackParams);
-    let resolved = fallbackMaterials;
-    if (resolved.length === 0 && isUlTapeCalcCode(fallbackParams.Code)) {
-      for (const tapeFallbackCode of ulTapeFallbackCalcCodes(fallbackParams.Code)) {
-        const tapeParams = { ...params, Code: tapeFallbackCode };
-        const tapeMaterials = await fetchMaterialsFromCalcService(tapeParams);
-        const tapeMapped = mapVibrostekMaterialsToUlTape(tapeMaterials);
-        if (tapeMapped) {
-          resolved = tapeMapped as CalcMaterial[];
-          break;
-        }
-      }
-    }
-    const hangerMapped = mapVibroflexHangerToUltracoustic(resolved);
+    });
+    const hangerMapped = mapVibroflexHangerToUltracoustic(fallbackMaterials);
     if (hangerMapped) {
       materials = hangerMapped as CalcMaterial[];
     }

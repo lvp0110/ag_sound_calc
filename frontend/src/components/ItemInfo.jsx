@@ -8,6 +8,7 @@ import {
   loadInfoPageMaterialsList,
 } from "../services/api";
 import { getResponsiveImageProps } from "../utils/responsiveImages";
+import { constructionDisplayCipher } from "../utils/calcUlTapeFallback";
 import "./Calculator.css";
 
 // Мапа CAD изображений (чертежей) для потолков ЗИПС
@@ -208,9 +209,14 @@ const ItemInfo = () => {
   // Получаем данные из API или используем данные из item как fallback
   const data = constructionData || {};
 
+  const constructionCipher = String(data.Code || item.ag_id || id || "").trim();
+  const constructionCipherDisplay = constructionDisplayCipher({
+    agId: item?.ag_id || constructionCipher,
+    calcCode: constructionCipher,
+  });
+
   /** Шифр конструкции для GET …/IsolationConstrMaterials/{code} (тот же, что в примере AG.W101) */
-  const isolationConstrCodeForMaterialsApi =
-    data.Code || item.ag_id || id;
+  const isolationConstrCodeForMaterialsApi = constructionCipher;
 
   const handleMaterialLineClick = async (material) => {
     const lineCode = material.code || material.Code;
@@ -640,10 +646,10 @@ const ItemInfo = () => {
 
           <div className="item-info-details">
           {/* Code */}
-          {data.Code && (
+          {constructionCipherDisplay && (
             <div className="item-info-section">
               <h3>Шифр конструкции</h3>
-              <p>{data.Code}</p>
+              <p>{constructionCipherDisplay}</p>
             </div>
           )}
 

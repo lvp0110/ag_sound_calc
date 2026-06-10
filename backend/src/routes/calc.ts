@@ -1,5 +1,10 @@
 import { Router, type Request, type Response as ExpressResponse } from "express";
 import { env } from "../config/env.js";
+import {
+  calculateByProduct,
+  CalcServiceError,
+  type CalcParams,
+} from "../services/calcService.js";
 import { fetchUpstreamCached } from "../services/upstreamCache.js";
 
 /**
@@ -160,9 +165,33 @@ const proxyGetCached = async (
   }
 };
 
-router.post("/api/v1/calcIsolation/byProduct", (req, res) =>
-  proxyRequest(req, res, "/api/v1/calcIsolation/byProduct")
-);
+router.post("/api/v1/calcIsolation/byProduct", async (req, res) => {
+  const body = req.body;
+  if (!Array.isArray(body) || body.length === 0) {
+    res.status(400).json({ error: "Expected non-empty JSON array body" });
+    return;
+  }
+
+  try {
+    const batches = await calculateByProduct(body as CalcParams[]);
+    if (body.length === 1) {
+      res.json({ code: 200, data: batches[0] ?? [] });
+      return;
+    }
+    // Внешний calc при массиве из нескольких конструкций отдаёт плоский список.
+    res.json({ code: 200, data: batches.flat() });
+  } catch (err) {
+    const message =
+      err instanceof CalcServiceError
+        ? err.message
+        : err instanceof Error
+          ? err.message
+          : String(err);
+    const status = err instanceof CalcServiceError && err.status ? err.status : 502;
+    console.error(`[calc-proxy] POST /api/v1/calcIsolation/byProduct FAIL: ${message}`);
+    res.status(status).json({ error: message });
+  }
+});
 
 router.get("/api/v1/AllIsolationConstr", (req, res) =>
   proxyGetCached(req, res, "/api/v1/AllIsolationConstr", "AllIsolationConstr")
