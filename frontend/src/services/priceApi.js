@@ -1,5 +1,8 @@
 import { useEffect, useState } from "react";
-import { findRegionOptionByValue } from "../constants/regionSelectOptions.js";
+import {
+  findRegionOptionByValue,
+  getPriceCoefficient,
+} from "../constants/regionSelectOptions.js";
 import { BASE_URL } from "./apiClient";
 
 const PRICE_API_URL = `${BASE_URL}/api/v2/data`;
@@ -304,11 +307,19 @@ const collectRows = (payload) => {
   return groupedRows;
 };
 
+const applyPriceCoefficient = (price, cityValue) => {
+  if (price == null) return undefined;
+  const coef = getPriceCoefficient(cityValue ?? cache.selectedCityRegion);
+  return coef === 1 ? price : price * coef;
+};
+
 const pickRegionalOrBasePrice = (row, selectedRegion, key) => {
   if (!row) return undefined;
   const region = normalizeRegionName(selectedRegion);
   const regional = region ? row.regionalPrices?.[region]?.[key] : undefined;
-  if (regional != null) return regional;
+  if (regional != null) {
+    return region === "ural" ? applyPriceCoefficient(regional) : regional;
+  }
   const mskFallback = row.regionalPrices?.msk?.[key];
   if (mskFallback != null) return mskFallback;
   return row[key];

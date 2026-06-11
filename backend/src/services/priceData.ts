@@ -1,5 +1,5 @@
 import { env } from "../config/env.js";
-import { resolvePriceRegionKey } from "../utils/priceRegion.js";
+import { getPriceRegionCoefficient, resolvePriceRegionKey } from "../utils/priceRegion.js";
 import { fetchUpstreamCached } from "./upstreamCache.js";
 
 /**
@@ -215,6 +215,15 @@ const pickRegionalOrBase = (
   return row[key];
 };
 
+const applyPriceCoefficient = (
+  price: number | undefined,
+  region: string | null | undefined
+): number | undefined => {
+  if (price == null) return undefined;
+  const coef = getPriceRegionCoefficient(region);
+  return coef === 1 ? price : price * coef;
+};
+
 /**
  * Загружает прайс и строит замыкание-lookup по артикулу.
  * Регион — slug из offer.region (как фронт его пишет, например "moscow"/"msk").
@@ -229,9 +238,12 @@ export const buildPriceLookup = async (
     const key = String(article).trim();
     const row = byArticle.get(key) ?? byArticle.get(key.toLowerCase());
     if (!row) return {};
+    const pricePerM2 = pickRegionalOrBase(row, reg, "pricePerM2");
+    const pricePerUnit = pickRegionalOrBase(row, reg, "pricePerUnit");
     return {
-      pricePerM2: pickRegionalOrBase(row, reg, "pricePerM2"),
-      pricePerUnit: pickRegionalOrBase(row, reg, "pricePerUnit"),
+      pricePerM2: reg === "ural" ? applyPriceCoefficient(pricePerM2, region) : pricePerM2,
+      pricePerUnit:
+        reg === "ural" ? applyPriceCoefficient(pricePerUnit, region) : pricePerUnit,
     };
   };
 };

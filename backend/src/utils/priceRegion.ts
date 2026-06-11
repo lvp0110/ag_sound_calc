@@ -15,6 +15,14 @@ const REGION_KEY_ALIASES: Record<string, string> = {
   урал: "ural",
   yekaterinburg: "ural",
   екатеринбург: "ural",
+  chelyabinsk: "ural",
+  челябинск: "ural",
+  perm: "ural",
+  пермь: "ural",
+  tyumen: "ural",
+  тюмень: "ural",
+  surgut: "ural",
+  сургут: "ural",
   ufa: "ural",
   уфа: "ural",
   south: "south",
@@ -31,4 +39,22 @@ export const resolvePriceRegionKey = (region: string | null | undefined): string
   const normalized = String(region ?? "").trim().toLowerCase();
   if (!normalized) return "";
   return REGION_KEY_ALIASES[normalized] ?? normalized;
+};
+
+/** Множитель к цене ural (Екатеринбург) для городов с отдельным коэффициентом. */
+const URAL_CITY_PRICE_COEFFICIENTS: Record<string, number> = {
+  chelyabinsk: 1.05,
+  челябинск: 1.05,
+  perm: 1.1,
+  пермь: 1.1,
+  tyumen: 1.1,
+  тюмень: 1.1,
+  surgut: 1.15,
+  сургут: 1.15,
+};
+
+export const getPriceRegionCoefficient = (region: string | null | undefined): number => {
+  const normalized = String(region ?? "").trim().toLowerCase();
+  if (!normalized) return 1;
+  return URAL_CITY_PRICE_COEFFICIENTS[normalized] ?? 1;
 };

@@ -2,6 +2,10 @@ export const REGION_SELECT_OPTIONS = [
   { value: "moscow", label: "Москва", regionKey: "msk" },
   { value: "saint-petersburg", label: "Санкт-Петербург", regionKey: "msk" },
   { value: "yekaterinburg", label: "Екатеринбург", regionKey: "ural" },
+  { value: "chelyabinsk", label: "Челябинск", regionKey: "ural", priceCoefficient: 1.05 },
+  { value: "perm", label: "Пермь", regionKey: "ural", priceCoefficient: 1.1 },
+  { value: "tyumen", label: "Тюмень", regionKey: "ural", priceCoefficient: 1.1 },
+  { value: "surgut", label: "Сургут", regionKey: "ural", priceCoefficient: 1.15 },
   { value: "ufa", label: "Уфа", regionKey: "ural" },
   { value: "krasnodar", label: "Краснодар", regionKey: "south" },
   { value: "kazan", label: "Казань", regionKey: "kazan" },
@@ -20,6 +24,14 @@ const REGION_KEY_ALIASES = {
   урал: "ural",
   yekaterinburg: "ural",
   екатеринбург: "ural",
+  chelyabinsk: "ural",
+  челябинск: "ural",
+  perm: "ural",
+  пермь: "ural",
+  tyumen: "ural",
+  тюмень: "ural",
+  surgut: "ural",
+  сургут: "ural",
   ufa: "ural",
   уфа: "ural",
   south: "south",
@@ -35,6 +47,12 @@ export function resolvePriceRegionKey(region) {
   const normalized = String(region ?? "").trim().toLowerCase();
   if (!normalized) return "";
   return REGION_KEY_ALIASES[normalized] ?? normalized;
+}
+
+/** Множитель к цене региона ural (Екатеринбург) для городов с отдельным коэффициентом. */
+export function getPriceCoefficient(cityValue) {
+  const option = findRegionOptionByValue(cityValue);
+  return option?.priceCoefficient ?? 1;
 }
 
 export function filterVisibleRegionOptions(regions) {

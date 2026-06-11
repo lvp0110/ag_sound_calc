@@ -5,6 +5,7 @@ import {
   REGION_SELECT_OPTIONS,
   filterVisibleRegionOptions,
   findRegionOptionByValue,
+  getPriceCoefficient,
 } from "../constants/regionSelectOptions.js";
 import { setPriceRegion, usePriceData } from "../services/priceApi";
 import { filterPriceRows } from "./priceSearch";
@@ -22,10 +23,16 @@ function formatPriceCell(value) {
   return formatRub(Number(value));
 }
 
-function getPriceByRegion(row, region, key) {
+function getPriceByRegion(row, region, key, cityValue) {
   if (!row) return undefined;
   const regional = region ? row.regionalPrices?.[region]?.[key] : undefined;
-  if (regional != null) return regional;
+  if (regional != null) {
+    if (region === "ural") {
+      const coef = getPriceCoefficient(cityValue);
+      return coef === 1 ? regional : regional * coef;
+    }
+    return regional;
+  }
   return row[key];
 }
 
@@ -33,7 +40,7 @@ function getPriceRowKey(row, region) {
   return `${row.article}-${region || "default"}`;
 }
 
-function PriceRowDetailCard({ row, selectedRegion }) {
+function PriceRowDetailCard({ row, selectedRegion, selectedCity }) {
   return (
     <div className="price-page__detail-card">
       <p className="price-page__detail-name">
@@ -52,7 +59,7 @@ function PriceRowDetailCard({ row, selectedRegion }) {
           <dt>₽ / м²</dt>
           <dd>
             {formatPriceCell(
-              getPriceByRegion(row, selectedRegion, "pricePerM2")
+              getPriceByRegion(row, selectedRegion, "pricePerM2", selectedCity)
             )}
           </dd>
         </div>
@@ -60,7 +67,7 @@ function PriceRowDetailCard({ row, selectedRegion }) {
           <dt>₽ / ед.</dt>
           <dd>
             {formatPriceCell(
-              getPriceByRegion(row, selectedRegion, "pricePerUnit")
+              getPriceByRegion(row, selectedRegion, "pricePerUnit", selectedCity)
             )}
           </dd>
         </div>
@@ -69,13 +76,23 @@ function PriceRowDetailCard({ row, selectedRegion }) {
   );
 }
 
-function newMaterialRowFromPrice(row, selectedRegion) {
+function newMaterialRowFromPrice(row, selectedRegion, selectedCity) {
   const id =
     typeof crypto !== "undefined" && crypto.randomUUID
       ? crypto.randomUUID()
       : `mat-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-  const pricePerUnit = getPriceByRegion(row, selectedRegion, "pricePerUnit");
-  const pricePerM2 = getPriceByRegion(row, selectedRegion, "pricePerM2");
+  const pricePerUnit = getPriceByRegion(
+    row,
+    selectedRegion,
+    "pricePerUnit",
+    selectedCity
+  );
+  const pricePerM2 = getPriceByRegion(
+    row,
+    selectedRegion,
+    "pricePerM2",
+    selectedCity
+  );
   const price =
     pricePerUnit != null && !Number.isNaN(Number(pricePerUnit))
       ? pricePerUnit
@@ -205,7 +222,14 @@ const PricePage = () => {
       );
       nextRows = existingRow
         ? withoutEmpty
-        : [...withoutEmpty, newMaterialRowFromPrice(row, selectedRegion)];
+        : [
+            ...withoutEmpty,
+            newMaterialRowFromPrice(
+              row,
+              selectedRegion,
+              effectiveSelectedRegionOption
+            ),
+          ];
     }
 
     updateKpSnapshotMaterialRowsForConstruction(activeConstructionId, nextRows);
@@ -348,12 +372,22 @@ const PricePage = () => {
                       </td>
                       <td>
                         {formatPriceCell(
-                          getPriceByRegion(row, selectedRegion, "pricePerM2")
+                          getPriceByRegion(
+                            row,
+                            selectedRegion,
+                            "pricePerM2",
+                            effectiveSelectedRegionOption
+                          )
                         )}
                       </td>
                       <td>
                         {formatPriceCell(
-                          getPriceByRegion(row, selectedRegion, "pricePerUnit")
+                          getPriceByRegion(
+                            row,
+                            selectedRegion,
+                            "pricePerUnit",
+                            effectiveSelectedRegionOption
+                          )
                         )}
                       </td>
                       <td>
@@ -382,6 +416,7 @@ const PricePage = () => {
                           <PriceRowDetailCard
                             row={row}
                             selectedRegion={selectedRegion}
+                            selectedCity={effectiveSelectedRegionOption}
                           />
                         </td>
                       </tr>
