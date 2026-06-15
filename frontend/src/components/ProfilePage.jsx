@@ -55,6 +55,7 @@ export default function ProfilePage() {
           <dl className="profile-page__list">
             <Row label="Название фирмы" value={company.name} />
             <Row label="Адрес фирмы" value={company.address} />
+            <Row label="Телефон" value={company.phone} />
             <Row label="ОГРН" value={company.ogrn} />
             <Row label="КПП" value={company.kpp} />
             <Row label="ИНН" value={company.inn} />

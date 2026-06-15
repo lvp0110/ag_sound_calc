@@ -4,6 +4,7 @@ export const toCompanyDto = (company: Company) => ({
   id: company.id,
   name: company.name,
   address: company.address,
+  phone: company.phone,
   ogrn: company.ogrn,
   kpp: company.kpp,
   inn: company.inn,

@@ -214,6 +214,8 @@
   .signature .who { font-weight: 700; margin-top: 2mm; }
   .signature .email { margin-top: 3mm; color: #1a1a1a; }
   .signature .email:empty { display: none; }
+  .signature .phone { margin-top: 1mm; color: #1a1a1a; }
+  .signature .phone:empty { display: none; }
 
   /* ─── информация о конструкциях (как страница Info) ─── */
   .construction-info-wrap {
@@ -405,6 +407,7 @@
     <div>С Уважением,</div>
     <div class="who">{{MANAGER_NAME}}</div>
     <div class="email">{{MANAGER_EMAIL}}</div>
+    <div class="phone">{{MANAGER_PHONE}}</div>
   </div>
 
   {{CONSTRUCTION_DETAILS}}

@@ -16,6 +16,7 @@ model Company {
   id        String   @id @default(uuid()) @db.Uuid
   name      String   @db.VarChar(255)
   address   String?
+  phone     String?  @db.VarChar(50)
   ogrn      String?  @db.VarChar(50)
   kpp       String?  @db.VarChar(50)
   inn       String?  @db.VarChar(50)

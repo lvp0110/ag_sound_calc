@@ -243,6 +243,7 @@ export const CompanySchema = z
     id: z.string().uuid(),
     name: z.string(),
     address: z.string().nullable(),
+    phone: z.string().nullable(),
     ogrn: z.string().nullable(),
     kpp: z.string().nullable(),
     inn: z.string().nullable(),

@@ -9,13 +9,14 @@ import {
 } from "../services/adminApi.js";
 import "./Admin.css";
 
-const EMPTY_FORM = { name: "", address: "", ogrn: "", kpp: "", inn: "" };
+const EMPTY_FORM = { name: "", address: "", phone: "", ogrn: "", kpp: "", inn: "" };
 
 function CompanyModal({ initial, onClose, onSaved }) {
   const isEdit = Boolean(initial?.id);
   const [form, setForm] = useState({
     name: initial?.name ?? "",
     address: initial?.address ?? "",
+    phone: initial?.phone ?? "",
     ogrn: initial?.ogrn ?? "",
     kpp: initial?.kpp ?? "",
     inn: initial?.inn ?? "",
@@ -65,6 +66,7 @@ function CompanyModal({ initial, onClose, onSaved }) {
       const body = {
         name: form.name.trim(),
         address: form.address.trim() || null,
+        phone: form.phone.trim() || null,
         ogrn: form.ogrn.trim() || null,
         kpp: form.kpp.trim() || null,
         inn: form.inn.trim() || null,
@@ -99,6 +101,10 @@ function CompanyModal({ initial, onClose, onSaved }) {
         <label className="admin-modal__field">
           <span>Адрес фирмы</span>
           <input value={form.address} onChange={onChange("address")} />
+        </label>
+        <label className="admin-modal__field">
+          <span>Телефон</span>
+          <input value={form.phone} onChange={onChange("phone")} inputMode="tel" />
         </label>
         <label className="admin-modal__field">
           <span>ОГРН</span>
@@ -265,6 +271,7 @@ export default function AdminCompaniesPage() {
               <th>Лого</th>
               <th>Название</th>
               <th>Адрес</th>
+              <th>Телефон</th>
               <th>ОГРН</th>
               <th>КПП</th>
               <th>ИНН</th>
@@ -292,6 +299,7 @@ export default function AdminCompaniesPage() {
                 </td>
                 <td>{c.name}</td>
                 <td>{c.address || "—"}</td>
+                <td>{c.phone || "—"}</td>
                 <td>{c.ogrn || "—"}</td>
                 <td>{c.kpp || "—"}</td>
                 <td>{c.inn || "—"}</td>

@@ -88,6 +88,7 @@ export type OfferForRender = {
   logo_url: string | null;
   company_name: string | null;
   company_address: string | null;
+  company_phone: string | null;
   ogrn: string | null;
   kpp: string | null;
   inn: string | null;
@@ -544,6 +545,8 @@ export function renderOfferKpHtml({
     CONDITIONS_BLOCK: conditionsBlock,
     MANAGER_NAME: esc(offer.manager_name ?? ""),
     MANAGER_EMAIL: esc(offer.email ?? ""),
+    // Телефон менеджера из формы КП — выводится в теле рядом с почтой.
+    MANAGER_PHONE: esc(offer.phone ?? ""),
     // HTML, не esc(): либо <img data: URI>, либо дефолтный брендовый блок.
     LOGO_BLOCK: buildLogoBlockHtml(offer.logo_url),
     // Адресат во вступительной фразе «Компания ООО «...» предлагает Вам».
@@ -598,7 +601,8 @@ export const buildFooterHtml = (offer: OfferForRender): string => {
   };
   const companyName = pick(offer.company_name, DEFAULT_FOOTER.companyName);
   const companyAddress = pick(offer.company_address, DEFAULT_FOOTER.companyAddress);
-  const phone = pick(offer.phone, DEFAULT_FOOTER.phone);
+  // В колонтитуле — телефон компании (не менеджера).
+  const phone = pick(offer.company_phone, DEFAULT_FOOTER.phone);
   const ogrn = pick(offer.ogrn, DEFAULT_FOOTER.ogrn);
   const kpp = pick(offer.kpp, DEFAULT_FOOTER.kpp);
   const inn = pick(offer.inn, DEFAULT_FOOTER.inn);
