@@ -187,6 +187,10 @@
   cursor: not-allowed;
 }
 
+.admin-table__action-btn + .admin-table__action-btn {
+  margin-left: 6px;
+}
+
 /* ─── Modal ─── */
 .admin-modal__backdrop {
   position: fixed;
@@ -215,6 +219,12 @@
   font-size: 18px;
   font-weight: 600;
   color: #0f172a;
+}
+
+.admin-modal__subtitle {
+  margin: -8px 0 16px;
+  font-size: 14px;
+  color: #64748b;
 }
 
 .admin-modal__field {

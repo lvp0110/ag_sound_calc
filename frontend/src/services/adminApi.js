@@ -31,3 +31,7 @@ export const createUser = (body) =>
 /** PATCH /api/admin/users/:id — обновить профиль/роль/компанию. */
 export const updateUser = (id, body) =>
   request(`/api/admin/users/${id}`, { method: "PATCH", body });
+
+/** PATCH /api/admin/users/:id/password — задать новый пароль пользователю. */
+export const changeUserPassword = (id, password) =>
+  request(`/api/admin/users/${id}/password`, { method: "PATCH", body: { password } });

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, NavLink } from "react-router-dom";
 import {
+  changeUserPassword,
   createUser,
   listCompanies,
   listUsers,
@@ -142,12 +143,95 @@ function UserModal({ user, companies, onClose, onSaved }) {
   );
 }
 
+function PasswordModal({ user, onClose, onSaved }) {
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const [error, setError] = useState(null);
+  const [saving, setSaving] = useState(false);
+
+  const onSubmit = async (e) => {
+    e.preventDefault();
+    if (password.length < 6) {
+      setError("Пароль должен быть не короче 6 символов");
+      return;
+    }
+    if (password !== confirm) {
+      setError("Пароли не совпадают");
+      return;
+    }
+    setError(null);
+    setSaving(true);
+    try {
+      await changeUserPassword(user.id, password);
+      onSaved();
+    } catch (err) {
+      setError(err?.message || "Не удалось сменить пароль");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="admin-modal__backdrop" onClick={() => !saving && onClose()}>
+      <form
+        className="admin-modal"
+        onClick={(e) => e.stopPropagation()}
+        onSubmit={onSubmit}
+      >
+        <h2 className="admin-modal__title">Сменить пароль</h2>
+        <p className="admin-modal__subtitle">{user.full_name} ({user.email})</p>
+        {error && <div className="admin-modal__error">{error}</div>}
+        <label className="admin-modal__field">
+          <span>Новый пароль * (минимум 6 символов)</span>
+          <input
+            type="password"
+            autoComplete="new-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            minLength={6}
+          />
+        </label>
+        <label className="admin-modal__field">
+          <span>Повтор пароля *</span>
+          <input
+            type="password"
+            autoComplete="new-password"
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            required
+            minLength={6}
+          />
+        </label>
+        <div className="admin-modal__actions">
+          <button
+            type="button"
+            className="admin-modal__btn admin-modal__btn--ghost"
+            onClick={onClose}
+            disabled={saving}
+          >
+            Отмена
+          </button>
+          <button
+            type="submit"
+            className="admin-modal__btn admin-modal__btn--primary"
+            disabled={saving}
+          >
+            {saving ? "Сохранение..." : "Сохранить"}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
 export default function AdminUsersPage() {
   const [users, setUsers] = useState([]);
   const [companies, setCompanies] = useState([]);
   const [loadStatus, setLoadStatus] = useState("loading");
   const [error, setError] = useState(null);
   const [modal, setModal] = useState(null); // null | { user } (user=null → создание)
+  const [pwModal, setPwModal] = useState(null); // null | { user }
 
   useEffect(() => {
     let cancelled = false;
@@ -264,6 +348,13 @@ export default function AdminUsersPage() {
                   >
                     Изменить
                   </button>
+                  <button
+                    type="button"
+                    className="admin-table__action-btn"
+                    onClick={() => setPwModal({ user: u })}
+                  >
+                    Пароль
+                  </button>
                 </td>
               </tr>
             ))}
@@ -277,6 +368,14 @@ export default function AdminUsersPage() {
           companies={companies}
           onClose={() => setModal(null)}
           onSaved={handleSaved}
+        />
+      )}
+
+      {pwModal && (
+        <PasswordModal
+          user={pwModal.user}
+          onClose={() => setPwModal(null)}
+          onSaved={() => setPwModal(null)}
         />
       )}
     </div>

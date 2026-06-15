@@ -212,4 +212,25 @@ router.patch(
   })
 );
 
+/** PATCH /api/admin/users/:id/password — задать новый пароль пользователю. */
+router.patch(
+  "/users/:id/password",
+  asyncHandler(async (req, res) => {
+    const existing = await prisma.user.findUnique({ where: { id: req.params.id } });
+    if (!existing) return res.status(404).json({ error: "User not found" });
+
+    const { password } = req.body ?? {};
+    if (!password || String(password).length < 6) {
+      return res.status(400).json({ error: "password must be at least 6 characters" });
+    }
+
+    const passwordHash = await bcrypt.hash(String(password), SALT_ROUNDS);
+    await prisma.user.update({
+      where: { id: req.params.id },
+      data: { passwordHash },
+    });
+    return res.status(204).send();
+  })
+);
+
 export default router;
