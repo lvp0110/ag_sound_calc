@@ -100,9 +100,16 @@ FROM node:20-bookworm-slim AS dev
 WORKDIR /app
 ENV NODE_ENV=development
 ENV PUPPETEER_CACHE_DIR=/app/.cache/puppeteer
+# У Chrome-for-Testing нет linux-arm64 сборки: puppeteer на Apple Silicon
+# выкачивает x86-64 Chromium, который под arm64-контейнером падает в Rosetta
+# (rosetta error: ld-linux-x86-64.so.2 not found). Поэтому в dev берём нативный
+# системный Chromium из apt (совпадает с архитектурой образа) и не качаем бандл.
+ENV PUPPETEER_SKIP_DOWNLOAD=true
+ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
       ca-certificates \
+      chromium \
       tar \
       unzip \
       fonts-liberation \
