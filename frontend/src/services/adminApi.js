@@ -35,3 +35,10 @@ export const updateUser = (id, body) =>
 /** PATCH /api/admin/users/:id/password — задать новый пароль пользователю. */
 export const changeUserPassword = (id, password) =>
   request(`/api/admin/users/${id}/password`, { method: "PATCH", body: { password } });
+
+/** PATCH /api/admin/users/:id/block — заблокировать/разблокировать пользователя. */
+export const setUserBlocked = (id, isBlocked) =>
+  request(`/api/admin/users/${id}/block`, {
+    method: "PATCH",
+    body: { is_blocked: isBlocked },
+  });

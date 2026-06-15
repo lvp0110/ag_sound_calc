@@ -16,6 +16,7 @@ export const toUserDto = (user: User & { company?: Company | null }) => ({
   email: user.email,
   office_address: user.officeAddress,
   role: user.role,
+  is_blocked: user.isBlocked,
   company_id: user.companyId,
   company: user.company ? toCompanyDto(user.company) : null,
   created_at: user.createdAt,

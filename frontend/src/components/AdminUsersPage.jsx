@@ -5,8 +5,10 @@ import {
   createUser,
   listCompanies,
   listUsers,
+  setUserBlocked,
   updateUser,
 } from "../services/adminApi.js";
+import { useAuth } from "../context/AuthContext.jsx";
 import "./Admin.css";
 
 function UserModal({ user, companies, onClose, onSaved }) {
@@ -232,6 +234,8 @@ export default function AdminUsersPage() {
   const [error, setError] = useState(null);
   const [modal, setModal] = useState(null); // null | { user } (user=null → создание)
   const [pwModal, setPwModal] = useState(null); // null | { user }
+  const [blockingId, setBlockingId] = useState(null); // id строки с активным запросом
+  const { user: currentUser } = useAuth();
 
   useEffect(() => {
     let cancelled = false;
@@ -261,6 +265,19 @@ export default function AdminUsersPage() {
     setUsers((prev) =>
       wasEdit ? prev.map((u) => (u.id === saved.id ? saved : u)) : [...prev, saved]
     );
+  };
+
+  const handleToggleBlock = async (u) => {
+    setError(null);
+    setBlockingId(u.id);
+    try {
+      const saved = await setUserBlocked(u.id, !u.is_blocked);
+      setUsers((prev) => prev.map((x) => (x.id === saved.id ? saved : x)));
+    } catch (err) {
+      setError(err?.message || "Не удалось изменить статус пользователя");
+    } finally {
+      setBlockingId(null);
+    }
   };
 
   return (
@@ -310,12 +327,16 @@ export default function AdminUsersPage() {
               <th>Телефон</th>
               <th>Компания</th>
               <th>Роль</th>
+              <th>Доступ</th>
               <th>Действия</th>
             </tr>
           </thead>
           <tbody>
             {users.map((u) => (
-              <tr key={u.id}>
+              <tr
+                key={u.id}
+                className={u.is_blocked ? "admin-table__row--blocked" : undefined}
+              >
                 <td>{u.full_name}</td>
                 <td>{u.email}</td>
                 <td>{u.phone || "—"}</td>
@@ -339,6 +360,31 @@ export default function AdminUsersPage() {
                   >
                     {u.role === "ADMIN" ? "Админ" : "Пользователь"}
                   </span>
+                </td>
+                <td>
+                  <label
+                    className="admin-toggle"
+                    title={
+                      u.id === currentUser?.id
+                        ? "Нельзя заблокировать себя"
+                        : u.is_blocked
+                        ? "Заблокирован — нажмите, чтобы разблокировать"
+                        : "Активен — нажмите, чтобы заблокировать"
+                    }
+                  >
+                    <input
+                      type="checkbox"
+                      checked={!u.is_blocked}
+                      disabled={u.id === currentUser?.id || blockingId === u.id}
+                      onChange={() => handleToggleBlock(u)}
+                    />
+                    <span className="admin-toggle__track" aria-hidden="true">
+                      <span className="admin-toggle__thumb" />
+                    </span>
+                    <span className="admin-toggle__label">
+                      {u.is_blocked ? "Заблокирован" : "Активен"}
+                    </span>
+                  </label>
                 </td>
                 <td>
                   <button

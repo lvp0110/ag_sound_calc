@@ -60,6 +60,10 @@ router.post(
       return res.status(401).json({ error: "Invalid credentials" });
     }
 
+    if (user.isBlocked) {
+      return res.status(403).json({ error: "Учётная запись заблокирована" });
+    }
+
     const tokens = issueTokens(user.id);
     setAuthCookies(res, tokens);
     return res.json({ user: toUserDto(user) });
@@ -81,6 +85,11 @@ router.post(
       });
       if (!user) {
         return res.status(401).json({ error: "User not found" });
+      }
+
+      if (user.isBlocked) {
+        clearAuthCookies(res);
+        return res.status(403).json({ error: "Account is blocked" });
       }
 
       const tokens = issueTokens(user.id);

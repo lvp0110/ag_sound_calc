@@ -233,4 +233,30 @@ router.patch(
   })
 );
 
+/** PATCH /api/admin/users/:id/block — заблокировать/разблокировать пользователя. */
+router.patch(
+  "/users/:id/block",
+  asyncHandler(async (req, res) => {
+    const { is_blocked } = req.body ?? {};
+    if (typeof is_blocked !== "boolean") {
+      return res.status(400).json({ error: "is_blocked must be a boolean" });
+    }
+    if (req.auth?.userId === req.params.id) {
+      return res
+        .status(400)
+        .json({ error: "Нельзя заблокировать собственную учётную запись" });
+    }
+
+    const existing = await prisma.user.findUnique({ where: { id: req.params.id } });
+    if (!existing) return res.status(404).json({ error: "User not found" });
+
+    const updated = await prisma.user.update({
+      where: { id: req.params.id },
+      data: { isBlocked: is_blocked },
+      include: { company: true },
+    });
+    return res.json(toUserDto(updated));
+  })
+);
+
 export default router;

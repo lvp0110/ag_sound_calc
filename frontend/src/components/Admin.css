@@ -191,6 +191,82 @@
   margin-left: 6px;
 }
 
+/* ─── Toggle (блокировка) ─── */
+.admin-table__row--blocked {
+  opacity: 0.55;
+}
+
+.admin-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.admin-toggle input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.admin-toggle__track {
+  position: relative;
+  box-sizing: border-box;
+  display: block;
+  width: 40px;
+  height: 22px;
+  border-radius: 999px;
+  background: #cbd5e1;
+  transition: background 0.15s ease;
+  pointer-events: none;
+  flex: none;
+}
+
+.admin-toggle__thumb {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  box-sizing: border-box;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.3);
+  transition: left 0.15s ease;
+  pointer-events: none;
+}
+
+.admin-toggle input:checked + .admin-toggle__track {
+  background: #16a34a;
+}
+
+.admin-toggle input:checked + .admin-toggle__track .admin-toggle__thumb {
+  /* 40 (track) − 18 (thumb) − 2 (right gap) = 20 */
+  left: 20px;
+}
+
+.admin-toggle input:disabled + .admin-toggle__track {
+  opacity: 0.5;
+}
+
+.admin-toggle:has(input:disabled) {
+  cursor: not-allowed;
+}
+
+.admin-toggle__label {
+  display: inline-block;
+  /* фиксируем ширину под самое длинное слово («Заблокирован»),
+     иначе колонка прыгает при переключении */
+  width: 96px;
+  justify-content: flex-start;
+  color: #475569;
+  font-weight: 500;
+  font-size: 13px;
+  pointer-events: none;
+}
+
 /* ─── Modal ─── */
 .admin-modal__backdrop {
   position: fixed;
