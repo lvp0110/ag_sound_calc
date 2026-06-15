@@ -1,5 +1,3 @@
-import { promises as fs } from "node:fs";
-import path from "node:path";
 import type { Company, Offer, OfferConstruction, Prisma } from "@prisma/client";
 import {
   Router,
@@ -17,7 +15,6 @@ import { requireAuth } from "../middleware/requireAuth.js";
 import { CalcServiceError, calculateByProduct } from "../services/calcService.js";
 import { recalcConstructionsMaterials } from "../services/offerRecalc.js";
 import { OfferPdfError, renderOfferPdf } from "../services/offerPdf.js";
-import { UPLOADS_DIR } from "./uploads.js";
 
 const router = Router();
 
@@ -48,7 +45,6 @@ const toForm = (parsed: z.infer<typeof CreateOfferRequestSchema>["form"]) => {
     officeAddress: form.office_address ?? null,
     kpDate: form.kp_date ?? null,
     objectName: form.object_name ?? null,
-    logoUrl: form.logo_url ?? null,
     region: form.region ?? null,
     markupPercent: form.markup_percent ?? null,
     discountPercent: form.discount_percent ?? null,
@@ -111,7 +107,6 @@ const toOfferDto = (
   office_address: offer.officeAddress,
   kp_date: offer.kpDate,
   object_name: offer.objectName,
-  logo_url: offer.logoUrl,
   region: offer.region,
   markup_percent: decimalToNumber(offer.markupPercent),
   discount_percent: decimalToNumber(offer.discountPercent),
@@ -123,6 +118,7 @@ const toOfferDto = (
         ogrn: company.ogrn,
         kpp: company.kpp,
         inn: company.inn,
+        logo_url: company.logoUrl,
       }
     : null,
   services: offer.services ?? null,
@@ -225,40 +221,6 @@ router.get(
 );
 
 /**
- * Проверяет, что файл логотипа всё ещё существует на диске. Если был удалён
- * (volume пересоздавался, файл подчистили вручную, и т.п.) — обнуляет
- * Offer.logoUrl в БД, чтобы повторные GET'ы не делали лишний fs.access и
- * чтобы фронт не пытался показать сломанную картинку.
- *
- * Возвращает новое значение logoUrl: либо исходное (если файл на месте),
- * либо null (если файл пропал и поле было обнулено).
- */
-const verifyLogoFile = async (
-  offerId: string,
-  logoUrl: string | null
-): Promise<string | null> => {
-  if (!logoUrl) return null;
-  // logoUrl приходит из БД в формате `/uploads/<filename>`. Берём только имя
-  // файла (basename), чтобы избежать path traversal даже если в БД оказался
-  // мусор: путь в любом случае склеиваем как UPLOADS_DIR + basename.
-  const filename = path.basename(logoUrl);
-  const filepath = path.join(UPLOADS_DIR, filename);
-  try {
-    await fs.access(filepath);
-    return logoUrl;
-  } catch {
-    console.warn(
-      `[offers] logo file missing for offer ${offerId}: ${filepath} — обнуляю Offer.logoUrl`
-    );
-    await prisma.offer.update({
-      where: { id: offerId },
-      data: { logoUrl: null },
-    });
-    return null;
-  }
-};
-
-/**
  * Загружает оффер пользователя, пересчитывает материалы и собирает DTO в том
  * виде, в котором его потребляет фронт. Общий код для GET /:id и /:id/pdf —
  * единый источник правды.
@@ -288,11 +250,7 @@ const loadOfferDto = async (
     materials: (materialsById.get(c.id) ?? c.materials ?? []) as unknown,
   }));
 
-  // Verify, что файл логотипа существует. При пропаже — обнуляем в БД и DTO.
-  const verifiedLogoUrl = await verifyLogoFile(offer.id, offer.logoUrl);
-  const offerForDto = verifiedLogoUrl === offer.logoUrl ? offer : { ...offer, logoUrl: verifiedLogoUrl };
-
-  return toOfferDto(offerForDto, constructionsWithFreshMaterials, offer.user.company);
+  return toOfferDto(offer, constructionsWithFreshMaterials, offer.user.company);
 };
 
 /**
@@ -341,7 +299,7 @@ router.get(
       kp_date: dto.kp_date,
       object_name: dto.object_name,
       region: dto.region,
-      logo_url: dto.logo_url,
+      logo_url: dto.company?.logo_url ?? null,
       company_name: dto.company?.name ?? null,
       company_address: dto.company?.address ?? null,
       ogrn: dto.company?.ogrn ?? null,
@@ -412,7 +370,6 @@ router.patch(
       if (f.office_address !== undefined) formData.officeAddress = f.office_address;
       if (f.kp_date !== undefined) formData.kpDate = f.kp_date;
       if (f.object_name !== undefined) formData.objectName = f.object_name;
-      if (f.logo_url !== undefined) formData.logoUrl = f.logo_url;
       if (f.region !== undefined) formData.region = f.region;
       if (f.markup_percent !== undefined) formData.markupPercent = f.markup_percent;
       if (f.discount_percent !== undefined) formData.discountPercent = f.discount_percent;
@@ -566,7 +523,6 @@ router.post(
           officeAddress: source.officeAddress,
           kpDate: source.kpDate,
           objectName: source.objectName,
-          logoUrl: source.logoUrl,
           region: source.region,
           markupPercent: source.markupPercent,
           discountPercent: source.discountPercent,

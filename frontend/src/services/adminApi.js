@@ -42,3 +42,14 @@ export const setUserBlocked = (id, isBlocked) =>
     method: "PATCH",
     body: { is_blocked: isBlocked },
   });
+
+/**
+ * POST /api/uploads/logo — загрузка логотипа компании (multipart, поле `file`).
+ * Возвращает `{ url }` — относительный путь `/uploads/<filename>`, который
+ * кладётся в `logo_url` компании и сохраняется через createCompany/updateCompany.
+ */
+export const uploadLogo = (file) => {
+  const fd = new FormData();
+  fd.append("file", file);
+  return request("/api/uploads/logo", { method: "POST", body: fd });
+};

@@ -19,6 +19,7 @@ model Company {
   ogrn      String?  @db.VarChar(50)
   kpp       String?  @db.VarChar(50)
   inn       String?  @db.VarChar(50)
+  logoUrl   String?  @map("logo_url")
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
   users     User[]
@@ -55,7 +56,6 @@ model Offer {
   officeAddress   String?             @map("office_address")
   kpDate          String?             @map("kp_date") @db.VarChar(50)
   objectName      String?             @map("object_name")
-  logoUrl         String?             @map("logo_url")
   region          String?             @db.VarChar(120)
   markupPercent   Decimal?            @map("markup_percent") @db.Decimal(6, 2)
   discountPercent Decimal?            @map("discount_percent") @db.Decimal(6, 2)

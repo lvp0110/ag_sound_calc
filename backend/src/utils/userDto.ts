@@ -7,6 +7,7 @@ export const toCompanyDto = (company: Company) => ({
   ogrn: company.ogrn,
   kpp: company.kpp,
   inn: company.inn,
+  logo_url: company.logoUrl,
 });
 
 export const toUserDto = (user: User & { company?: Company | null }) => ({

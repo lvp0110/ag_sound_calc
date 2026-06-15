@@ -22,7 +22,6 @@ import {
   downloadOfferPdf,
   getOffer,
   updateOffer,
-  uploadLogo,
 } from "../services/offersApi";
 import {
   buildCalculatorSyncFromKp,
@@ -63,9 +62,6 @@ const initialForm = {
   region: "",
   date: "",
   object: "",
-  // Относительный URL загруженного логотипа («/uploads/...»). Пустая строка =
-  // логотип не выбран. Заполняется через POST /api/uploads/logo (см. offersApi.uploadLogo).
-  logoUrl: "",
 };
 
 /** Все обязательные поля блока «Контактные данные» (.kp-page__contact) заполнены. */
@@ -426,9 +422,6 @@ const KpPage = () => {
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false);
   const [isPdfDialogOpen, setIsPdfDialogOpen] = useState(false);
   const [pdfDialogError, setPdfDialogError] = useState(null);
-  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
-  const [logoUploadError, setLogoUploadError] = useState(null);
-  const logoInputRef = useRef(null);
   const originalConstructionsRef = useRef([]); // сырой Offer.constructions с calc_params — для PATCH
   /** Не помечать dirty при первой подстановке данных после загрузки / сохранения. */
   const ignoreDirtyTrackingRef = useRef(true);
@@ -946,43 +939,6 @@ const KpPage = () => {
   const onFieldChange = (key) => (e) => {
     setForm((prev) => ({ ...prev, [key]: e.target.value }));
   };
-
-  // Загрузка логотипа: открыть picker (либо сразу при upload, либо после Replace).
-  const triggerLogoPicker = useCallback(() => {
-    if (isUploadingLogo) return;
-    setLogoUploadError(null);
-    logoInputRef.current?.click();
-  }, [isUploadingLogo]);
-
-  const onLogoFileChange = useCallback(async (e) => {
-    const file = e.target.files?.[0];
-    // Сброс value позволит выбрать тот же файл повторно (например, после ошибки).
-    e.target.value = "";
-    if (!file) return;
-    setIsUploadingLogo(true);
-    setLogoUploadError(null);
-    try {
-      const { url } = await uploadLogo(file);
-      setForm((prev) => ({ ...prev, logoUrl: url }));
-    } catch (err) {
-      setLogoUploadError(err?.message || "Не удалось загрузить логотип.");
-    } finally {
-      setIsUploadingLogo(false);
-    }
-  }, []);
-
-  const onLogoRemove = useCallback(() => {
-    // Физический файл оставляем (на него могут ссылаться другие КП через
-    // content-addressed имя). Просто отвязываем от текущего оффера.
-    setForm((prev) => ({ ...prev, logoUrl: "" }));
-    setLogoUploadError(null);
-  }, []);
-
-  // Если backend в GET /offers/:id обнулил logoUrl (файл пропал на сервере),
-  // но он ещё не отрисован — onError скрывает картинку и чистит state.
-  const onLogoLoadError = useCallback(() => {
-    setForm((prev) => (prev.logoUrl ? { ...prev, logoUrl: "" } : prev));
-  }, []);
 
   const onRegionChange = (e) => {
     const optionValue = e.target.value;
@@ -1805,62 +1761,6 @@ const KpPage = () => {
     <div className="kp-page">
       <main className="kp-page__main">
         <h1 className="kp-page__title">Коммерческое предложение</h1>
-
-        <section className="kp-page__logo" aria-label="Логотип КП">
-          <input
-            ref={logoInputRef}
-            type="file"
-            className="kp-page__logo-input"
-            accept="image/png,image/jpeg,image/webp"
-            onChange={onLogoFileChange}
-            aria-hidden
-          />
-          {form.logoUrl ? (
-            <div className="kp-page__logo-preview-wrap">
-              <img
-                className="kp-page__logo-preview"
-                src={form.logoUrl}
-                alt="Логотип КП"
-                onError={onLogoLoadError}
-              />
-              <div className="kp-page__logo-actions">
-                <button
-                  type="button"
-                  className="kp-page__logo-btn"
-                  onClick={triggerLogoPicker}
-                  disabled={isUploadingLogo}
-                >
-                  {isUploadingLogo ? "Загрузка..." : "Заменить"}
-                </button>
-                <button
-                  type="button"
-                  className="kp-page__logo-btn kp-page__logo-btn--danger"
-                  onClick={onLogoRemove}
-                  disabled={isUploadingLogo}
-                >
-                  Удалить
-                </button>
-              </div>
-            </div>
-          ) : (
-            <button
-              type="button"
-              className="kp-page__logo-btn kp-page__logo-btn--primary"
-              onClick={triggerLogoPicker}
-              disabled={isUploadingLogo}
-            >
-              {isUploadingLogo ? "Загрузка..." : "Загрузить логотип"}
-            </button>
-          )}
-          {logoUploadError && (
-            <div className="kp-page__logo-error" role="alert">
-              {logoUploadError}
-            </div>
-          )}
-          <div className="kp-page__logo-hint">
-            PNG, JPEG или WebP, до 1 MB.
-          </div>
-        </section>
 
         <section className="kp-page__contact" aria-label="Контактные данные">
           <div className="kp-page__field-row">

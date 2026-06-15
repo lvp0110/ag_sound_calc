@@ -149,7 +149,6 @@ export const OfferFormSchema = z
     office_address: z.string().nullish(),
     kp_date: z.string().nullish(),
     object_name: z.string().nullish(),
-    logo_url: z.string().nullish(),
     region: z.string().nullish(),
     markup_percent: z.number().nullish(),
     discount_percent: z.number().nullish(),
@@ -247,6 +246,7 @@ export const CompanySchema = z
     ogrn: z.string().nullable(),
     kpp: z.string().nullable(),
     inn: z.string().nullable(),
+    logo_url: z.string().nullable(),
   })
   .openapi("Company");
 
@@ -261,7 +261,6 @@ export const OfferSchema = z
     office_address: z.string().nullable(),
     kp_date: z.string().nullable(),
     object_name: z.string().nullable(),
-    logo_url: z.string().nullable(),
     region: z.string().nullable(),
     markup_percent: z.number().nullable(),
     discount_percent: z.number().nullable(),

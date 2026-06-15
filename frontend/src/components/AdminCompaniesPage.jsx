@@ -5,6 +5,7 @@ import {
   deleteCompany,
   listCompanies,
   updateCompany,
+  uploadLogo,
 } from "../services/adminApi.js";
 import "./Admin.css";
 
@@ -18,16 +19,44 @@ function CompanyModal({ initial, onClose, onSaved }) {
     ogrn: initial?.ogrn ?? "",
     kpp: initial?.kpp ?? "",
     inn: initial?.inn ?? "",
+    logo_url: initial?.logo_url ?? "",
   });
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const logoInputRef = useRef(null);
 
   const onChange = (field) => (e) => setForm({ ...form, [field]: e.target.value });
+
+  const onLogoPick = () => {
+    if (uploadingLogo || saving) return;
+    logoInputRef.current?.click();
+  };
+
+  const onLogoFileChange = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // позволяет выбрать тот же файл повторно
+    if (!file) return;
+    setUploadingLogo(true);
+    setError(null);
+    try {
+      const { url } = await uploadLogo(file);
+      setForm((prev) => ({ ...prev, logo_url: url }));
+    } catch (err) {
+      setError(err?.message || "Не удалось загрузить логотип");
+    } finally {
+      setUploadingLogo(false);
+    }
+  };
 
   const onSubmit = async (e) => {
     e.preventDefault();
     if (!form.name.trim()) {
       setError("Укажите название фирмы");
+      return;
+    }
+    if (!form.logo_url) {
+      setError("Загрузите логотип компании");
       return;
     }
     setError(null);
@@ -39,6 +68,7 @@ function CompanyModal({ initial, onClose, onSaved }) {
         ogrn: form.ogrn.trim() || null,
         kpp: form.kpp.trim() || null,
         inn: form.inn.trim() || null,
+        logo_url: form.logo_url,
       };
       const saved = isEdit
         ? await updateCompany(initial.id, body)
@@ -82,6 +112,36 @@ function CompanyModal({ initial, onClose, onSaved }) {
           <span>ИНН</span>
           <input value={form.inn} onChange={onChange("inn")} inputMode="numeric" />
         </label>
+        <div className="admin-modal__field">
+          <span>Логотип *</span>
+          <input
+            ref={logoInputRef}
+            type="file"
+            accept="image/png,image/jpeg,image/webp"
+            style={{ display: "none" }}
+            onChange={onLogoFileChange}
+          />
+          <div className="admin-logo">
+            {form.logo_url ? (
+              <img className="admin-logo__preview" src={form.logo_url} alt="Логотип" />
+            ) : (
+              <div className="admin-logo__placeholder">Не загружен</div>
+            )}
+            <button
+              type="button"
+              className="admin-modal__btn admin-modal__btn--ghost"
+              onClick={onLogoPick}
+              disabled={uploadingLogo || saving}
+            >
+              {uploadingLogo
+                ? "Загрузка..."
+                : form.logo_url
+                ? "Заменить"
+                : "Загрузить"}
+            </button>
+          </div>
+          <small className="admin-logo__hint">PNG, JPEG или WebP, до 1 MB.</small>
+        </div>
         <div className="admin-modal__actions">
           <button
             type="button"
@@ -202,6 +262,7 @@ export default function AdminCompaniesPage() {
         <table className="admin-table">
           <thead>
             <tr>
+              <th>Лого</th>
               <th>Название</th>
               <th>Адрес</th>
               <th>ОГРН</th>
@@ -218,6 +279,17 @@ export default function AdminCompaniesPage() {
                 ref={c.id === focusId ? focusedRowRef : null}
                 className={c.id === focusId ? "admin-table__row--focused" : undefined}
               >
+                <td>
+                  {c.logo_url ? (
+                    <img
+                      className="admin-table__logo"
+                      src={c.logo_url}
+                      alt={`Логотип ${c.name}`}
+                    />
+                  ) : (
+                    "—"
+                  )}
+                </td>
                 <td>{c.name}</td>
                 <td>{c.address || "—"}</td>
                 <td>{c.ogrn || "—"}</td>

@@ -270,14 +270,6 @@ const fmtQty = (v: number): string => {
   return v.toLocaleString("ru-RU", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 };
 
-/**
- * Дефолтный «брендовый» блок шапки КП. Используется когда у оффера нет своего
- * логотипа или файл недоступен — сохраняет визуальную сетку шаблона.
- */
-const DEFAULT_LOGO_BLOCK = `
-  <div class="brand"></div>
-  <div class="brand-sub"></div>`;
-
 const MIME_BY_EXT: Record<string, string> = {
   ".png": "image/png",
   ".jpg": "image/jpeg",
@@ -286,26 +278,24 @@ const MIME_BY_EXT: Record<string, string> = {
 };
 
 /**
- * Собирает HTML для шапки КП. Если в оффере есть logo_url и файл существует —
- * вставляем картинку как data: URI (puppeteer рендерит без сети, локальные
- * пути или http-запросы внутри `setContent`-страницы ненадёжны). При любой
- * проблеме (нет URL, файл не читается, неподходящее расширение) — fallback
- * на дефолтный брендовый блок.
+ * Собирает HTML логотипа для шапки КП. Логотип берётся из компании (logo_url).
+ * Если URL пуст, файл не читается или расширение не поддерживается — возвращаем
+ * пустую строку (дефолтного логотипа нет). Картинка вставляется как data: URI —
+ * puppeteer рендерит без сети.
  */
 const buildLogoBlockHtml = (logoUrl: string | null | undefined): string => {
-  if (!logoUrl) return DEFAULT_LOGO_BLOCK;
-  // Защита от path traversal — берём только basename. loadOfferDto уже
-  // прогоняет verifyLogoFile, но шаблон может рендериться и в других кейсах.
+  if (!logoUrl) return "";
+  // Защита от path traversal — берём только basename.
   const filename = path.basename(logoUrl);
   const ext = path.extname(filename).toLowerCase();
   const mime = MIME_BY_EXT[ext];
-  if (!mime) return DEFAULT_LOGO_BLOCK;
+  if (!mime) return "";
   try {
     const buf = readFileSync(path.join(UPLOADS_DIR, filename));
     const b64 = buf.toString("base64");
     return `<img class="logo-img" src="data:${mime};base64,${b64}" alt="">`;
   } catch {
-    return DEFAULT_LOGO_BLOCK;
+    return "";
   }
 };
 

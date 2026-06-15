@@ -45,9 +45,12 @@ router.get(
 router.post(
   "/companies",
   asyncHandler(async (req, res) => {
-    const { name, address, ogrn, kpp, inn } = req.body ?? {};
+    const { name, address, ogrn, kpp, inn, logo_url } = req.body ?? {};
     if (!name || !String(name).trim()) {
       return res.status(400).json({ error: "name is required" });
+    }
+    if (!logo_url || !String(logo_url).trim()) {
+      return res.status(400).json({ error: "Логотип обязателен" });
     }
     const company = await prisma.company.create({
       data: {
@@ -56,6 +59,7 @@ router.post(
         ogrn: trimOrNull(ogrn),
         kpp: trimOrNull(kpp),
         inn: trimOrNull(inn),
+        logoUrl: String(logo_url).trim(),
       },
     });
     return res.status(201).json(toCompanyDto(company));
@@ -69,9 +73,13 @@ router.patch(
     const existing = await prisma.company.findUnique({ where: { id: req.params.id } });
     if (!existing) return res.status(404).json({ error: "Company not found" });
 
-    const { name, address, ogrn, kpp, inn } = req.body ?? {};
+    const { name, address, ogrn, kpp, inn, logo_url } = req.body ?? {};
     if (name !== undefined && !String(name).trim()) {
       return res.status(400).json({ error: "name cannot be empty" });
+    }
+    // Логотип обязателен: разрешаем только замену на непустой url, очистка запрещена.
+    if (logo_url !== undefined && !String(logo_url).trim()) {
+      return res.status(400).json({ error: "Логотип нельзя очистить" });
     }
     const company = await prisma.company.update({
       where: { id: req.params.id },
@@ -81,6 +89,7 @@ router.patch(
         ogrn: ogrn !== undefined ? trimOrNull(ogrn) : undefined,
         kpp: kpp !== undefined ? trimOrNull(kpp) : undefined,
         inn: inn !== undefined ? trimOrNull(inn) : undefined,
+        logoUrl: logo_url !== undefined ? String(logo_url).trim() : undefined,
       },
     });
     return res.json(toCompanyDto(company));
