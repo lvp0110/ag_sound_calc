@@ -60,23 +60,27 @@ const buildOneConstructionBlock = async (input: ConstructionBlockInput): Promise
     hangerType: String(calcParams?.HangerType ?? calcParams?.hangerType ?? ""),
   });
 
-  const specsHtml = [
+  const metricsHtml = [
     specRow("Шифр конструкции", displayCipher),
     specRow("Толщина, мм", entry?.thickness ?? ""),
     specRow("Индекс звукоизоляции воздушного шума, Rw", entry?.soundIndex ?? ""),
     entry?.impactNoiseIndex != null
       ? specRow("Индекс звукоизоляции ударного шума, Lnw", String(entry.impactNoiseIndex))
       : "",
-    specRow("Характеристики и применение", specification),
   ]
     .filter(Boolean)
     .join("");
 
+  const specificationHtml =
+    specification !== ""
+      ? `<div class="construction-info__specification"><h4 class="construction-info__subtitle">Характеристики и применение</h4><p class="construction-info__specification-text">${esc(specification)}</p></div>`
+      : "";
+
   const compositionHtml =
     composition.length > 0
-      ? `<h4 class="construction-info__subtitle">Состав конструкции</h4><ul class="construction-info__composition">${composition
+      ? `<div class="construction-info__composition-block"><h4 class="construction-info__subtitle">Состав конструкции</h4><ul class="construction-info__composition">${composition
           .map((name) => `<li>${esc(name)}</li>`)
-          .join("")}</ul>`
+          .join("")}</ul></div>`
       : "";
 
   const imgRef = entry?.img ?? null;
@@ -89,29 +93,30 @@ const buildOneConstructionBlock = async (input: ConstructionBlockInput): Promise
     cadUrl ? fetchImageAsDataUri(cadUrl) : null,
   ]);
 
-  const figure = (uri: string | null, caption: string): string => {
+  const figure = (uri: string | null): string => {
     if (!uri) return "";
-    return `<figure class="construction-info__figure"><img src="${uri}" alt="${esc(caption)}" /><figcaption>${esc(caption)}</figcaption></figure>`;
+    return `<figure class="construction-info__figure"><img src="${uri}" alt="" /></figure>`;
   };
 
-  const imagesHtml = [figure(previewUri, "Изображение"), figure(cadUri, "Чертёж")]
-    .filter(Boolean)
-    .join("");
+  const previewFigure = figure(previewUri);
+  const cadFigure = figure(cadUri);
 
-  const hasSpecs = specsHtml.length > 0;
-  const hasBody = hasSpecs || compositionHtml || imagesHtml;
+  const hasMetrics = metricsHtml.length > 0;
+  const hasImagesRow = previewFigure || cadFigure;
+  const hasMiddleRow = hasMetrics || compositionHtml;
+  const hasBody = hasImagesRow || hasMiddleRow || specificationHtml;
   if (!hasBody) return "";
+
+  const gridHtml =
+    hasImagesRow || hasMiddleRow
+      ? `<div class="construction-info__grid">${previewFigure || '<div class="construction-info__slot"></div>'}${cadFigure || '<div class="construction-info__slot"></div>'}${hasMetrics ? `<div class="construction-info__metrics"><h4 class="construction-info__subtitle construction-info__subtitle--spacer" aria-hidden="true">Состав конструкции</h4><table class="construction-info__specs"><tbody>${metricsHtml}</tbody></table></div>` : '<div class="construction-info__slot"></div>'}${compositionHtml || '<div class="construction-info__slot"></div>'}</div>`
+      : "";
 
   return `
   <section class="construction-info">
     <h3 class="construction-info__heading">${esc(heading)}</h3>
-    <div class="construction-info__layout">
-      <div class="construction-info__text">
-        ${hasSpecs ? `<table class="construction-info__specs"><tbody>${specsHtml}</tbody></table>` : ""}
-        ${compositionHtml}
-      </div>
-      ${imagesHtml ? `<div class="construction-info__images">${imagesHtml}</div>` : ""}
-    </div>
+    ${gridHtml}
+    ${specificationHtml}
   </section>`;
 };
 

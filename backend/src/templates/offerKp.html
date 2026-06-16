@@ -261,26 +261,49 @@
     font-weight: 700;
     margin: 0 0 3mm;
   }
-  .construction-info__layout {
-    display: flex;
-    gap: 5mm;
-    align-items: flex-start;
+  .construction-info__grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 2mm;
+    row-gap: 3mm;
+    align-items: stretch;
+    margin-bottom: 3mm;
   }
-  .construction-info__text {
-    flex: 1 1 55%;
+  .construction-info__grid > * {
     min-width: 0;
   }
-  .construction-info__images {
-    flex: 0 1 42%;
+  .construction-info__metrics {
     display: flex;
     flex-direction: column;
-    gap: 3mm;
+    align-self: flex-start;
+    box-sizing: border-box;
+    width: 100%;
+  }
+  .construction-info__subtitle--spacer {
+    visibility: hidden;
+  }
+  .construction-info__metrics .construction-info__specs {
+    flex: 0 0 auto;
+    height: auto;
+    width: 100%;
   }
   .construction-info__specs {
     width: 100%;
     border-collapse: collapse;
     font-size: 8.5pt;
+    margin: 0;
+  }
+  .construction-info__specification {
     margin-bottom: 3mm;
+  }
+  .construction-info__specification-text {
+    margin: 0;
+    font-size: 8.5pt;
+    line-height: 1.35;
+    white-space: pre-wrap;
+  }
+  .construction-info__composition-block {
+    margin-bottom: 0;
   }
   .construction-info__specs th {
     text-align: left;
@@ -308,19 +331,19 @@
     margin-bottom: 1mm;
   }
   .construction-info__figure {
+    display: flex;
+    align-items: center;
+    justify-content: center;
     margin: 0;
+    min-height: 72mm;
     text-align: center;
   }
   .construction-info__figure img {
-    max-width: 100%;
-    max-height: 55mm;
-    height: auto;
+    display: block;
+    width: 100%;
+    height: 72mm;
+    max-height: 72mm;
     object-fit: contain;
-  }
-  .construction-info__figure figcaption {
-    font-size: 7.5pt;
-    color: #555;
-    margin-top: 1mm;
   }
 </style>
 </head>

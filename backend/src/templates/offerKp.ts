@@ -33,6 +33,11 @@ const TEMPLATE_PATH = fileURLToPath(new URL("./offerKp.html", import.meta.url));
 
 let cachedTemplate: string | null = null;
 const loadTemplate = (): string => {
+  // В dev читаем шаблон с диска каждый раз, чтобы правки offerKp.html
+  // применялись сразу без перезапуска backend-процесса.
+  if (process.env.NODE_ENV !== "production") {
+    return readFileSync(TEMPLATE_PATH, "utf-8");
+  }
   if (cachedTemplate === null) {
     cachedTemplate = readFileSync(TEMPLATE_PATH, "utf-8");
   }
