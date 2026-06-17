@@ -105,6 +105,27 @@ export function resolveItemsDisplayMeta({
   };
 }
 
+/** ЗИПС (AG.Z* или короткий title «ЗИПС-…»): без префикса секции Потолок/Облицовка. */
+export function isZipsItemsBaseConstruction({ agId = "", shortTitle = "" } = {}) {
+  const id = String(agId ?? "").trim();
+  if (/^AG\.Z/i.test(id)) return true;
+  return String(shortTitle ?? "")
+    .trim()
+    .toUpperCase()
+    .startsWith("ЗИПС");
+}
+
+/** Не дублировать префикс секции: потолки, полы; облицовка — только ЗИПС. */
+export function shouldSkipSectionLabelPrefix(
+  sectionLabel,
+  { zips = false } = {},
+) {
+  const label = String(sectionLabel ?? "").trim();
+  if (label === "Потолок" || label === "Пол") return true;
+  if (zips && label === "Облицовка") return true;
+  return false;
+}
+
 /** Имя для таблицы: ItemsBase.description, иначе title. */
 export function itemsBaseTableName({ title = "", description = "" } = {}) {
   const desc = String(description ?? "").trim();

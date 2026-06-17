@@ -89,6 +89,32 @@ export function itemsBaseTableName({
   return String(title ?? "").trim();
 }
 
+/** ЗИПС (AG.Z* или короткий title «ЗИПС-…»): без префикса секции Потолок/Облицовка. */
+export function isZipsItemsBaseConstruction({
+  agId = "",
+  shortTitle = "",
+}: {
+  agId?: string;
+  shortTitle?: string;
+} = {}): boolean {
+  const id = String(agId ?? "").trim();
+  if (/^AG\.Z/i.test(id)) return true;
+  return String(shortTitle ?? "")
+    .trim()
+    .toUpperCase()
+    .startsWith("ЗИПС");
+}
+
+export function shouldSkipSectionLabelPrefix(
+  sectionLabel: string,
+  { zips = false }: { zips?: boolean } = {}
+): boolean {
+  const label = String(sectionLabel ?? "").trim();
+  if (label === "Потолок" || label === "Пол") return true;
+  if (zips && label === "Облицовка") return true;
+  return false;
+}
+
 /** Базовый шифр по calc Code и ключам ItemsBase (без API-каталога). */
 export function resolveDisplayCipherFromItems(calcCode: string): string {
   const code = calcCode.trim();

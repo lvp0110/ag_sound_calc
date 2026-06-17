@@ -3,6 +3,8 @@ import {
   resolveItemsDisplayMeta,
   resolveDisplayCipherFromItems,
   itemsBaseTableName,
+  isZipsItemsBaseConstruction,
+  shouldSkipSectionLabelPrefix,
 } from "./itemsCatalog.js";
 import {
   stripHangerSuffix,
@@ -300,7 +302,13 @@ export const constructionKpCardHeading = (
     section_id: sectionId,
     ag_id: cipher,
   });
-  if (!sectionLabel) return constructionPart;
+  const zips = isZipsItemsBaseConstruction({ agId: cipher, shortTitle });
+  if (
+    !sectionLabel ||
+    shouldSkipSectionLabelPrefix(sectionLabel, { zips })
+  ) {
+    return constructionPart;
+  }
   const prefix = `${sectionLabel} `;
   if (constructionPart.toLowerCase().startsWith(prefix.toLowerCase())) {
     return constructionPart;

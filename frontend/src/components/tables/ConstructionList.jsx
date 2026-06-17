@@ -1,7 +1,11 @@
 import { Fragment, useCallback, useMemo, useState } from "react";
 import { useCalcConstructionCardsViewport } from "../../hooks/useCalcConstructionCardsViewport";
 import { filterVariable } from "../../utils/formatters";
-import { resolveConstructionTableText } from "../../utils/itemsCatalog.js";
+import {
+  isZipsItemsBaseConstruction,
+  resolveConstructionTableText,
+  shouldSkipSectionLabelPrefix,
+} from "../../utils/itemsCatalog.js";
 import MaterialsList, {
   computeGrandTotalRubForConstructions,
   computeTotalRubForMaterialsData,
@@ -197,8 +201,8 @@ function constructionDisplayTitle({ title }) {
 
 /** Заголовок карточки: секция расчёта + название конструкции. */
 function constructionCardHeading(item, calcParams) {
-  const { type, ag_id: code } = item;
-  const { title } = resolveConstructionTableText(item, calcParams);
+  const { ag_id: code } = item;
+  const { title, shortTitle } = resolveConstructionTableText(item, calcParams);
   const displayTitle = constructionDisplayTitle({ title });
   const normalizedCode = code != null ? String(code).trim() : "";
   const looksLikeConstructionCode = /^AG\.[A-Z0-9._-]+$/i.test(
@@ -213,7 +217,16 @@ function constructionCardHeading(item, calcParams) {
   const constructionPart =
     safeDisplayTitle !== "" ? safeDisplayTitle : "Конструкция";
   const sectionLabel = sectionLabelForConstruction(item);
-  if (!sectionLabel) return constructionPart;
+  const zips = isZipsItemsBaseConstruction({
+    agId: code,
+    shortTitle: shortTitle || item.short_title,
+  });
+  if (
+    !sectionLabel ||
+    shouldSkipSectionLabelPrefix(sectionLabel, { zips })
+  ) {
+    return constructionPart;
+  }
   const prefix = `${sectionLabel} `;
   if (constructionPart.toLowerCase().startsWith(prefix.toLowerCase())) {
     return constructionPart;
