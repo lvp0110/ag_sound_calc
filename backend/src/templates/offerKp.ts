@@ -488,7 +488,7 @@ export function renderOfferKpHtml({
     sectionsHtml += `
       <tr class="section-row">
         <td class="num"><strong>${sectionNo}</strong></td>
-        <td class="name section-title" colspan="5"><strong>${esc(sec.name)}</strong></td>
+        <td class="name section-title" colspan="4"><strong>${esc(sec.name)}</strong></td>
         <td class="sum"><strong>${fmtRub(sec.sectionTotal)}</strong></td>
       </tr>`;
     sec.rows.forEach((row, rIdx) => {
@@ -497,7 +497,6 @@ export function renderOfferKpHtml({
       <tr class="item-row">
         <td class="num">${esc(itemNo)}</td>
         <td class="name">${esc(row.name)}</td>
-        <td class="lead"></td>
         <td class="unit">${esc(row.unit)}</td>
         <td class="qty">${esc(fmtQty(row.qty))}</td>
         <td class="price">${fmtRub(row.unitPrice)}</td>

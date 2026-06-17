@@ -1921,7 +1921,13 @@ const KpPage = () => {
                   />
                 </li>
               ))}
+              <li className="kp-page__settings-item">
+                <span className="kp-page__settings-note">
+                  * Добавить монтажные ставки можно здесь или в карточке конструкции.
+                </span>
+              </li>
             </ul>
+            
           )}
         </section>
 
