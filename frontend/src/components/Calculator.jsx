@@ -3,14 +3,14 @@ import { useParams, useNavigate } from "react-router-dom";
 import Modal from "./Modal";
 import "./Calculator.css";
 import SubCategories from "../data/subCategories";
-import Items, { getItemsWithApiImages } from "../data/items";
+import Items, { getItemsWithApiImages } from "../data/items.js";
 import mainSections from "../data/mainSections";
 import {
   constRZero,
   constSentZero,
   openingZero,
 } from "../constants/defaultValues";
-import { getAllIsolationConstr, getImageUrl } from "../services/api";
+import { getImageUrl } from "../services/api";
 import { getResponsiveImageProps } from "../utils/responsiveImages";
 import {
   validateInput,
@@ -34,6 +34,11 @@ import {
   HANGER_VIBROSTEK,
   stripHangerSuffix,
 } from "../utils/calcUlTapeFallback";
+import {
+  getItemsAgIdKeyMap,
+  itemsBaseTableName,
+  resolveItemsDisplayMeta,
+} from "../utils/itemsCatalog.js";
 import {
   sectionIdFromCode,
   sectionIdFromSubCategory,
@@ -245,23 +250,10 @@ const Calculator = () => {
           }
         }
 
-        const [offer, constrList] = await Promise.all([
-          getOffer(activeOfferId),
-          getAllIsolationConstr().catch(() => []),
-        ]);
+        const offer = await getOffer(activeOfferId);
         if (cancelled) return;
 
-        const titleByCode = new Map();
-        for (const row of constrList || []) {
-          if (row?.Code) {
-            titleByCode.set(row.Code, {
-              Name: row.Name,
-              Description: row.Description,
-            });
-          }
-        }
-
-        const state = mapOfferToCalculatorState(offer, { titleByCode });
+        const state = mapOfferToCalculatorState(offer);
         const storeNow = useCalculatorStore.getState();
         const incomingEmpty = !state.constrToCalcToSent?.length;
         if (incomingEmpty && storeNow.ConstrToCalcToSent.length > 0) {
@@ -711,15 +703,28 @@ const Calculator = () => {
     );
     const sectionId =
       sectionIdFromSubCategory(currentSubCategory) || sectionIdFromCode(code);
+    const agId = resolveDisplayCipher(code, getItemsAgIdKeyMap());
 
-    const { title: displayTitle, description: displayDescription } =
+    const { title: shortTitle, description: baseDescription } =
+      resolveItemsDisplayMeta({
+        calcCode: code,
+        cipher: agId,
+        sectionId,
+        catalogId: Constr?.id,
+      });
+
+    const { title: hangerShortTitle, description: displayDescription } =
       applyUltrasonicHangerDisplayText({
-        title: Constr?.title,
-        description: Constr?.description,
-        agId: Constr?.ag_id,
+        title: shortTitle,
+        description: baseDescription,
+        agId: agId || Constr?.ag_id,
         calcCode: code,
         hangerType: currentHangerType,
       });
+    const displayTitle = itemsBaseTableName({
+      title: hangerShortTitle,
+      description: displayDescription,
+    });
 
     const newConstR = {
       ...constR,
@@ -727,11 +732,13 @@ const Calculator = () => {
       description: displayDescription,
       key_id: Date.now(),
       title: displayTitle,
+      short_title: hangerShortTitle,
+      catalog_id: Constr?.id,
       type: IconType?.title,
       section_id: sectionId,
       // Для UI показываем базовый шифр без суффиксов (AG.F...),
       // а полный код остаётся в newConstrSent.Code для расчёта/API.
-      ag_id: resolveDisplayCipher(code),
+      ag_id: agId,
       step: Constr?.step,
       weight: Constr?.weight,
     };

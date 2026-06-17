@@ -118,6 +118,7 @@ dev-docker: ## Поднять ВЕСЬ стек в docker (postgres + adminer + 
 stop: ## Убить зависшие backend/frontend процессы (host) + остановить docker-контейнеры стека
 	@pkill -f "tsx watch src/index.ts" 2>/dev/null || true
 	@pkill -f "vite" 2>/dev/null || true
+	@for pid in $$(lsof -tiTCP:5173 -sTCP:LISTEN 2>/dev/null); do kill $$pid 2>/dev/null || true; done
 	@docker compose stop frontend backend 2>/dev/null || true
 	@echo "✓ backend и frontend остановлены"
 

@@ -1,5 +1,10 @@
 import type { CatalogEntry } from "../services/catalogData.js";
 import {
+  resolveItemsDisplayMeta,
+  resolveDisplayCipherFromItems,
+  itemsBaseTableName,
+} from "./itemsCatalog.js";
+import {
   stripHangerSuffix,
   stripTapeSuffix,
   UL_HANGER_SUFFIX,
@@ -244,21 +249,9 @@ export const constructionTypeFromCalcParams = (
 
 const constructionDisplayTitle = ({
   title,
-  type,
 }: {
   title: string;
-  type: string;
-}): string => {
-  const cleanTitle = title.trim();
-  if (cleanTitle === "") return "";
-  const sectionType = String(type ?? "").trim().toUpperCase();
-  const isCeilingSection = sectionType === "ПОТОЛОК";
-  const isCladdingSection = sectionType === "ОБЛИЦОВКА";
-  const isZipsConstruction = cleanTitle.toUpperCase().startsWith("ЗИПС");
-  if (isCeilingSection && isZipsConstruction) return `Потолок ${cleanTitle}`;
-  if (isCladdingSection && isZipsConstruction) return `Облицовка ${cleanTitle}`;
-  return cleanTitle;
-};
+}): string => String(title ?? "").trim();
 
 /**
  * Заголовок секции PDF = `constructionCardHeading` на странице КП
@@ -271,36 +264,28 @@ export const constructionKpCardHeading = (
   if (!calcParams) return "Конструкция";
 
   const calcCode = typeof calcParams.Code === "string" ? calcParams.Code.trim() : "";
-  const cipher = resolveDisplayCipher(calcCode, catalog);
-  const meta = cipher ? catalog.get(cipher) : undefined;
-  const storedDisplayTitle =
-    typeof calcParams.DisplayTitle === "string" ? calcParams.DisplayTitle.trim() : "";
-  const catalogName = meta?.name?.trim() ?? "";
-  const looksLikeCode = (s: string) => /^AG\.[A-Z0-9._-]+$/i.test(s);
-  const pickHuman = (...cands: string[]) => {
-    for (const raw of cands) {
-      const t = raw.trim();
-      if (t && !looksLikeCode(t)) return t;
-    }
-    return "";
-  };
-  let title = pickHuman(storedDisplayTitle, catalogName) || cipher || "—";
-  let description = meta?.description?.trim() ?? "";
-  ({ title, description } = applyUltrasonicHangerDisplayText({
-    title,
-    description,
-    agId: cipher,
-    calcCode,
-  }));
-  void description;
-
-  const type = constructionTypeFromCalcParams(calcParams);
+  const cipher =
+    resolveDisplayCipherFromItems(calcCode) ||
+    resolveDisplayCipher(calcCode, catalog);
   const sectionId =
     (typeof calcParams.SectionId === "string" && calcParams.SectionId) ||
     sectionIdFromCode(calcCode) ||
     "";
+  const { title: itemsShortTitle, description: itemsDescription } =
+    resolveItemsDisplayMeta({ calcCode, cipher, sectionId });
+  let shortTitle = itemsShortTitle;
+  let description = itemsDescription;
+  ({ title: shortTitle, description } = applyUltrasonicHangerDisplayText({
+    title: shortTitle,
+    description,
+    agId: cipher,
+    calcCode,
+  }));
+  const title = itemsBaseTableName({ title: shortTitle, description }) || cipher || "—";
 
-  const displayTitle = constructionDisplayTitle({ title, type });
+  const type = constructionTypeFromCalcParams(calcParams);
+
+  const displayTitle = constructionDisplayTitle({ title });
   const normalizedCode = cipher.trim();
   const looksLikeConstructionCode = /^AG\.[A-Z0-9._-]+$/i.test(displayTitle.trim());
   const safeDisplayTitle =

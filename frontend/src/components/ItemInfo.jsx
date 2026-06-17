@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import Items, { getItemsWithApiImages } from "../data/items";
+import Items, { getItemsWithApiImages } from "../data/items.js";
 import {
   getImageUrl,
   getConstructionByCode,

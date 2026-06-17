@@ -1,8 +1,8 @@
-import {
-  getAllIsolationConstr,
-  buildImagesMapFromConstructions,
-  getImageUrl,
-} from '../services/api';
+import ItemsBase from "./itemsBase.js";
+
+/** Канонические title/description конструкций для таблиц и КП (не из API). */
+export { ItemsBase };
+export default ItemsBase;
 
 // Новые файлы для потолков ЗИПС (загружаются через API, а не локально)
 const zipsCeilingApiImages = {
@@ -13,459 +13,14 @@ const zipsCeilingApiImages = {
   205: "ceiling_zips_cinema.jpg",
 };
 
-const ItemsBase = [
-
-  {
-    id: 101,
-    title: "Перегородка на каркасе 50 мм",
-    description: "Перегородка на одинарном каркасе 50 мм",
-    c_id: "W",
-    template: 50.1,
-    ag_id: "AG.W101",
-    weight: "68 кг/м2",
-  },
-  {
-    id: 102,
-    title: "Перегородка на каркасе 75 мм",
-    description: "Перегородка на одинарном каркасе 75 мм",
-    c_id: "W",
-    template: 75.1,
-    ag_id: "AG.W102",
-    weight: "69 кг/м2",
-  },
-  {
-    id: 103,
-    title: "Перегородка на каркасе 100 мм",
-    description: "Перегородка на одинарном каркасе 100 мм",
-    c_id: "W",
-    template: 100.1,
-    ag_id: "AG.W103",
-    weight: "70 кг/м2",
-  },
-  {
-    id: 104,
-    title: "Перегородка на каркасе Wave 100 мм",
-    description: "Перегородка на одинарном каркасе Виброфлекс-Wave 100 мм",
-    c_id: "W",
-    template: 101.1,
-    ag_id: "AG.W104",
-    weight: "70 кг/м2",
-  },
-  {
-    id: 105,
-    title: "Перегородка на каркасе 2x50 мм",
-    description:
-      "Перегородка на двойном (независимом) сдвоенном каркасе 2x50 мм на раздельных основаниях звукоизолирующих полов",
-    c_id: "W",
-    template: 50.2,
-    ag_id: "AG.W105",
-    weight: "71 кг/м2",
-  },
-  {
-    id: 106,
-    title: "Перегородка на каркасе 2x75 мм",
-    description:
-      "Перегородка на двойном (независимом) сдвоенном каркасе 2x75 мм на раздельных основаниях звукоизолирующих полов",
-    c_id: "W",
-    template: 75.2,
-    ag_id: "AG.W106",
-    weight: "73 кг/м2",
-  },
-  {
-    id: 107,
-    title: "Перегородка на каркасе 2x100 мм",
-    description:
-      "Перегородка на двойном (независимом) сдвоенном каркасе 2x100 мм на раздельных основаниях звукоизолирующих полов",
-    c_id: "W",
-    template: 100.2,
-    ag_id: "AG.W107",
-    weight: "75 кг/м2",
-  },
-  {
-    id: 108,
-    title: "Перегородка системы Саундлайн dB-X AL",
-    description:
-      "Перегородка системы Саундлайн dB-X AL на одинарном каркасе 50 мм",
-    c_id: "W",
-    template: 8.1,
-    ag_id: "AG.W108",
-    weight: "56 кг/м2",
-  },
-  {
-    id: 201,
-    title: "ЗИПС-Вектор",
-    description:
-      "Звукоизолирующая система ЗИПС-Вектор, смонтированная на стене",
-    c_id: "L",
-    template: 6,
-    ag_id: "AG.Z201",
-    weight: "39 кг/м2",
-  },
-  {
-    id: 202,
-    title: "ЗИПС-Модуль",
-    description:
-      "Звукоизолирующая система ЗИПС-Модуль, смонтированная на стене",
-    c_id: "L",
-    template: 6,
-    ag_id: "AG.Z202",
-    weight: "40,5 кг/м2",
-  },
-  {
-    id: 203,
-    title: "ЗИПС-III-Ультра",
-    description:
-      "Звукоизолирующая система ЗИПС-III-Ультра, смонтированная на стене",
-    c_id: "L",
-    template: 6,
-    ag_id: "AG.Z203",
-    weight: "40 кг/м2",
-  },
-  {
-    id: 204,
-    title: "ЗИПС-Z4",
-    description: "Звукоизолирующая система ЗИПС-Z4, смонтированная на стене",
-    c_id: "L",
-    template: 6,
-    ag_id: "AG.Z204",
-    weight: "40,5 кг/м2",
-  },
-  {
-    id: 205,
-    title: "ЗИПС-Синема",
-    description:
-      "Звукоизолирующая система ЗИПС-Синема, смонтированная на стене",
-    c_id: "L",
-    template: 6,
-    ag_id: "AG.Z205",
-    weight: "41 кг/м2",
-  },
-  {
-    id: 206,
-    title: "ЗИПС-Слим",
-    description:
-      "Звукоизолирующая система ЗИПС-Слим, смонтированная на стене",
-    c_id: "L",
-    template: 6,
-    ag_id: "AG.Z206",
-    weight: "37,5 кг/м2",
-  },
-  {
-    id: 201,
-    title: "ЗИПС-Вектор",
-    description:
-      "Звукоизолирующая система ЗИПС-Вектор, смонтированная на потолке",
-    c_id: "C",
-    template: 4,
-    ag_id: "AG.Z201",
-    weight: "39 кг/м2",
-  },
-  {
-    id: 202,
-    title: "ЗИПС-Модуль",
-    description:
-      "Звукоизолирующая система ЗИПС-Модуль, смонтированная на потолке",
-    c_id: "C",
-    template: 4,
-    ag_id: "AG.Z202",
-    weight: "40,5 кг/м2",
-  },
-  {
-    id: 203,
-    title: "ЗИПС-III-Ультра",
-    description:
-      "Звукоизолирующая система ЗИПС-III-Ультра, смонтированная на потолке",
-    c_id: "C",
-    template: 4,
-    ag_id: "AG.Z203",
-    weight: "40 кг/м2",
-  },
-  {
-    id: 204,
-    title: "ЗИПС-Z4",
-    description:
-      "Звукоизолирующая система ЗИПС-Z4, смонтированная на потолке",
-    c_id: "C",
-    template: 4,
-    ag_id: "AG.Z204",
-    weight: "40,5 кг/м2",
-  },
-  {
-    id: 205,
-    title: "ЗИПС-Синема",
-    description:
-      "Звукоизолирующая система ЗИПС-Синема, смонтированная на потолке",
-    c_id: "C",
-    template: 4,
-    ag_id: "AG.Z205",
-    weight: "41 кг/м2",
-  },
-  {
-    id: 401,
-    title: "Облицовка на каркасе 50 мм",
-    description: "Облицовка на независимом сдвоенном каркасе 50 мм",
-    c_id: "L",
-    template: 50,
-    ag_id: "AG.L401",
-    weight: "37,5 кг/м2",
-  },
-  {
-    id: 402,
-    title: "Облицовка на каркасе 75 мм",
-    description: "Облицовка на независимом каркасе 75 мм",
-    c_id: "L",
-    template: 75,
-    ag_id: "AG.L402",
-    weight: "36,5 кг/м2",
-  },
-  {
-    id: 403,
-    title: "Облицовка на каркасе 100 мм",
-    description: "Облицовка на независимом каркасе 100 мм",
-    c_id: "L",
-    template: 100,
-    ag_id: "AG.L403",
-    weight: "37,5 кг/м2",
-  },
-  {
-    id: 404,
-    title: "Облицовка c применением Виброфлекс-Коннект ПС",
-    description:
-      "Облицовка на каркасе ПП 60/27 с применением креплений Виброфлекс-Коннект ПС",
-    c_id: "L",
-    template: 101,
-    ag_id: "AG.L404",
-    weight: "35,8 кг/м2",
-  },
-  {
-    id: 405,
-    title: "Облицовка с применением Виброфлекс-КС",
-    description:
-      "Облицовка на каркасе ПП 60/27 с применением креплений Виброфлекс-КС",
-    c_id: "L",
-    template: 101,
-    ag_id: "AG.L405",
-    weight: "35,8кг/м2",
-  },
-  {
-    id: 501,
-    title: "Потолок на креплениях Виброфлекс-Коннект ПП",
-    description:
-      "Подвесной потолок, смонтированный на креплениях Виброфлекс-Коннект ПП",
-    c_id: "C",
-    template: 5,
-    ag_id: "AG.C501",
-    weight: "37 кг/м2",
-  },
-  {
-    id: 502,
-    title: "Потолок на креплениях Виброфлекс-К15",
-    description:
-      "Подвесной потолок, смонтированный на креплениях Виброфлекс-К15",
-    c_id: "C",
-    template: 5,
-    ag_id: "AG.C502",
-    weight: "38,5 кг/м2",
-  },
-  {
-    id: 503,
-    title: "Потолок на креплениях Виброфлекс-К15 с удлинителями",
-    description:
-      "Подвесной потолок, смонтированный на креплениях Виброфлекс-К15 с удлинителями из профиля ПП 60/27",
-    c_id: "C",
-    template: 5,
-    ag_id: "AG.C503",
-    weight: "40 кг/м2",
-  },
-  {
-    id: 504,
-    title: "Шуманет-Термо ЭКО",
-    description:
-      "Шуманет-Термо ЭКО – высокоэффективный звукопоглощающий мат из акустического наполнителя Шуманет ЭКО в специальной мембране из нетканого полотна.",
-    c_id: "C",
-    template: 5,
-    ag_id: "AG.Ct_eco",
-    weight: "-",
-  },
-  {
-    id: 601,
-    title: "Пол Акуфлекс-Супер, паркет, 15мм",
-    description: "Паркетная доска 15 мм на материале Акуфлекс-Супер",
-    c_id: "F",
-    template: 1,
-    ag_id: "AG.F601",
-    weight: "0,46 кг/м2",
-  },
-  {
-    id: 602,
-    title: "Пол Акуфлекс-Супер, ламинат, 8 мм",
-    description: "Ламинат 8 мм на материале Акуфлекс-Супер",
-    c_id: "F",
-    template: 1,
-    ag_id: "AG.F602",
-    weight: "0,46 кг/м2",
-  },
-  {
-    id: 603,
-    title: "Пол Акуфлекс-Супер, стяжка, 65 мм",
-    description: "Звукоизолирующий пол на материале Акуфлекс-Супер",
-    c_id: "F",
-    template: 1,
-    ag_id: "AG.F603",
-    weight: "120,5 кг/м2",
-  },
-  {
-    id: 604,
-    title: "Пол Шуманет-100Комби",
-    description: "Звукоизолирующий пол на материале Шуманет-100Комби",
-    c_id: "F",
-    template: 1,
-    ag_id: "AG.F604",
-    weight: "122,5 кг/м2",
-  },
-  {
-    id: 605,
-    title: "Пол Шуманет-100Гидро",
-    description: "Звукоизолирующий пол на материале Шуманет-100Гидро",
-    c_id: "F",
-    template: 1,
-    ag_id: "AG.F605",
-    weight: "123,4 кг/м2",
-  },
-  {
-    id: 606,
-    title: "Пол Шумопласт",
-    description: "Звукоизолирующая выравнивающая смесь Шумопласт",
-    c_id: "F",
-    template: 9,
-    ag_id: "AG.F606",
-    weight: "121,4 кг/м2",
-  },
-  {
-    id: "P",
-    title: "Акуфлор S20, один слой",
-    description:
-      "Звукоизолирующий пол с одним слоем системы плит Акуфлор S20",
-    c_id: "F",
-    template: 2.1,
-    ag_id: "AG.F",
-    weight: "-",
-  },
-  {
-    id: 607,
-    title: "Пол Шумостоп-С2/К2, один слой",
-    description:
-      "Звукоизолирующий пол с одним слоем системы плит Шумостоп-С2/К2",
-    c_id: "F",
-    template: 607.1,
-    ag_id: "AG.F607",
-    weight: "121,8 кг/м2",
-  },
-  {
-    id: 608,
-    title: "Пол Шумостоп-С2/К2, два слоя",
-    description:
-      "Звукоизолирующий пол с двумя слоями системы плит Шумостоп-С2/К2",
-    c_id: "F",
-    template: 608.1,
-    ag_id: "AG.F608",
-    weight: "163,7 кг/м2",
-  },
-  {
-    id: 609,
-    title: "Пол Шумостоп-К2, один слой",
-    description: "Звукоизолирующий пол с одним слоем материала Шумостоп-К2",
-    c_id: "F",
-    template: 609.1,
-    ag_id: "AG.F609",
-    weight: "122,4 кг/м2",
-  },
-  {
-    id: 610,
-    title: "Пол Шумостоп-К2, два слоя",
-    description: "Звукоизолирующий пол с двумя слоями материала Шумостоп-К2",
-    c_id: "F",
-    template: 610.1,
-    ag_id: "AG.F610",
-    weight: "164,7 кг/м2",
-  },
-  {
-    id: 611,
-    title: "Пол Шуманет-Термо",
-    description: "Звукоизолирующий пол с одним слоем материала Шуманет-Термо",
-    c_id: "F",
-    template: 1,
-    ag_id: "AG.F611",
-    weight: "121 кг/м2",
-  },
-  {
-    id: 612,
-    title: "Пол Шумостоп-Техно",
-    description: "Звукоизолирующий пол с применением панелей Шумостоп-Техно",
-    c_id: "F",
-    template: 9.1,
-    ag_id: "AG.F612",
-    weight: "123 кг/м2",
-  },
-  {
-    id: 613,
-    title: "ЗИПС-ПОЛ Вектор",
-    description: "Сборная звукоизолирующая система ЗИПС-ПОЛ Вектор",
-    c_id: "F",
-    template: 111,
-    ag_id: "AG.F613",
-    weight: "49 кг/м2",
-  },
-  {
-    id: 614,
-    title: "ЗИПС-ПОЛ Модуль",
-    description: "Сборная звукоизолирующая система ЗИПС-ПОЛ Модуль",
-    c_id: "F",
-    template: 111,
-    ag_id: "AG.F614",
-    weight: "50 кг/м2",
-  },
-  {
-    id: 615,
-    title: "Звукоизолирующий пол на лагах",
-    description: "Звукоизолирующий пол на лагах",
-    c_id: "F",
-    template: 3,
-    ag_id: "AG.F615",
-    weight: "11,5 кг/м2",
-  },
-];
-
-/**
- * Подставляет название и описание из ответа GET /AllIsolationConstr (поля Name, Description).
- */
-const mergeCatalogFromApi = (items, constructions) => {
-  const byCode = new Map(
-    constructions
-      .filter((c) => c && c.Code)
-      .map((c) => [c.Code, c])
-  );
-  return items.map((item) => {
-    const api = byCode.get(item.ag_id);
-    if (!api) return { ...item };
-    return {
-      ...item,
-      title: api.Name ?? item.title,
-      description: api.Description ?? item.description,
-    };
-  });
-};
+/** Каталог API — только для картинок; title/description остаются из ItemsBase. */
+const mergeCatalogFromApi = (items) => items.map((item) => ({ ...item }));
 
 /**
  * Обогащает items изображениями из API по совпадению ag_id и Code
- * @param {Array} items - Массив items для обогащения
- * @param {Map<string, string>} imagesMap - Мапа изображений из API (Code -> Img)
- * @returns {Array} Обогащенный массив items с полем Img
  */
-const enrichItemsWithImages = (items, imagesMap) => {
-  return items.map(item => {
-    // Для потолков ЗИПС принудительно используем новые имена файлов через API,
-    // чтобы не подставлялись старые картинки из ответа API
+const enrichItemsWithImages = (items, imagesMap, getImageUrl) => {
+  return items.map((item) => {
     if (item.c_id === "C" && zipsCeilingApiImages[item.id]) {
       const newImgPath = zipsCeilingApiImages[item.id];
       return {
@@ -474,20 +29,15 @@ const enrichItemsWithImages = (items, imagesMap) => {
       };
     }
 
-    // Получаем изображение из API по ag_id (который соответствует Code в API)
     let apiImage = imagesMap.get(item.ag_id);
-    
-    // Если изображение не найдено в API для элемента "P", используем преобразованный путь
-    // из старого формата /Img_constr/floor/c2k2_1.png в формат API
+
     if (!apiImage && item.id === "P") {
-      // Преобразуем путь /Img_constr/floor/c2k2_1.png в формат API через getImageUrl
       const oldPath = "/Img_constr/floor/c2k2_1.png";
       apiImage = getImageUrl(oldPath);
     }
-    
+
     return {
       ...item,
-      // Используем изображение из API или преобразованный путь для элемента "P"
       Img: apiImage || null,
     };
   });
@@ -495,15 +45,22 @@ const enrichItemsWithImages = (items, imagesMap) => {
 
 let itemsWithApiImagesCache = null;
 let itemsWithApiImagesInFlight = null;
+const ITEMS_WITH_IMAGES_CACHE_VERSION = 3;
 
 const loadItemsWithApiImages = async () => {
+  const {
+    getAllIsolationConstr,
+    buildImagesMapFromConstructions,
+    getImageUrl,
+  } = await import("../services/api.js");
+
   try {
     const constructions = await getAllIsolationConstr();
-    const withCatalog = mergeCatalogFromApi(ItemsBase, constructions);
+    const withCatalog = mergeCatalogFromApi(ItemsBase);
     const imagesMap = buildImagesMapFromConstructions(constructions);
-    return enrichItemsWithImages(withCatalog, imagesMap);
+    return enrichItemsWithImages(withCatalog, imagesMap, getImageUrl);
   } catch {
-    // В случае ошибки возвращаем items с преобразованными путями для элемента "P"
+    const { getImageUrl } = await import("../services/api.js");
     return ItemsBase.map((item) => {
       let img = null;
       if (item.id === "P") {
@@ -519,16 +76,22 @@ const loadItemsWithApiImages = async () => {
 };
 
 /**
- * Получает обогащенные items с изображениями из API.
- * Результат кэшируется на время сессии вкладки (повторные вызовы из Calculator и ItemInfo).
- * @returns {Promise<Array>}
+ * Обогащённые items с картинками из API (кэш на сессию вкладки).
  */
 export const getItemsWithApiImages = async () => {
-  if (itemsWithApiImagesCache) return itemsWithApiImagesCache;
+  if (
+    itemsWithApiImagesCache &&
+    itemsWithApiImagesCache.version === ITEMS_WITH_IMAGES_CACHE_VERSION
+  ) {
+    return itemsWithApiImagesCache.items;
+  }
   if (!itemsWithApiImagesInFlight) {
     itemsWithApiImagesInFlight = loadItemsWithApiImages()
       .then((items) => {
-        itemsWithApiImagesCache = items;
+        itemsWithApiImagesCache = {
+          version: ITEMS_WITH_IMAGES_CACHE_VERSION,
+          items,
+        };
         return items;
       })
       .finally(() => {
@@ -537,6 +100,3 @@ export const getItemsWithApiImages = async () => {
   }
   return itemsWithApiImagesInFlight;
 };
-
-// Экспортируем базовый массив для обратной совместимости
-export default ItemsBase;

@@ -5,41 +5,41 @@ import {
 import { resolveDisplayCipher } from "./calculations.js";
 import { calculateAreaAndPerimeter } from "./calculations.js";
 import { applyUltrasonicHangerDisplayText } from "./calcUlTapeFallback.js";
+import {
+  getItemsAgIdKeyMap,
+  itemsBaseTableName,
+  resolveItemsDisplayMeta,
+  syncConstructionsTitlesFromItems,
+} from "./itemsCatalog.js";
 
-const CONSTRUCTION_CODE_RE = /^AG\.[A-Z0-9._-]+$/i;
-
-function looksLikeConstructionCode(value) {
-  return CONSTRUCTION_CODE_RE.test(String(value ?? "").trim());
-}
-
-/** Первое непустое название, не похожее на шифр AG.* */
-function pickHumanTitle(...candidates) {
-  for (const raw of candidates) {
-    const t = String(raw ?? "").trim();
-    if (t && !looksLikeConstructionCode(t)) return t;
-  }
-  return "";
-}
-
-/** Сохраняет UI-название в calc_params (каталог для AG.F и др. отдаёт шифр). */
+/** Сохраняет UI-название в calc_params из ItemsBase (не из API-каталога). */
 function mergeUiDisplayIntoCalcParams(calcParams, ui) {
   if (!calcParams || typeof calcParams !== "object") return calcParams;
-  const title = pickHumanTitle(calcParams.DisplayTitle, ui?.title);
-  const description = String(
-    ui?.description ?? calcParams.DisplayDescription ?? "",
-  ).trim();
+  const cipher = resolveDisplayCipher(calcParams.Code, getItemsAgIdKeyMap());
+  const sectionId = ui?.section_id || calcParams.SectionId;
+  const fromItems = resolveItemsDisplayMeta({
+    calcCode: calcParams.Code,
+    cipher,
+    sectionId,
+    catalogId: ui?.catalog_id ?? ui?.id,
+  });
+  const title = itemsBaseTableName(fromItems);
+  const description = fromItems.description;
   const next = { ...calcParams };
   if (title) next.DisplayTitle = title;
   if (description) next.DisplayDescription = description;
   return next;
 }
 
-function resolveConstructionTitle(cp, { cipher, meta, fallbackTitle }) {
-  return (
-    pickHumanTitle(cp?.DisplayTitle, fallbackTitle, meta?.Name) ||
-    cipher ||
-    "—"
-  );
+function resolveConstructionText(cp, { cipher, sectionId, catalogId }) {
+  const sid = sectionId || cp?.SectionId || sectionIdFromCode(cp?.Code || "");
+  const fromItems = resolveItemsDisplayMeta({
+    calcCode: cp?.Code,
+    cipher,
+    sectionId: sid,
+    catalogId,
+  });
+  return fromItems;
 }
 
 /**
@@ -89,57 +89,13 @@ export function buildCreateOfferPayload({
 
 // ─── load ───────────────────────────────────────────────────────────────────
 
-/** Обновляет title/description карточек после фоновой загрузки каталога. */
+/** Подставляет title/description из ItemsBase (ЗИПС/подвес — в applyUltrasonicHangerDisplayText). */
 export function enrichConstructionsWithTitles(
   constructions,
-  titleByCode,
+  _titleByCode,
   constrToCalcToSent = [],
 ) {
-  if (!Array.isArray(constructions) || !(titleByCode instanceof Map)) {
-    return constructions;
-  }
-  return constructions.map((item, index) => {
-    const stored = item?.ag_id || "";
-    const cipher = resolveDisplayCipher(stored, titleByCode);
-    const meta = titleByCode.get(cipher) || {};
-    const cp = constrToCalcToSent[index] || {};
-    const keepHumanTitle =
-      item.title &&
-      item.title !== stored &&
-      item.title !== cipher &&
-      item.title !== meta.Name;
-    let nextTitle = resolveConstructionTitle(cp, {
-      cipher,
-      meta,
-      fallbackTitle: keepHumanTitle ? item.title : "",
-    });
-    let nextDescription =
-      String(cp.DisplayDescription ?? "").trim() ||
-      meta.Description ||
-      item.description ||
-      "";
-    const calcCode = cp.Code ?? "";
-    ({ title: nextTitle, description: nextDescription } =
-      applyUltrasonicHangerDisplayText({
-        title: nextTitle,
-        description: nextDescription,
-        agId: cipher,
-        calcCode,
-      }));
-    if (
-      item.ag_id === cipher &&
-      item.title === nextTitle &&
-      item.description === nextDescription
-    ) {
-      return item;
-    }
-    return {
-      ...item,
-      ag_id: cipher,
-      title: nextTitle,
-      description: nextDescription,
-    };
-  });
+  return syncConstructionsTitlesFromItems(constructions, constrToCalcToSent);
 }
 
 /**
@@ -154,32 +110,35 @@ export function enrichConstructionsWithTitles(
  *   - materialRows  — дополнительные материалы (хранятся в offer.additional_materials,
  *                     независимо от расчётов — backend их не пересчитывает).
  *
- * `titleByCode` — опциональная мапа Code → {Name, Description} (результат
- * getAllIsolationConstr). Если не передать — карточка покажет Code как title.
+ * `titleByCode` — устаревший параметр (шифр/названия берутся из ItemsBase).
  */
-export function mapOfferResponseToKpView(offer, { titleByCode = new Map() } = {}) {
+export function mapOfferResponseToKpView(offer, { titleByCode: _titleByCode } = {}) {
+  const itemsKeyMap = getItemsAgIdKeyMap();
   const constructions = (offer.constructions || []).map((c) => {
     const cp = c.calc_params || {};
     const code = cp.Code || "";
-    const cipher = resolveDisplayCipher(code, titleByCode);
-    const meta = titleByCode.get(cipher) || {};
+    const cipher = resolveDisplayCipher(code, itemsKeyMap);
     const sectionId = cp.SectionId || sectionIdFromCode(code);
-    let title = resolveConstructionTitle(cp, { cipher, meta });
-    let description =
-      String(cp.DisplayDescription ?? "").trim() || meta.Description || "";
-    ({ title, description } = applyUltrasonicHangerDisplayText({
-      title,
+    const meta = resolveConstructionText(cp, { cipher, sectionId });
+    let shortTitle = meta.title;
+    let description = meta.description || "";
+    ({ title: shortTitle, description } = applyUltrasonicHangerDisplayText({
+      title: shortTitle,
       description,
-      agId: cipher,
+      agId: meta.ag_id || cipher,
       calcCode: code,
     }));
+    const displayTitle =
+      itemsBaseTableName({ title: shortTitle, description }) || cipher || "—";
     return {
       key_id: c.id,
-      title,
+      title: displayTitle,
       description,
+      short_title: shortTitle,
+      catalog_id: meta.catalogId ?? null,
       type: constructionTypeFromCalcParams(cp),
       section_id: sectionId,
-      ag_id: cipher,
+      ag_id: meta.ag_id || cipher,
       step: Number(cp.step) || 600,
       weight: null,
       imgBlack: null,

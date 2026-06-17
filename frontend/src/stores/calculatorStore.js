@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
+import { syncConstructionsTitlesFromItems } from "../utils/itemsCatalog.js";
 
 /**
  * Глобальный стор калькулятора. Сохраняется в sessionStorage — состояние
@@ -63,7 +64,11 @@ export const useCalculatorStore = create(
         tableConstrToCalc,
       }) =>
         set((state) => {
-          const ConstrToCalc = constrToCalc ?? [];
+          const sent = constrToCalcToSent ?? [];
+          const ConstrToCalc = syncConstructionsTitlesFromItems(
+            constrToCalc ?? [],
+            sent,
+          );
           const hasConstr = ConstrToCalc.length > 0;
           let table = tableConstrToCalc;
           if (hasConstr && (table == null || table === undefined)) {
@@ -75,7 +80,7 @@ export const useCalculatorStore = create(
           return {
             ...state,
             ConstrToCalc,
-            ConstrToCalcToSent: constrToCalcToSent ?? [],
+            ConstrToCalcToSent: sent,
             materialsByConstruction: materialsByConstruction ?? [],
             tableConstrToCalc: table,
           };
@@ -89,6 +94,14 @@ export const useCalculatorStore = create(
         Object.fromEntries(
           Object.keys(initialState).map((k) => [k, state[k]])
         ),
+      onRehydrateStorage: () => (state) => {
+        if (!state?.ConstrToCalc?.length) return;
+        const synced = syncConstructionsTitlesFromItems(
+          state.ConstrToCalc,
+          state.ConstrToCalcToSent ?? [],
+        );
+        state.ConstrToCalc = synced;
+      },
     }
   )
 );

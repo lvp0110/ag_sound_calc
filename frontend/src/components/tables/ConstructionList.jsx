@@ -1,6 +1,7 @@
 import { Fragment, useCallback, useMemo, useState } from "react";
 import { useCalcConstructionCardsViewport } from "../../hooks/useCalcConstructionCardsViewport";
 import { filterVariable } from "../../utils/formatters";
+import { resolveConstructionTableText } from "../../utils/itemsCatalog.js";
 import MaterialsList, {
   computeGrandTotalRubForConstructions,
   computeTotalRubForMaterialsData,
@@ -189,26 +190,16 @@ function formatConstructionAreaM2(item) {
   return area.toFixed(1);
 }
 
-function constructionDisplayTitle({ title, type }) {
-  const cleanTitle = title != null ? String(title).trim() : "";
-  if (cleanTitle === "") return "";
-  const sectionType = String(type ?? "").trim().toUpperCase();
-  const isCeilingSection = sectionType === "ПОТОЛОК";
-  const isCladdingSection = sectionType === "ОБЛИЦОВКА";
-  const isZipsConstruction = cleanTitle.toUpperCase().startsWith("ЗИПС");
-  if (isCeilingSection && isZipsConstruction) {
-    return `Потолок ${cleanTitle}`;
-  }
-  if (isCladdingSection && isZipsConstruction) {
-    return `Облицовка ${cleanTitle}`;
-  }
-  return cleanTitle;
+/** Имя в таблице — ItemsBase.description (без префиксов ЗИПС). */
+function constructionDisplayTitle({ title }) {
+  return title != null ? String(title).trim() : "";
 }
 
 /** Заголовок карточки: секция расчёта + название конструкции. */
-function constructionCardHeading(item) {
-  const { title, type, ag_id: code } = item;
-  const displayTitle = constructionDisplayTitle({ title, type });
+function constructionCardHeading(item, calcParams) {
+  const { type, ag_id: code } = item;
+  const { title } = resolveConstructionTableText(item, calcParams);
+  const displayTitle = constructionDisplayTitle({ title });
   const normalizedCode = code != null ? String(code).trim() : "";
   const looksLikeConstructionCode = /^AG\.[A-Z0-9._-]+$/i.test(
     String(displayTitle || "").trim()
@@ -231,22 +222,33 @@ function constructionCardHeading(item) {
 }
 
 /** Колонка «название» в legacy-таблице: не дублируем шифр, если title = ag_id. */
-function constructionLegacyTitle(item) {
-  const display = constructionDisplayTitle(item);
+function constructionLegacyTitle(item, calcParams) {
+  const { title } = resolveConstructionTableText(item, calcParams);
+  const display = constructionDisplayTitle({ title });
   const code = String(item.ag_id ?? "").trim();
   if (code !== "" && display === code) return "";
   return display;
 }
 
-function resolveCalcCodeForItem(constructions, constrToCalcToSent, item, index) {
+function resolveCalcParamsForItem(constructions, constrToCalcToSent, item, index) {
   if (!Array.isArray(constrToCalcToSent) || constrToCalcToSent.length === 0) {
-    return "";
+    return null;
   }
-  const byIndex = constrToCalcToSent[index]?.Code;
-  if (byIndex) return String(byIndex);
+  const byIndex = constrToCalcToSent[index];
+  if (byIndex) return byIndex;
   const idx = constructions.findIndex((c) => c.key_id === item.key_id);
-  if (idx < 0) return "";
-  return String(constrToCalcToSent[idx]?.Code ?? "");
+  if (idx < 0) return null;
+  return constrToCalcToSent[idx] ?? null;
+}
+
+function resolveCalcCodeForItem(constructions, constrToCalcToSent, item, index) {
+  const cp = resolveCalcParamsForItem(
+    constructions,
+    constrToCalcToSent,
+    item,
+    index,
+  );
+  return cp?.Code != null ? String(cp.Code) : "";
 }
 
 function constructionTableCipher(
@@ -268,7 +270,13 @@ function constructionDisplayNameOrCode(
   item,
   { constructions, constrToCalcToSent, index } = {},
 ) {
-  const title = constructionLegacyTitle(item);
+  const calcParams = resolveCalcParamsForItem(
+    constructions,
+    constrToCalcToSent,
+    item,
+    index,
+  );
+  const title = constructionLegacyTitle(item, calcParams);
   if (title) return title;
   return constructionTableCipher(item, {
     constructions,
@@ -424,6 +432,12 @@ const ConstructionList = ({
     return (
       <div className="construction-materials-blocks">
         {constructions.map((constRItem, index) => {
+          const calcParams = resolveCalcParamsForItem(
+            constructions,
+            constrToCalcToSent,
+            constRItem,
+            index,
+          );
           const cardCollapsed = collapsedCardsByKeyId[constRItem.key_id] ?? true;
           const matEntry = materialsByConstruction.find(
             (m) => m.key_id === constRItem.key_id
@@ -470,7 +484,7 @@ const ConstructionList = ({
                               aria-hidden
                             />
                             <span className="construction-card__heading-title">
-                              {constructionCardHeading(constRItem)}
+                              {constructionCardHeading(constRItem, calcParams)}
                             </span>
                           </button>
                           {showHeadingDeleteButton && (
@@ -478,7 +492,7 @@ const ConstructionList = ({
                               type="button"
                               className="construction-card__heading-delete-button"
                               onClick={() => onDelete(constRItem.key_id)}
-                              aria-label={`Удалить конструкцию ${constructionCardHeading(constRItem)}`}
+                              aria-label={`Удалить конструкцию ${constructionCardHeading(constRItem, calcParams)}`}
                             >
                               ×
                             </button>
@@ -651,6 +665,12 @@ const ConstructionList = ({
           aria-label="Список конструкций"
         >
           {constructions.map((constRItem, index) => {
+            const calcParams = resolveCalcParamsForItem(
+              constructions,
+              constrToCalcToSent,
+              constRItem,
+              index,
+            );
             const legacyExpanded = expandedLegacyKeyIdActive === constRItem.key_id;
             const matEntry = materialsByConstruction?.find(
               (m) => m.key_id === constRItem.key_id,
@@ -660,7 +680,9 @@ const ConstructionList = ({
               splitMaterialsByArticleDisplay(materialsData);
             const baseTableId = index === 0 ? "table2" : `table2-${index}`;
             const legacyTitle =
-              constructionLegacyTitle(constRItem) || constRItem.ag_id || "";
+              constructionLegacyTitle(constRItem, calcParams) ||
+              constRItem.ag_id ||
+              "";
             const materialsPanelId = `construction-legacy-materials-${constRItem.key_id}`;
 
             return (
@@ -781,6 +803,12 @@ const ConstructionList = ({
         </thead>
         <tbody>
           {constructions.map((constRItem, index) => {
+            const calcParams = resolveCalcParamsForItem(
+              constructions,
+              constrToCalcToSent,
+              constRItem,
+              index,
+            );
             const legacyExpanded =
               legacyTableWithMaterials &&
               expandedLegacyKeyIdActive === constRItem.key_id;
@@ -794,7 +822,9 @@ const ConstructionList = ({
               splitMaterialsByArticleDisplay(materialsData);
             const baseTableId = index === 0 ? "table2" : `table2-${index}`;
             const legacyTitle =
-              constructionLegacyTitle(constRItem) || constRItem.ag_id || "";
+              constructionLegacyTitle(constRItem, calcParams) ||
+              constRItem.ag_id ||
+              "";
             const titleExpandable = legacyTableWithMaterials && legacyTitle !== "";
 
             return (
@@ -844,7 +874,7 @@ const ConstructionList = ({
                         {legacyTitle}
                       </button>
                     ) : (
-                      constructionLegacyTitle(constRItem)
+                      constructionLegacyTitle(constRItem, calcParams)
                     )}
                   </td>
                   <td className="construction-list-legacy__dim-td">

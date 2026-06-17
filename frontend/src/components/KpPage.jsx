@@ -30,10 +30,6 @@ import {
   mapOfferResponseToKpView,
   pickConstrToCalcToSentForSave,
 } from "../utils/offerMapper";
-import {
-  buildTitleByCodeMap,
-  getAllIsolationConstr,
-} from "../services/api";
 import { useAuth } from "../context/AuthContext.jsx";
 import {
   REGION_SELECT_OPTIONS,
@@ -462,7 +458,7 @@ const KpPage = () => {
     kpSnapshot?.constrToCalcToSent,
   ]);
 
-  // Загрузка оффера по :id. Каталог AllIsolationConstr — отдельно (может быть 25–35s).
+  // Загрузка оффера по :id.
   useEffect(() => {
     if (!id) return undefined;
     if (authStatus === "loading") return undefined;
@@ -481,14 +477,10 @@ const KpPage = () => {
 
     (async () => {
       try {
-        const [offer, constrList] = await Promise.all([
-          getOffer(id),
-          getAllIsolationConstr().catch(() => []),
-        ]);
+        const offer = await getOffer(id);
         if (cancelled) return;
 
-        const titleByCode = buildTitleByCodeMap(constrList);
-        const view = mapOfferResponseToKpView(offer, { titleByCode });
+        const view = mapOfferResponseToKpView(offer);
         originalConstructionsRef.current = offer.constructions || [];
 
         const snap = kpSnapshot && activeOfferId === id ? kpSnapshot : null;
@@ -571,7 +563,7 @@ const KpPage = () => {
           ...nextCalcTablesRaw,
           ConstrToCalc: enrichConstructionsWithTitles(
             nextCalcTablesRaw?.ConstrToCalc ?? [],
-            titleByCode,
+            null,
             constrToCalcToSent,
           ),
         };
@@ -652,35 +644,6 @@ const KpPage = () => {
     markDraftSaved,
     setSelectedArticlesForConstruction,
   ]);
-
-  // Подписи карточек из каталога — не блокируем первый рендер КП.
-  useEffect(() => {
-    if (!id || loadStatus !== "loaded") return undefined;
-
-    let cancelled = false;
-    getAllIsolationConstr()
-      .then((constrList) => {
-        if (cancelled) return;
-        const titleByCode = buildTitleByCodeMap(constrList);
-        setCalcTables((prev) => {
-          if (!prev?.ConstrToCalc?.length) return prev;
-          const sent = useCalculatorStore.getState().ConstrToCalcToSent ?? [];
-          return {
-            ...prev,
-            ConstrToCalc: enrichConstructionsWithTitles(
-              prev.ConstrToCalc,
-              titleByCode,
-              sent,
-            ),
-          };
-        });
-      })
-      .catch(() => {});
-
-    return () => {
-      cancelled = true;
-    };
-  }, [id, loadStatus]);
 
   useEffect(() => {
     ignoreDirtyTrackingRef.current = true;
