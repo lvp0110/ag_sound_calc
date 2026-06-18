@@ -56,10 +56,6 @@ function CompanyModal({ initial, onClose, onSaved }) {
       setError("Укажите название фирмы");
       return;
     }
-    if (!form.logo_url) {
-      setError("Загрузите логотип компании");
-      return;
-    }
     setError(null);
     setSaving(true);
     try {
@@ -70,7 +66,7 @@ function CompanyModal({ initial, onClose, onSaved }) {
         ogrn: form.ogrn.trim() || null,
         kpp: form.kpp.trim() || null,
         inn: form.inn.trim() || null,
-        logo_url: form.logo_url,
+        logo_url: form.logo_url || null,
       };
       const saved = isEdit
         ? await updateCompany(initial.id, body)
@@ -119,7 +115,7 @@ function CompanyModal({ initial, onClose, onSaved }) {
           <input value={form.inn} onChange={onChange("inn")} inputMode="numeric" />
         </label>
         <div className="admin-modal__field">
-          <span>Логотип *</span>
+          <span>Логотип</span>
           <input
             ref={logoInputRef}
             type="file"
