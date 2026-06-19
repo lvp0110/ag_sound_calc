@@ -10,7 +10,10 @@ import {
 } from "../utils/constructionKpDisplay.js";
 import { resolveConstrImageFetchUrl } from "../utils/constrImageUrl.js";
 import { fetchImageAsDataUri } from "../utils/fetchImageDataUri.js";
-import { zipsCeilingCadFilename } from "../utils/zipsCeilingCad.js";
+import {
+  zipsCeilingCadFilename,
+  zipsCeilingPreviewFilename,
+} from "../utils/zipsCeilingCad.js";
 import type { OfferForRender } from "../templates/offerKp.js";
 
 const esc = (s: unknown): string => {
@@ -28,13 +31,28 @@ const specRow = (label: string, value: string): string => {
   return `<tr><th>${esc(label)}</th><td>${esc(value)}</td></tr>`;
 };
 
+const isZipsCeilingSection = (
+  calcParams: Record<string, unknown> | null
+): boolean => constructionTypeFromCalcParams(calcParams) === "ПОТОЛОК";
+
+const resolvePreviewImageRef = (
+  cipher: string,
+  entry: ConstructionCatalogEntry | undefined,
+  calcParams: Record<string, unknown> | null
+): string | null => {
+  if (isZipsCeilingSection(calcParams)) {
+    const zips = zipsCeilingPreviewFilename(cipher);
+    if (zips) return zips;
+  }
+  return entry?.img ?? null;
+};
+
 const resolveCadImageRef = (
   cipher: string,
   entry: ConstructionCatalogEntry | undefined,
   calcParams: Record<string, unknown> | null
 ): string | null => {
-  const sectionType = constructionTypeFromCalcParams(calcParams);
-  if (sectionType === "ПОТОЛОК") {
+  if (isZipsCeilingSection(calcParams)) {
     const zips = zipsCeilingCadFilename(cipher);
     if (zips) return zips;
   }
@@ -83,7 +101,7 @@ const buildOneConstructionBlock = async (input: ConstructionBlockInput): Promise
           .join("")}</ul></div>`
       : "";
 
-  const imgRef = entry?.img ?? null;
+  const imgRef = resolvePreviewImageRef(cipher, entry, calcParams);
   const cadRef = resolveCadImageRef(cipher, entry, calcParams);
 
   const previewUrl = imgRef ? resolveConstrImageFetchUrl(imgRef) : null;
