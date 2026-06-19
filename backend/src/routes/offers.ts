@@ -15,6 +15,7 @@ import { requireAuth } from "../middleware/requireAuth.js";
 import { CalcServiceError, calculateByProduct } from "../services/calcService.js";
 import { recalcConstructionsMaterials } from "../services/offerRecalc.js";
 import { OfferPdfError, renderOfferPdf } from "../services/offerPdf.js";
+import { parsePagination, paginated } from "../utils/pagination.js";
 
 const router = Router();
 
@@ -212,12 +213,18 @@ router.get(
     const userId = req.auth?.userId;
     if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
-    const offers = await prisma.offer.findMany({
-      where: { userId },
-      orderBy: { updatedAt: "desc" },
-    });
+    const { page, limit, skip, take } = parsePagination(req.query);
+    const [offers, total] = await prisma.$transaction([
+      prisma.offer.findMany({
+        where: { userId },
+        orderBy: { updatedAt: "desc" },
+        skip,
+        take,
+      }),
+      prisma.offer.count({ where: { userId } }),
+    ]);
 
-    return res.json(offers.map(toOfferSummary));
+    return res.json(paginated(offers.map(toOfferSummary), total, page, limit));
   })
 );
 

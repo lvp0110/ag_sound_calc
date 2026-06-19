@@ -2,10 +2,24 @@ import { request } from "./apiClient.js";
 
 /** Админ-API (/api/admin/*). Доступно только пользователям с role === 'ADMIN'. */
 
+// ─── Справочники ──────────────────────────────────────────────────────────────
+
+/** GET /api/admin/countries — справочник стран [{ code, name }]. */
+export const listCountries = () => request("/api/admin/countries", { method: "GET" });
+
 // ─── Компании ─────────────────────────────────────────────────────────────────
 
-/** GET /api/admin/companies — полный список с числом сотрудников. */
-export const listCompanies = () => request("/api/admin/companies", { method: "GET" });
+/**
+ * GET /api/admin/companies — постраничный список с числом сотрудников.
+ * Возвращает { items, total, page, limit, pages }.
+ * `all: true` → весь список одной страницей (для дропдаунов).
+ */
+export const listCompanies = ({ page = 1, limit = 20, all = false } = {}) => {
+  const qs = all
+    ? new URLSearchParams({ all: "1" })
+    : new URLSearchParams({ page: String(page), limit: String(limit) });
+  return request(`/api/admin/companies?${qs}`, { method: "GET" });
+};
 
 /** POST /api/admin/companies — создать компанию. */
 export const createCompany = (body) =>
@@ -21,8 +35,14 @@ export const deleteCompany = (id) =>
 
 // ─── Пользователи ─────────────────────────────────────────────────────────────
 
-/** GET /api/admin/users — список пользователей с компанией и ролью. */
-export const listUsers = () => request("/api/admin/users", { method: "GET" });
+/**
+ * GET /api/admin/users — постраничный список пользователей с компанией и ролью.
+ * Возвращает { items, total, page, limit, pages }.
+ */
+export const listUsers = ({ page = 1, limit = 20 } = {}) => {
+  const qs = new URLSearchParams({ page: String(page), limit: String(limit) });
+  return request(`/api/admin/users?${qs}`, { method: "GET" });
+};
 
 /** POST /api/admin/users — создать пользователя. */
 export const createUser = (body) =>

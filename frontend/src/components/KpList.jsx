@@ -14,7 +14,10 @@ import {
 } from "../services/offersApi";
 import { getRegionCityLabel } from "../constants/regionSelectOptions.js";
 import PdfPrintDialog from "./PdfPrintDialog.jsx";
+import Pagination from "./Pagination.jsx";
 import "./KpList.css";
+
+const PAGE_SIZE = 20;
 
 function formatRegionCell(region) {
   const label = getRegionCityLabel(region);
@@ -48,6 +51,8 @@ export default function KpList() {
   );
   const allowExitToList = useOfferEditSessionStore((s) => s.allowExitToList);
   const [offers, setOffers] = useState([]);
+  const [page, setPage] = useState(1);
+  const [meta, setMeta] = useState({ total: 0, pages: 1, limit: PAGE_SIZE });
   const [loadStatus, setLoadStatus] = useState("idle");
   const [error, setError] = useState(null);
   const [cloningId, setCloningId] = useState(null);
@@ -62,8 +67,9 @@ export default function KpList() {
     setLoadStatus("loading");
     setError(null);
     try {
-      const data = await listOffers();
-      setOffers(Array.isArray(data) ? data : []);
+      const data = await listOffers({ page, limit: PAGE_SIZE });
+      setOffers(Array.isArray(data?.items) ? data.items : []);
+      setMeta({ total: data?.total ?? 0, pages: data?.pages ?? 1, limit: data?.limit ?? PAGE_SIZE });
       setLoadStatus("loaded");
     } catch (err) {
       if (err?.status === 401) {
@@ -73,7 +79,7 @@ export default function KpList() {
         setLoadStatus("error");
       }
     }
-  }, []);
+  }, [page]);
 
   useEffect(() => {
     // После «Выйти» не открывать КП снова (kpExit в state или allowExitToList).
@@ -183,8 +189,13 @@ export default function KpList() {
     setError(null);
     try {
       await deleteOffer(offer.id);
-      // удаляем из локального списка, чтобы не перезагружать
-      setOffers((prev) => prev.filter((o) => o.id !== offer.id));
+      // Если удалили последний элемент на странице (кроме первой) — шаг назад,
+      // иначе перезагружаем текущую (пересчитать total/pages).
+      if (offers.length === 1 && page > 1) {
+        setPage((p) => p - 1);
+      } else {
+        load();
+      }
     } catch (err) {
       setError(err?.message || "Не удалось удалить КП.");
     } finally {
@@ -305,7 +316,7 @@ export default function KpList() {
             {offers.map((o, i) => (
               <article key={o.id} className="kp-list__card" role="listitem">
                 <div className="kp-list__card-header">
-                  <span className="kp-list__card-num">{i + 1}</span>
+                  <span className="kp-list__card-num">{(page - 1) * meta.limit + i + 1}</span>
                   <button
                     type="button"
                     className="kp-list__link kp-list__card-title"
@@ -347,7 +358,7 @@ export default function KpList() {
             <tbody>
               {offers.map((o, i) => (
                 <tr key={o.id}>
-                  <td className="kp-list__num-cell">{i + 1}</td>
+                  <td className="kp-list__num-cell">{(page - 1) * meta.limit + i + 1}</td>
                   <td>
                     <button
                       type="button"
@@ -365,6 +376,14 @@ export default function KpList() {
               ))}
             </tbody>
           </table>
+
+          <Pagination
+            page={page}
+            pages={meta.pages}
+            total={meta.total}
+            limit={meta.limit}
+            onChange={setPage}
+          />
         </>
       )}
 

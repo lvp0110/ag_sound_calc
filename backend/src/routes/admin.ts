@@ -4,9 +4,16 @@ import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/requireAuth.js";
 import { requireAdmin } from "../middleware/requireAdmin.js";
 import { toCompanyDto, toUserDto } from "../utils/userDto.js";
+import { parsePagination, paginated } from "../utils/pagination.js";
 
 const SALT_ROUNDS = 10;
 const router = Router();
+
+/** Код страны по умолчанию (см. справочник `countries`). */
+const DEFAULT_COUNTRY_CODE = "RU";
+/** Проверка кода страны по справочнику. */
+const isValidCountryCode = async (code: string): Promise<boolean> =>
+  (await prisma.country.count({ where: { code } })) > 0;
 
 type AsyncRouteHandler = (req: Request, res: Response, next: NextFunction) => Promise<Response | void>;
 const asyncHandler = (handler: AsyncRouteHandler) => (req: Request, res: Response, next: NextFunction) =>
@@ -20,24 +27,40 @@ const trimOrNull = (v: unknown): string | null => {
   return s === "" ? null : s;
 };
 
+// ─── Countries (справочник) ─────────────────────────────────────────────────
+
+/** GET /api/admin/countries — справочник стран для выпадающих списков. */
+router.get(
+  "/countries",
+  asyncHandler(async (_req, res) => {
+    const countries = await prisma.country.findMany({ orderBy: { name: "asc" } });
+    return res.json(countries.map((c) => ({ code: c.code, name: c.name })));
+  })
+);
+
 // ─── Companies ────────────────────────────────────────────────────────────────
 
-/** GET /api/admin/companies — список компаний с числом сотрудников. */
+/** GET /api/admin/companies — список компаний с числом сотрудников (пагинация). */
 router.get(
   "/companies",
-  asyncHandler(async (_req, res) => {
-    const companies = await prisma.company.findMany({
-      orderBy: { name: "asc" },
-      include: { _count: { select: { users: true } } },
-    });
-    return res.json(
-      companies.map((c) => ({
-        ...toCompanyDto(c),
-        users_count: c._count.users,
-        created_at: c.createdAt,
-        updated_at: c.updatedAt,
-      }))
-    );
+  asyncHandler(async (req, res) => {
+    const { page, limit, skip, take } = parsePagination(req.query);
+    const [companies, total] = await prisma.$transaction([
+      prisma.company.findMany({
+        orderBy: { name: "asc" },
+        include: { country: true, _count: { select: { users: true } } },
+        skip,
+        take,
+      }),
+      prisma.company.count(),
+    ]);
+    const items = companies.map((c) => ({
+      ...toCompanyDto(c),
+      users_count: c._count.users,
+      created_at: c.createdAt,
+      updated_at: c.updatedAt,
+    }));
+    return res.json(paginated(items, total, page, limit));
   })
 );
 
@@ -45,20 +68,27 @@ router.get(
 router.post(
   "/companies",
   asyncHandler(async (req, res) => {
-    const { name, address, phone, ogrn, kpp, inn, logo_url } = req.body ?? {};
+    const { name, address, phone, country_code, ogrn, kpp, inn, logo_url } = req.body ?? {};
     if (!name || !String(name).trim()) {
       return res.status(400).json({ error: "name is required" });
+    }
+    const resolvedCode =
+      country_code !== undefined ? String(country_code) : DEFAULT_COUNTRY_CODE;
+    if (!(await isValidCountryCode(resolvedCode))) {
+      return res.status(400).json({ error: "Unknown country_code" });
     }
     const company = await prisma.company.create({
       data: {
         name: String(name).trim(),
         address: trimOrNull(address),
         phone: trimOrNull(phone),
+        countryCode: resolvedCode,
         ogrn: trimOrNull(ogrn),
         kpp: trimOrNull(kpp),
         inn: trimOrNull(inn),
         logoUrl: trimOrNull(logo_url),
       },
+      include: { country: true },
     });
     return res.status(201).json(toCompanyDto(company));
   })
@@ -71,9 +101,12 @@ router.patch(
     const existing = await prisma.company.findUnique({ where: { id: req.params.id } });
     if (!existing) return res.status(404).json({ error: "Company not found" });
 
-    const { name, address, phone, ogrn, kpp, inn, logo_url } = req.body ?? {};
+    const { name, address, phone, country_code, ogrn, kpp, inn, logo_url } = req.body ?? {};
     if (name !== undefined && !String(name).trim()) {
       return res.status(400).json({ error: "name cannot be empty" });
+    }
+    if (country_code !== undefined && !(await isValidCountryCode(String(country_code)))) {
+      return res.status(400).json({ error: "Unknown country_code" });
     }
     const company = await prisma.company.update({
       where: { id: req.params.id },
@@ -81,11 +114,13 @@ router.patch(
         name: name !== undefined ? String(name).trim() : undefined,
         address: address !== undefined ? trimOrNull(address) : undefined,
         phone: phone !== undefined ? trimOrNull(phone) : undefined,
+        countryCode: country_code !== undefined ? String(country_code) : undefined,
         ogrn: ogrn !== undefined ? trimOrNull(ogrn) : undefined,
         kpp: kpp !== undefined ? trimOrNull(kpp) : undefined,
         inn: inn !== undefined ? trimOrNull(inn) : undefined,
         logoUrl: logo_url !== undefined ? trimOrNull(logo_url) : undefined,
       },
+      include: { country: true },
     });
     return res.json(toCompanyDto(company));
   })
@@ -110,15 +145,21 @@ router.delete(
 
 // ─── Users ──────────────────────────────────────────────────────────────────
 
-/** GET /api/admin/users — список пользователей с компанией и ролью. */
+/** GET /api/admin/users — список пользователей с компанией и ролью (пагинация). */
 router.get(
   "/users",
-  asyncHandler(async (_req, res) => {
-    const users = await prisma.user.findMany({
-      orderBy: { createdAt: "asc" },
-      include: { company: true },
-    });
-    return res.json(users.map(toUserDto));
+  asyncHandler(async (req, res) => {
+    const { page, limit, skip, take } = parsePagination(req.query);
+    const [users, total] = await prisma.$transaction([
+      prisma.user.findMany({
+        orderBy: { createdAt: "asc" },
+        include: { company: { include: { country: true } } },
+        skip,
+        take,
+      }),
+      prisma.user.count(),
+    ]);
+    return res.json(paginated(users.map(toUserDto), total, page, limit));
   })
 );
 
@@ -165,7 +206,7 @@ router.post(
         companyId: company.id,
         passwordHash,
       },
-      include: { company: true },
+      include: { company: { include: { country: true } } },
     });
     return res.status(201).json(toUserDto(user));
   })
@@ -210,7 +251,7 @@ router.patch(
         role: role !== undefined ? (role as "USER" | "ADMIN") : undefined,
         companyId: company_id !== undefined ? String(company_id) : undefined,
       },
-      include: { company: true },
+      include: { company: { include: { country: true } } },
     });
     return res.json(toUserDto(updated));
   })
@@ -257,7 +298,7 @@ router.patch(
     const updated = await prisma.user.update({
       where: { id: req.params.id },
       data: { isBlocked: is_blocked },
-      include: { company: true },
+      include: { company: { include: { country: true } } },
     });
     return res.json(toUserDto(updated));
   })

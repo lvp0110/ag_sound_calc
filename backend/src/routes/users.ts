@@ -19,7 +19,7 @@ router.get(
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      include: { company: true },
+      include: { company: { include: { country: true } } },
     });
     if (!user) {
       return res.status(404).json({ error: "User not found" });
@@ -61,7 +61,7 @@ router.put(
         email: email !== undefined ? String(email).trim().toLowerCase() : undefined,
         officeAddress: office_address !== undefined ? String(office_address).trim() : undefined,
       },
-      include: { company: true },
+      include: { company: { include: { country: true } } },
     });
 
     return res.json(toUserDto(updatedUser));

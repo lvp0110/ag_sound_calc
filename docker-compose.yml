@@ -27,8 +27,10 @@ services:
       context: ./backend
       target: dev
     container_name: ag_sound_calc_backend
-    # Применяем миграции, затем поднимаем tsx watch.
-    command: sh -c "npx prisma migrate deploy && npm run dev"
+    # Регенерируем Prisma Client (схема bind-монтируется → всегда актуальна; иначе
+    # named-volume node_modules затеняет свежий клиент из образа и ловим
+    # PrismaClientValidationError на новых полях), применяем миграции, затем tsx watch.
+    command: sh -c "npx prisma generate && npx prisma migrate deploy && npm run dev"
     environment:
       # hostname = имя сервиса postgres во внутренней docker-сети.
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/ag_sound_calc?schema=public

@@ -49,7 +49,7 @@ router.post(
     const normalizedEmail = String(email).trim().toLowerCase();
     const user = await prisma.user.findUnique({
       where: { email: normalizedEmail },
-      include: { company: true },
+      include: { company: { include: { country: true } } },
     });
     if (!user) {
       return res.status(401).json({ error: "Invalid credentials" });
@@ -81,7 +81,7 @@ router.post(
       const payload = verifyRefreshToken(refreshToken);
       const user = await prisma.user.findUnique({
         where: { id: payload.userId },
-        include: { company: true },
+        include: { company: { include: { country: true } } },
       });
       if (!user) {
         return res.status(401).json({ error: "User not found" });

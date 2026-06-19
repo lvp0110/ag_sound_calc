@@ -8,8 +8,14 @@ import { request, requestRawResponse } from "./apiClient.js";
 export const createOffer = (payload) =>
   request("/api/offers", { method: "POST", body: payload });
 
-/** GET /api/offers — список офферов (метаданные, без конструкций). */
-export const listOffers = () => request("/api/offers", { method: "GET" });
+/**
+ * GET /api/offers — постраничный список офферов (метаданные, без конструкций).
+ * Возвращает { items, total, page, limit, pages }.
+ */
+export const listOffers = ({ page = 1, limit = 20 } = {}) => {
+  const qs = new URLSearchParams({ page: String(page), limit: String(limit) });
+  return request(`/api/offers?${qs}`, { method: "GET" });
+};
 
 /** GET /api/offers/:id — оффер с пересчитанными материалами и наложенными override. */
 export const getOffer = (id) => request(`/api/offers/${encodeURIComponent(id)}`, { method: "GET" });

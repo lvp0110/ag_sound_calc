@@ -4,19 +4,33 @@ import {
   createCompany,
   deleteCompany,
   listCompanies,
+  listCountries,
   updateCompany,
   uploadLogo,
 } from "../services/adminApi.js";
+import Pagination from "./Pagination.jsx";
 import "./Admin.css";
 
-const EMPTY_FORM = { name: "", address: "", phone: "", ogrn: "", kpp: "", inn: "" };
+const PAGE_SIZE = 20;
+const DEFAULT_COUNTRY_CODE = "RU";
 
-function CompanyModal({ initial, onClose, onSaved }) {
+const EMPTY_FORM = {
+  name: "",
+  address: "",
+  phone: "",
+  country_code: DEFAULT_COUNTRY_CODE,
+  ogrn: "",
+  kpp: "",
+  inn: "",
+};
+
+function CompanyModal({ initial, countries, onClose, onSaved }) {
   const isEdit = Boolean(initial?.id);
   const [form, setForm] = useState({
     name: initial?.name ?? "",
     address: initial?.address ?? "",
     phone: initial?.phone ?? "",
+    country_code: initial?.country_code ?? DEFAULT_COUNTRY_CODE,
     ogrn: initial?.ogrn ?? "",
     kpp: initial?.kpp ?? "",
     inn: initial?.inn ?? "",
@@ -63,6 +77,7 @@ function CompanyModal({ initial, onClose, onSaved }) {
         name: form.name.trim(),
         address: form.address.trim() || null,
         phone: form.phone.trim() || null,
+        country_code: form.country_code,
         ogrn: form.ogrn.trim() || null,
         kpp: form.kpp.trim() || null,
         inn: form.inn.trim() || null,
@@ -101,6 +116,16 @@ function CompanyModal({ initial, onClose, onSaved }) {
         <label className="admin-modal__field">
           <span>Телефон</span>
           <input value={form.phone} onChange={onChange("phone")} inputMode="tel" />
+        </label>
+        <label className="admin-modal__field">
+          <span>Страна *</span>
+          <select value={form.country_code} onChange={onChange("country_code")} required>
+            {countries.map((c) => (
+              <option key={c.code} value={c.code}>
+                {c.name}
+              </option>
+            ))}
+          </select>
         </label>
         <label className="admin-modal__field">
           <span>ОГРН</span>
@@ -168,6 +193,9 @@ function CompanyModal({ initial, onClose, onSaved }) {
 
 export default function AdminCompaniesPage() {
   const [companies, setCompanies] = useState([]);
+  const [countries, setCountries] = useState([]);
+  const [page, setPage] = useState(1);
+  const [meta, setMeta] = useState({ total: 0, pages: 1, limit: PAGE_SIZE });
   const [loadStatus, setLoadStatus] = useState("idle");
   const [error, setError] = useState(null);
   const [modal, setModal] = useState(null); // null | { initial }
@@ -176,18 +204,35 @@ export default function AdminCompaniesPage() {
   const focusId = searchParams.get("focus");
   const focusedRowRef = useRef(null);
 
+  // Справочник стран грузим один раз — нужен для селекта в форме.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await listCountries();
+        if (!cancelled) setCountries(Array.isArray(data) ? data : []);
+      } catch {
+        // Не критично: без справочника селект будет пустым.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const load = useCallback(async () => {
     setLoadStatus("loading");
     setError(null);
     try {
-      const data = await listCompanies();
-      setCompanies(Array.isArray(data) ? data : []);
+      const data = await listCompanies({ page, limit: PAGE_SIZE });
+      setCompanies(Array.isArray(data?.items) ? data.items : []);
+      setMeta({ total: data?.total ?? 0, pages: data?.pages ?? 1, limit: data?.limit ?? PAGE_SIZE });
       setLoadStatus("loaded");
     } catch (err) {
       setError(err?.message || "Не удалось загрузить компании");
       setLoadStatus("error");
     }
-  }, []);
+  }, [page]);
 
   useEffect(() => {
     load();
@@ -214,7 +259,13 @@ export default function AdminCompaniesPage() {
     setError(null);
     try {
       await deleteCompany(company.id);
-      setCompanies((prev) => prev.filter((c) => c.id !== company.id));
+      // Если удалили последний элемент на странице (кроме первой) — шаг назад,
+      // иначе перезагружаем текущую (пересчитать total/pages).
+      if (companies.length === 1 && page > 1) {
+        setPage((p) => p - 1);
+      } else {
+        load();
+      }
     } catch (err) {
       setError(err?.message || "Не удалось удалить компанию");
     } finally {
@@ -268,6 +319,7 @@ export default function AdminCompaniesPage() {
               <th>Название</th>
               <th>Адрес</th>
               <th>Телефон</th>
+              <th>Страна</th>
               <th>ОГРН</th>
               <th>КПП</th>
               <th>ИНН</th>
@@ -296,6 +348,7 @@ export default function AdminCompaniesPage() {
                 <td>{c.name}</td>
                 <td>{c.address || "—"}</td>
                 <td>{c.phone || "—"}</td>
+                <td>{c.country || "—"}</td>
                 <td>{c.ogrn || "—"}</td>
                 <td>{c.kpp || "—"}</td>
                 <td>{c.inn || "—"}</td>
@@ -328,9 +381,20 @@ export default function AdminCompaniesPage() {
         </table>
       )}
 
+      {loadStatus === "loaded" && (
+        <Pagination
+          page={page}
+          pages={meta.pages}
+          total={meta.total}
+          limit={meta.limit}
+          onChange={setPage}
+        />
+      )}
+
       {modal && (
         <CompanyModal
           initial={modal.initial}
+          countries={countries}
           onClose={() => setModal(null)}
           onSaved={handleSaved}
         />

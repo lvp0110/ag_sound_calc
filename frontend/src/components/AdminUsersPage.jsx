@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, NavLink } from "react-router-dom";
 import {
   changeUserPassword,
@@ -9,7 +9,10 @@ import {
   updateUser,
 } from "../services/adminApi.js";
 import { useAuth } from "../context/AuthContext.jsx";
+import Pagination from "./Pagination.jsx";
 import "./Admin.css";
+
+const PAGE_SIZE = 20;
 
 function UserModal({ user, companies, onClose, onSaved }) {
   const isEdit = Boolean(user?.id);
@@ -230,6 +233,8 @@ function PasswordModal({ user, onClose, onSaved }) {
 export default function AdminUsersPage() {
   const [users, setUsers] = useState([]);
   const [companies, setCompanies] = useState([]);
+  const [page, setPage] = useState(1);
+  const [meta, setMeta] = useState({ total: 0, pages: 1, limit: PAGE_SIZE });
   const [loadStatus, setLoadStatus] = useState("loading");
   const [error, setError] = useState(null);
   const [modal, setModal] = useState(null); // null | { user } (user=null → создание)
@@ -237,22 +242,35 @@ export default function AdminUsersPage() {
   const [blockingId, setBlockingId] = useState(null); // id строки с активным запросом
   const { user: currentUser } = useAuth();
 
+  const loadUsers = useCallback(async () => {
+    setLoadStatus("loading");
+    setError(null);
+    try {
+      const data = await listUsers({ page, limit: PAGE_SIZE });
+      setUsers(Array.isArray(data?.items) ? data.items : []);
+      setMeta({ total: data?.total ?? 0, pages: data?.pages ?? 1, limit: data?.limit ?? PAGE_SIZE });
+      setLoadStatus("loaded");
+    } catch (err) {
+      setError(err?.message || "Не удалось загрузить пользователей");
+      setLoadStatus("error");
+    }
+  }, [page]);
+
+  useEffect(() => {
+    loadUsers();
+  }, [loadUsers]);
+
+  // Компании грузим один раз и полностью — нужны для дропдауна в форме.
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const [usersData, companiesData] = await Promise.all([
-          listUsers(),
-          listCompanies(),
-        ]);
+        const data = await listCompanies({ all: true });
         if (cancelled) return;
-        setUsers(Array.isArray(usersData) ? usersData : []);
-        setCompanies(Array.isArray(companiesData) ? companiesData : []);
-        setLoadStatus("loaded");
-      } catch (err) {
-        if (cancelled) return;
-        setError(err?.message || "Не удалось загрузить пользователей");
-        setLoadStatus("error");
+        setCompanies(Array.isArray(data?.items) ? data.items : []);
+      } catch {
+        // Список пользователей важнее: ошибку компаний не показываем,
+        // дропдаун просто будет пустым.
       }
     })();
     return () => {
@@ -262,9 +280,12 @@ export default function AdminUsersPage() {
 
   const handleSaved = (saved, wasEdit) => {
     setModal(null);
-    setUsers((prev) =>
-      wasEdit ? prev.map((u) => (u.id === saved.id ? saved : u)) : [...prev, saved]
-    );
+    if (wasEdit) {
+      setUsers((prev) => prev.map((u) => (u.id === saved.id ? saved : u)));
+    } else {
+      // Новый пользователь может уехать на другую страницу — перезагружаем.
+      loadUsers();
+    }
   };
 
   const handleToggleBlock = async (u) => {
@@ -406,6 +427,16 @@ export default function AdminUsersPage() {
             ))}
           </tbody>
         </table>
+      )}
+
+      {loadStatus === "loaded" && (
+        <Pagination
+          page={page}
+          pages={meta.pages}
+          total={meta.total}
+          limit={meta.limit}
+          onChange={setPage}
+        />
       )}
 
       {modal && (

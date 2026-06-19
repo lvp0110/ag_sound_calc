@@ -244,12 +244,21 @@ export const CompanySchema = z
     name: z.string(),
     address: z.string().nullable(),
     phone: z.string().nullable(),
+    country_code: z.string(),
+    country: z.string().nullable(),
     ogrn: z.string().nullable(),
     kpp: z.string().nullable(),
     inn: z.string().nullable(),
     logo_url: z.string().nullable(),
   })
   .openapi("Company");
+
+export const CountrySchema = z
+  .object({
+    code: z.string(),
+    name: z.string(),
+  })
+  .openapi("Country");
 
 export const OfferSchema = z
   .object({

@@ -1,17 +1,23 @@
-import { type Company, type User } from "@prisma/client";
+import { type Company, type Country, type User } from "@prisma/client";
 
-export const toCompanyDto = (company: Company) => ({
+/** Компания с (опционально) подгруженным справочником страны. */
+type CompanyWithCountry = Company & { country?: Country | null };
+
+export const toCompanyDto = (company: CompanyWithCountry) => ({
   id: company.id,
   name: company.name,
   address: company.address,
   phone: company.phone,
+  country_code: company.countryCode,
+  // Имя страны живёт в справочнике; присутствует, если relation подгружен.
+  country: company.country?.name ?? null,
   ogrn: company.ogrn,
   kpp: company.kpp,
   inn: company.inn,
   logo_url: company.logoUrl,
 });
 
-export const toUserDto = (user: User & { company?: Company | null }) => ({
+export const toUserDto = (user: User & { company?: CompanyWithCountry | null }) => ({
   id: user.id,
   full_name: user.fullName,
   phone: user.phone,
