@@ -16,7 +16,7 @@ BACKEND_DIR := backend
 FRONTEND_DIR := frontend
 
 .PHONY: help setup install reinstall env db-up db-down db-migrate db-reset db-ui \
-        backend frontend frontend-docker dev dev-docker stop build clean status \
+        backend frontend frontend-docker dev dev-docker dev-docker-build stop build clean status \
         deploy-bootstrap deploy-backend deploy-frontend deploy-migrate \
         deploy-create-admin deploy-nginx-sync deploy-nginx-reload deploy-status
 
@@ -113,6 +113,12 @@ dev-docker: ## Поднять ВЕСЬ стек в docker (postgres + adminer + 
 	@echo "→ backend: http://localhost:3006  |  frontend: http://localhost:5173  |  adminer: http://localhost:8080"
 	@echo "→ миграции применяются автоматически при старте backend-контейнера"
 	@echo "→ Ctrl-C остановит контейнеры"
+	@echo "→ пересборка образов: make dev-docker-build"
+	docker compose up
+
+dev-docker-build: ## Пересобрать образы и поднять весь docker-стек (медленнее, нужно после смены Dockerfile/deps)
+	@docker info >/dev/null 2>&1 || { echo "✗ Docker не запущен. Запустите Docker Desktop."; exit 1; }
+	@echo "→ backend: http://localhost:3006  |  frontend: http://localhost:5173  |  adminer: http://localhost:8080"
 	docker compose up --build
 
 stop: ## Убить зависшие backend/frontend процессы (host) + остановить docker-контейнеры стека

@@ -68,7 +68,7 @@ router.get(
 router.post(
   "/companies",
   asyncHandler(async (req, res) => {
-    const { name, address, phone, country_code, ogrn, kpp, inn, logo_url } = req.body ?? {};
+    const { name, address, phone, country_code, ogrn, ogrnip, kpp, inn, logo_url } = req.body ?? {};
     if (!name || !String(name).trim()) {
       return res.status(400).json({ error: "name is required" });
     }
@@ -84,6 +84,7 @@ router.post(
         phone: trimOrNull(phone),
         countryCode: resolvedCode,
         ogrn: trimOrNull(ogrn),
+        ogrnip: trimOrNull(ogrnip),
         kpp: trimOrNull(kpp),
         inn: trimOrNull(inn),
         logoUrl: trimOrNull(logo_url),
@@ -101,7 +102,7 @@ router.patch(
     const existing = await prisma.company.findUnique({ where: { id: req.params.id } });
     if (!existing) return res.status(404).json({ error: "Company not found" });
 
-    const { name, address, phone, country_code, ogrn, kpp, inn, logo_url } = req.body ?? {};
+    const { name, address, phone, country_code, ogrn, ogrnip, kpp, inn, logo_url } = req.body ?? {};
     if (name !== undefined && !String(name).trim()) {
       return res.status(400).json({ error: "name cannot be empty" });
     }
@@ -116,6 +117,7 @@ router.patch(
         phone: phone !== undefined ? trimOrNull(phone) : undefined,
         countryCode: country_code !== undefined ? String(country_code) : undefined,
         ogrn: ogrn !== undefined ? trimOrNull(ogrn) : undefined,
+        ogrnip: ogrnip !== undefined ? trimOrNull(ogrnip) : undefined,
         kpp: kpp !== undefined ? trimOrNull(kpp) : undefined,
         inn: inn !== undefined ? trimOrNull(inn) : undefined,
         logoUrl: logo_url !== undefined ? trimOrNull(logo_url) : undefined,

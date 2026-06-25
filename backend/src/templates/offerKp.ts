@@ -95,6 +95,7 @@ export type OfferForRender = {
   company_address: string | null;
   company_phone: string | null;
   ogrn: string | null;
+  ogrnip: string | null;
   kpp: string | null;
   inn: string | null;
   /**
@@ -589,13 +590,14 @@ const DEFAULT_FOOTER = {
   companyAddress: "",
   phone: "",
   ogrn: "",
+  ogrnip: "",
   kpp: "",
   inn: "",
 } as const;
 
 /**
  * Футер PDF собирается на каждый рендер: значения из Offer
- * (company_name / company_address / company_phone / ogrn / kpp / inn) подставляются
+ * (company_name / company_address / company_phone / ogrn / ogrnip / inn / kpp) подставляются
  * по-полю; пустые поля и соответствующие строки не выводятся.
  */
 export const buildFooterHtml = (offer: OfferForRender): string => {
@@ -608,6 +610,7 @@ export const buildFooterHtml = (offer: OfferForRender): string => {
   // В колонтитуле — телефон компании (не менеджера).
   const phone = pick(offer.company_phone, DEFAULT_FOOTER.phone);
   const ogrn = pick(offer.ogrn, DEFAULT_FOOTER.ogrn);
+  const ogrnip = pick(offer.ogrnip, DEFAULT_FOOTER.ogrnip);
   const kpp = pick(offer.kpp, DEFAULT_FOOTER.kpp);
   const inn = pick(offer.inn, DEFAULT_FOOTER.inn);
 
@@ -616,15 +619,9 @@ export const buildFooterHtml = (offer: OfferForRender): string => {
 
   const requisitesParts: string[] = [];
   if (ogrn !== "") requisitesParts.push(`ОГРН ${esc(ogrn)}`);
-  if (inn !== "" || kpp !== "") {
-    const innKpp =
-      inn !== "" && kpp !== ""
-        ? `${esc(inn)}/${esc(kpp)}`
-        : inn !== ""
-          ? esc(inn)
-          : esc(kpp);
-    requisitesParts.push(`ИНН/КПП ${innKpp}`);
-  }
+  if (ogrnip !== "") requisitesParts.push(`ОГРНИП ${esc(ogrnip)}`);
+  if (inn !== "") requisitesParts.push(`ИНН ${esc(inn)}`);
+  if (kpp !== "") requisitesParts.push(`КПП ${esc(kpp)}`);
   const requisitesLine =
     requisitesParts.length > 0
       ? `<div>${requisitesParts.join(" • ")}</div>`

@@ -20,6 +20,7 @@ const EMPTY_FORM = {
   phone: "",
   country_code: DEFAULT_COUNTRY_CODE,
   ogrn: "",
+  ogrnip: "",
   kpp: "",
   inn: "",
 };
@@ -32,6 +33,7 @@ function CompanyModal({ initial, countries, onClose, onSaved }) {
     phone: initial?.phone ?? "",
     country_code: initial?.country_code ?? DEFAULT_COUNTRY_CODE,
     ogrn: initial?.ogrn ?? "",
+    ogrnip: initial?.ogrnip ?? "",
     kpp: initial?.kpp ?? "",
     inn: initial?.inn ?? "",
     logo_url: initial?.logo_url ?? "",
@@ -79,6 +81,7 @@ function CompanyModal({ initial, countries, onClose, onSaved }) {
         phone: form.phone.trim() || null,
         country_code: form.country_code,
         ogrn: form.ogrn.trim() || null,
+        ogrnip: form.ogrnip.trim() || null,
         kpp: form.kpp.trim() || null,
         inn: form.inn.trim() || null,
         logo_url: form.logo_url || null,
@@ -130,6 +133,10 @@ function CompanyModal({ initial, countries, onClose, onSaved }) {
         <label className="admin-modal__field">
           <span>ОГРН</span>
           <input value={form.ogrn} onChange={onChange("ogrn")} inputMode="numeric" />
+        </label>
+        <label className="admin-modal__field">
+          <span>ОГРНИП</span>
+          <input value={form.ogrnip} onChange={onChange("ogrnip")} inputMode="numeric" />
         </label>
         <label className="admin-modal__field">
           <span>КПП</span>
@@ -321,6 +328,7 @@ export default function AdminCompaniesPage() {
               <th>Телефон</th>
               <th>Страна</th>
               <th>ОГРН</th>
+              <th>ОГРНИП</th>
               <th>КПП</th>
               <th>ИНН</th>
               <th>Сотрудников</th>
@@ -350,6 +358,7 @@ export default function AdminCompaniesPage() {
                 <td>{c.phone || "—"}</td>
                 <td>{c.country || "—"}</td>
                 <td>{c.ogrn || "—"}</td>
+                <td>{c.ogrnip || "—"}</td>
                 <td>{c.kpp || "—"}</td>
                 <td>{c.inn || "—"}</td>
                 <td>{c.users_count}</td>

@@ -247,6 +247,7 @@ export const CompanySchema = z
     country_code: z.string(),
     country: z.string().nullable(),
     ogrn: z.string().nullable(),
+    ogrnip: z.string().nullable(),
     kpp: z.string().nullable(),
     inn: z.string().nullable(),
     logo_url: z.string().nullable(),

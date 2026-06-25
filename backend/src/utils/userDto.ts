@@ -12,6 +12,7 @@ export const toCompanyDto = (company: CompanyWithCountry) => ({
   // Имя страны живёт в справочнике; присутствует, если relation подгружен.
   country: company.country?.name ?? null,
   ogrn: company.ogrn,
+  ogrnip: company.ogrnip,
   kpp: company.kpp,
   inn: company.inn,
   logo_url: company.logoUrl,

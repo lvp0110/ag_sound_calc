@@ -58,6 +58,7 @@ export default function ProfilePage() {
             <Row label="Телефон" value={company.phone} />
             <Row label="Страна" value={company.country} />
             <Row label="ОГРН" value={company.ogrn} />
+            <Row label="ОГРНИП" value={company.ogrnip} />
             <Row label="КПП" value={company.kpp} />
             <Row label="ИНН" value={company.inn} />
           </dl>

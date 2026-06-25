@@ -14,6 +14,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       ca-certificates \
       tar \
       unzip \
+      python3 \
+      make \
+      g++ \
     && rm -rf /var/lib/apt/lists/*
 
 # Все зависимости (включая dev) — нужны tsc, prisma, @types/*.
@@ -112,6 +115,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       chromium \
       tar \
       unzip \
+      python3 \
+      make \
+      g++ \
       fonts-liberation \
       fonts-dejavu-core \
       fonts-noto-color-emoji \

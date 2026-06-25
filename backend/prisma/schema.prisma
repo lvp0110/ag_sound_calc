@@ -27,6 +27,7 @@ model Company {
   phone       String?  @db.VarChar(50)
   countryCode String   @default("RU") @map("country_code") @db.VarChar(2)
   ogrn        String?  @db.VarChar(50)
+  ogrnip      String?  @db.VarChar(50)
   kpp         String?  @db.VarChar(50)
   inn         String?  @db.VarChar(50)
   logoUrl     String?  @map("logo_url")
