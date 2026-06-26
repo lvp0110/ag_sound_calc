@@ -6,9 +6,9 @@ import type { PriceLookup } from "../services/priceData.js";
 import { constructionKpCardHeading } from "../utils/constructionKpDisplay.js";
 import { formatDateRu } from "../utils/formatDateRu.js";
 import {
+  effectiveKpQuantity,
   isPackPricedMaterial,
   kpPackDisplayUnits,
-  kpPackQuantity,
 } from "../utils/materialPackUnits.js";
 import { numberToWordsRu, pluralRu, rublesToWordsRu } from "../utils/numberToWordsRu.js";
 import { UPLOADS_DIR } from "../routes/uploads.js";
@@ -141,15 +141,6 @@ const isM2Units = (units: unknown): boolean => {
   return u === "м2" || u === "м²";
 };
 
-/** Порт quantityInSquareMeters из frontend/src/utils/formatters.js */
-const quantityInSquareMeters = (quantity: unknown): number => {
-  const q = Number(quantity);
-  if (!Number.isFinite(q)) return NaN;
-  if (Math.abs(q) >= 1_000_000) return q / 1e6;
-  if (Math.abs(q) > 1000) return q / 1e6;
-  return q;
-};
-
 const effectivePrices = (m: MaterialLike, pPerM2?: number, pPerUnit?: number) => {
   const kpM2 = parseKpDecimal(m.KpPricePerM2);
   const kpUnit = parseKpDecimal(m.KpPricePerUnit);
@@ -165,23 +156,19 @@ const materialLineSum = (
   pPerUnit: number | undefined
 ): number | null => {
   const { effM2, effUnit } = effectivePrices(m, pPerM2, pPerUnit);
+  const qty = effectiveKpQuantity(m, { forKp: true });
+  if (qty == null || !Number.isFinite(qty)) return null;
   if (isM2Units(m.Units)) {
-    const qtyM2 = quantityInSquareMeters(m.Quantity);
-    if (!Number.isFinite(qtyM2)) return null;
-    if (effM2 != null) return qtyM2 * effM2;
-    if (effUnit != null) return qtyM2 * effUnit;
+    if (effM2 != null) return qty * effM2;
+    if (effUnit != null) return qty * effUnit;
     return null;
   }
   if (isPackPricedMaterial(m)) {
-    const packs = kpPackQuantity(m);
-    if (packs == null || !Number.isFinite(packs)) return null;
-    if (effUnit != null) return packs * effUnit;
+    if (effUnit != null) return qty * effUnit;
     return null;
   }
   if (effUnit != null) {
-    const q = Number(m.Quantity);
-    if (!Number.isFinite(q)) return null;
-    return q * effUnit;
+    return qty * effUnit;
   }
   return null;
 };
@@ -203,16 +190,8 @@ const materialUnitPriceForDisplay = (
 };
 
 const materialQuantityForDisplay = (m: MaterialLike): number => {
-  if (isPackPricedMaterial(m)) {
-    const packs = kpPackQuantity(m);
-    return packs ?? 0;
-  }
-  if (isM2Units(m.Units)) {
-    const q = quantityInSquareMeters(m.Quantity);
-    return Number.isFinite(q) ? q : 0;
-  }
-  const q = Number(m.Quantity);
-  return Number.isFinite(q) ? q : 0;
+  const qty = effectiveKpQuantity(m, { forKp: true });
+  return qty ?? 0;
 };
 
 const materialArticle = (m: MaterialLike): string => {

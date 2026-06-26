@@ -887,7 +887,7 @@ const KpPage = () => {
     }
   };
 
-  const onGeneralMaterialKpPriceChange = useCallback(
+  const onMaterialKpFieldChange = useCallback(
     (key_id, indexInFullMaterialsData, field, value) => {
       setCalcTables((prev) => ({
         ...prev,
@@ -1920,7 +1920,7 @@ const KpPage = () => {
                 additionalMaterialsRubByKeyId={additionalMaterialsRubByKeyId}
                 montageByKeyId={montageByKeyId}
                 showGrandTotalInline={false}
-                onGeneralMaterialKpPriceChange={onGeneralMaterialKpPriceChange}
+                onMaterialKpFieldChange={onMaterialKpFieldChange}
               />
             </>
           ) : (

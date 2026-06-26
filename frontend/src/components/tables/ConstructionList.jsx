@@ -320,6 +320,16 @@ function noArticleIndicesInMaterialsData(materials) {
   return idx;
 }
 
+/** Индексы строк с артикулом в исходном `data` карточки (для сопоставления с `withArticle`). */
+function withArticleIndicesInMaterialsData(materials) {
+  if (!Array.isArray(materials)) return [];
+  const idx = [];
+  for (let i = 0; i < materials.length; i += 1) {
+    if (filterVariable(materials[i].Code) !== "---") idx.push(i);
+  }
+  return idx;
+}
+
 function LegacyConstructionMaterialsPanels({
   withArticle,
   noArticle,
@@ -362,7 +372,7 @@ function LegacyConstructionMaterialsPanels({
  * @param {Record<number, boolean>} [cardCollapseOverrides] — явное состояние свёрнутости (КП, из kpSnapshot)
  * @param {(key_id: number) => void} [onToggleCardCollapsed] — переключение карточки (controlled mode)
  * @param {Record<number, { price?: string, quantity?: string, unit?: string }>} [montageByKeyId] — монтаж по карточке (КП); для итога под карточкой
- * @param {(key_id: number, indexInFullMaterialsData: number, field: 'KpPricePerM2'|'KpPricePerUnit', value: string) => void} [onGeneralMaterialKpPriceChange] — правка цен «Общестроительные материалы»
+ * @param {(key_id: number, indexInFullMaterialsData: number, field: 'KpPricePerM2'|'KpPricePerUnit'|'KpQuantity', value: string) => void} [onMaterialKpFieldChange] — правка цен/количества материалов на КП
  * @param {boolean} [legacyTableWithMaterials] — таблица-список: по клику на название под строкой показываются материалы (калькулятор)
  * @param {Array<{ Code?: string }>} [constrToCalcToSent] — calc_params параллельно constructions (для колонки «шифр»)
  */
@@ -382,7 +392,7 @@ const ConstructionList = ({
   montageByKeyId,
   /** На КП итог выводится отдельным блоком ниже «Услуги». */
   showGrandTotalInline = true,
-  onGeneralMaterialKpPriceChange,
+  onMaterialKpFieldChange,
   /** На странице КП — свёрнуты при открытии; в калькуляторе по умолчанию тоже свёрнуты. */
   defaultCardsCollapsed,
   cardCollapseOverrides: controlledCardCollapseOverrides,
@@ -459,6 +469,9 @@ const ConstructionList = ({
           const { withArticle, noArticle } =
             splitMaterialsByArticleDisplay(materialsData);
           const miscRowToFullIndex = noArticleIndicesInMaterialsData(
+            materialsData
+          );
+          const withArticleRowToFullIndex = withArticleIndicesInMaterialsData(
             materialsData
           );
           const materialsRubTotal =
@@ -576,6 +589,20 @@ const ConstructionList = ({
                   data={withArticle}
                   tableId={baseTableId}
                   collapsible={readOnly}
+                  onKpMaterialQuantityChange={
+                    readOnly && onMaterialKpFieldChange
+                      ? (rowIndex, value) => {
+                          const fullIdx = withArticleRowToFullIndex[rowIndex];
+                          if (fullIdx === undefined) return;
+                          onMaterialKpFieldChange(
+                            constRItem.key_id,
+                            fullIdx,
+                            "KpQuantity",
+                            value,
+                          );
+                        }
+                      : undefined
+                  }
                 />
               )}
               {!cardCollapsed && showGeneralConstructionMaterials && noArticle.length > 0 && (
@@ -586,17 +613,31 @@ const ConstructionList = ({
                   }
                   sectionTitle="Общестроительные материалы"
                   collapsible={readOnly}
-                  editablePriceCells={readOnly && !!onGeneralMaterialKpPriceChange}
+                  editablePriceCells={readOnly && !!onMaterialKpFieldChange}
                   onKpMaterialPriceChange={(rowIndex, field, value) => {
                     const fullIdx = miscRowToFullIndex[rowIndex];
                     if (fullIdx === undefined) return;
-                    onGeneralMaterialKpPriceChange?.(
+                    onMaterialKpFieldChange?.(
                       constRItem.key_id,
                       fullIdx,
                       field,
                       value
                     );
                   }}
+                  onKpMaterialQuantityChange={
+                    readOnly && onMaterialKpFieldChange
+                      ? (rowIndex, value) => {
+                          const fullIdx = miscRowToFullIndex[rowIndex];
+                          if (fullIdx === undefined) return;
+                          onMaterialKpFieldChange(
+                            constRItem.key_id,
+                            fullIdx,
+                            "KpQuantity",
+                            value,
+                          );
+                        }
+                      : undefined
+                  }
                 />
               )}
             </>

@@ -3,12 +3,12 @@ import {
   convertUnits,
   filterVariable,
   isM2Units,
-  quantityInSquareMeters,
 } from "../../utils/formatters";
 import {
+  effectiveKpQuantity,
   formatMaterialQuantity,
   isPackPricedMaterial,
-  kpPackQuantity,
+  kpQuantityInputValue,
   materialDisplayUnits,
 } from "../../utils/materialPackUnits";
 import {
@@ -93,23 +93,19 @@ const lineSumRub = (material, pricePerM2, pricePerUnit, { forKp = false } = {}) 
     pricePerUnit
   );
   const units = material.Units;
+  const qty = effectiveKpQuantity(material, { forKp });
+  if (qty == null || !Number.isFinite(qty)) return null;
   if (isM2Units(units)) {
-    const qtyM2 = quantityInSquareMeters(material.Quantity);
-    if (Number.isNaN(qtyM2)) return null;
-    if (effM2 != null) return qtyM2 * effM2;
-    if (effUnit != null) return qtyM2 * effUnit;
+    if (effM2 != null) return qty * effM2;
+    if (effUnit != null) return qty * effUnit;
     return null;
   }
   if (forKp && isPackPricedMaterial(material)) {
-    const packs = kpPackQuantity(material);
-    if (packs == null || !Number.isFinite(packs)) return null;
-    if (effUnit != null) return packs * effUnit;
+    if (effUnit != null) return qty * effUnit;
     return null;
   }
   if (effUnit != null) {
-    const q = Number(material.Quantity);
-    if (Number.isNaN(q)) return null;
-    return q * effUnit;
+    return qty * effUnit;
   }
   return null;
 };
@@ -153,6 +149,7 @@ export function computeGrandTotalRubForConstructions(
  * @param {boolean} [collapsible=false] — на КП: таблица свёрнута, раскрытие по клику на заголовок
  * @param {boolean} [editablePriceCells=false] — одна колонка «цена» как поле ввода (блок общестроительных материалов)
  * @param {(rowIndex: number, field: 'KpPricePerM2'|'KpPricePerUnit', value: string) => void} [onKpMaterialPriceChange]
+ * @param {(rowIndex: number, value: string) => void} [onKpMaterialQuantityChange]
  * @param {boolean} [compositionOnly=false] — только артикул, название, ед.изм и кол-во (без цен и сумм)
  */
 const MaterialsList = ({
@@ -163,6 +160,7 @@ const MaterialsList = ({
   collapsible = false,
   editablePriceCells = false,
   onKpMaterialPriceChange,
+  onKpMaterialQuantityChange,
   compositionOnly = false,
 }) => {
   const [sectionOpen, setSectionOpen] = useState(false);
@@ -196,6 +194,7 @@ const MaterialsList = ({
   /** Калькулятор: на узком экране убираем колонки из DOM. КП (collapsible): все колонки в DOM, скрытие через CSS. */
   const legacyNarrow = !collapsible && !compositionOnly && isNarrowScreen;
   const singlePriceColumn = editablePriceCells;
+  const editableQuantityCells = !!onKpMaterialQuantityChange;
   const fullPriceColCount = singlePriceColumn ? 7 : 8;
   const colSpan = compositionOnly
     ? compositionNarrow
@@ -404,7 +403,7 @@ const MaterialsList = ({
                 ) : (
                   formatRub(pricePerUnit)
                 );
-                const sumDisplay = editablePriceCells ? (
+                const sumDisplay = editablePriceCells || editableQuantityCells ? (
                   <input
                     type="text"
                     readOnly
@@ -414,6 +413,21 @@ const MaterialsList = ({
                   />
                 ) : (
                   formatKpComputedSum(sumRub)
+                );
+                const quantityDisplay = formatMaterialQuantity(Material, { forKp });
+                const quantityEditInput = editableQuantityCells ? (
+                  <input
+                    type="text"
+                    className="kp-page__services-input"
+                    value={kpQuantityInputValue(Material, { forKp })}
+                    onChange={(e) =>
+                      onKpMaterialQuantityChange?.(index, e.target.value)
+                    }
+                    placeholder={quantityDisplay === "—" ? "" : quantityDisplay}
+                    aria-label={`Количество, ${materialName}`}
+                  />
+                ) : (
+                  quantityDisplay
                 );
                 const showInputsInRow = !kpNarrowDetail;
                 const detailFields = kpNarrowDetail
@@ -431,9 +445,11 @@ const MaterialsList = ({
                       {
                         id: "qty",
                         label: "Кол-во",
-                        children: forKp
-                          ? formatMaterialQuantity(Material, { forKp })
-                          : convertUnits(Material),
+                        children: editableQuantityCells
+                          ? quantityEditInput
+                          : forKp
+                            ? formatMaterialQuantity(Material, { forKp })
+                            : convertUnits(Material),
                       },
                       ...(singlePriceColumn
                         ? [
@@ -498,7 +514,7 @@ const MaterialsList = ({
                     />
                     {colInDom && (
                       <td className={hideOnKpNarrow.trim() || undefined}>
-                        {formatMaterialQuantity(Material, { forKp })}
+                        {editableQuantityCells ? quantityEditInput : quantityDisplay}
                       </td>
                     )}
                     {colInDom && (
@@ -533,7 +549,7 @@ const MaterialsList = ({
                           collapsible ? "kp-data-col--sum" : undefined
                         }
                       >
-                        {showInputsInRow && editablePriceCells
+                        {showInputsInRow && (editablePriceCells || editableQuantityCells)
                           ? sumDisplay
                           : formatKpComputedSum(sumRub)}
                       </td>

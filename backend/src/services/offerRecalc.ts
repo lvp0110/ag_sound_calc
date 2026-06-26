@@ -36,6 +36,7 @@ const materialKey = (m: MaterialLike): string => {
 const OVERRIDE_FIELDS = [
   "KpPricePerM2",
   "KpPricePerUnit",
+  "KpQuantity",
   "pricePerSquareMeter",
   "pricePerUnit",
 ] as const;
