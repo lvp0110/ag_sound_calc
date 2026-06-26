@@ -34,7 +34,20 @@ export default function OfferDraftGuard() {
 
     if (!isEditingDraft || !activeOfferId) return;
 
-    if (path === "/kp/list" || !isPathAllowedDuringDraft(path)) {
+    const session = useOfferEditSessionStore.getState();
+    const hasActiveDraftWork =
+      session.hasUnsavedChanges ||
+      Boolean(session.kpSnapshot) ||
+      session.isNewDraftOffer(activeOfferId);
+
+    if (path === "/kp/list") {
+      // Только isDraft без правок — устаревший id (другой пользователь, удалённое КП).
+      if (!hasActiveDraftWork) return;
+      navigate(`/kp/${activeOfferId}`, { replace: true });
+      return;
+    }
+
+    if (!isPathAllowedDuringDraft(path)) {
       navigate(`/kp/${activeOfferId}`, { replace: true });
     }
   }, [

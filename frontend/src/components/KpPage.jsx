@@ -330,6 +330,7 @@ const KpPage = () => {
     clearKpSnapshot,
     markDraftSaved,
     markDraftDirty,
+    clearSession,
     isOfferPdfExportBlocked,
     isNewDraftOffer,
     clearNewDraftOfferFlag,
@@ -621,8 +622,9 @@ const KpPage = () => {
       } catch (err) {
         if (cancelled) return;
         if (err?.status === 404) {
-          setLoadStatus("error");
-          setLoadError("Оффер не найден или принадлежит другому пользователю.");
+          clearSession();
+          navigate("/kp/list", { replace: true });
+          return;
         } else if (err?.status === 401) {
           setLoadStatus("forbidden");
         } else {
@@ -641,6 +643,8 @@ const KpPage = () => {
     authStatus,
     activeOfferId,
     clearKpSnapshot,
+    clearSession,
+    navigate,
     markDraftSaved,
     setSelectedArticlesForConstruction,
   ]);

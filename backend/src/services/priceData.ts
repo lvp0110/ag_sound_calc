@@ -165,38 +165,44 @@ const buildByArticle = (rows: PriceRow[]): Map<string, PriceRow> => {
 };
 
 const fetchPriceRows = async (): Promise<Map<string, PriceRow>> => {
-  const targetBase = env.calcServiceUrl.replace(/\/$/, "");
-  const cached = await fetchUpstreamCached("v2/data", async () => {
-    const upstream = await fetch(`${targetBase}${CALC_PATH}`, {
-      method: "GET",
-      headers: { accept: "application/json", origin: targetBase, referer: `${targetBase}/` },
-      signal: AbortSignal.timeout(env.calcServiceTimeoutMs),
-    });
-    const headers: Record<string, string> = {};
-    for (const name of ["content-type", "cache-control", "etag", "last-modified"]) {
-      const v = upstream.headers.get(name);
-      if (v) headers[name] = v;
-    }
-    const body = upstream.body ? Buffer.from(await upstream.arrayBuffer()) : Buffer.alloc(0);
-    return { status: upstream.status, headers, body };
-  });
-
-  if (cached.status >= 400 || cached.body.length === 0) return new Map();
-  let payload: unknown = null;
   try {
-    payload = JSON.parse(cached.body.toString("utf-8"));
+    const targetBase = env.calcServiceUrl.replace(/\/$/, "");
+    const cached = await fetchUpstreamCached("v2/data", async () => {
+      const upstream = await fetch(`${targetBase}${CALC_PATH}`, {
+        method: "GET",
+        headers: { accept: "application/json", origin: targetBase, referer: `${targetBase}/` },
+        signal: AbortSignal.timeout(env.calcServiceTimeoutMs),
+      });
+      const headers: Record<string, string> = {};
+      for (const name of ["content-type", "cache-control", "etag", "last-modified"]) {
+        const v = upstream.headers.get(name);
+        if (v) headers[name] = v;
+      }
+      const body = upstream.body ? Buffer.from(await upstream.arrayBuffer()) : Buffer.alloc(0);
+      return { status: upstream.status, headers, body };
+    });
+
+    if (cached.status >= 400 || cached.body.length === 0) return new Map();
+    let payload: unknown = null;
+    try {
+      payload = JSON.parse(cached.body.toString("utf-8"));
+    } catch {
+      return new Map();
+    }
+    const raw = collectRows(payload);
+    const rows = raw.map(normalizeRow).filter((r): r is PriceRow => r !== null);
+    return buildByArticle(rows);
   } catch {
+    // Таймаут/сеть dev3 — PDF всё равно соберётся с Name из calc, как на КП без прайса.
     return new Map();
   }
-  const raw = collectRows(payload);
-  const rows = raw.map(normalizeRow).filter((r): r is PriceRow => r !== null);
-  return buildByArticle(rows);
 };
 
 const normalizeRegion = (region: string | null | undefined): string =>
   resolvePriceRegionKey(region);
 
 export type PriceLookup = (article: string | null | undefined) => {
+  name?: string;
   pricePerM2?: number;
   pricePerUnit?: number;
 };
@@ -240,7 +246,9 @@ export const buildPriceLookup = async (
     if (!row) return {};
     const pricePerM2 = pickRegionalOrBase(row, reg, "pricePerM2");
     const pricePerUnit = pickRegionalOrBase(row, reg, "pricePerUnit");
+    const name = typeof row.name === "string" ? row.name.trim() || undefined : undefined;
     return {
+      name,
       pricePerM2: reg === "ural" ? applyPriceCoefficient(pricePerM2, region) : pricePerM2,
       pricePerUnit:
         reg === "ural" ? applyPriceCoefficient(pricePerUnit, region) : pricePerUnit,

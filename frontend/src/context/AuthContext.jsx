@@ -56,6 +56,8 @@ export function AuthProvider({ children }) {
 
   const login = useCallback(async (credentials) => {
     const data = await authApi.login(credentials);
+    // Черновик в sessionStorage мог остаться от другого пользователя или удалённого КП.
+    useOfferEditSessionStore.getState().clearSession();
     setUser(data.user);
     setStatus("authed");
     setLoginModal({ isOpen: false });

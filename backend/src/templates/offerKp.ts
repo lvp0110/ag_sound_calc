@@ -222,19 +222,14 @@ const materialArticle = (m: MaterialLike): string => {
   return articul;
 };
 
-const materialDisplayName = (m: MaterialLike): string => {
+/** Fallback-название из calc (без артикула), если в прайсе нет имени. */
+const materialFallbackName = (m: MaterialLike): string => {
   const name = typeof m.Name === "string" && m.Name.trim() !== ""
     ? m.Name.trim()
     : typeof m.name === "string" && m.name.trim() !== ""
       ? m.name.trim()
       : "";
-  // Общестроительные (колонка «артикул» = «---»): только название, без кода.
-  if (!hasKpTableArticle(m.Code)) {
-    return name || "—";
-  }
-  const article = materialArticle(m);
-  if (article && name) return `${article}, ${name}`;
-  return name || article || "—";
+  return name || "—";
 };
 
 /**
@@ -411,14 +406,15 @@ export function renderOfferKpHtml({
 
     for (const m of materials) {
       const article = materialArticle(m);
-      const { pricePerM2, pricePerUnit } = priceLookup(article);
+      const lookedUp = priceLookup(article);
+      const { pricePerM2, pricePerUnit, name: catalogName } = lookedUp;
       const unitPrice = materialUnitPriceForDisplay(m, pricePerM2, pricePerUnit);
       const qty = materialQuantityForDisplay(m);
       const lineSum = materialLineSum(m, pricePerM2, pricePerUnit);
       if (!hasPositiveLineSum(materialLineSumForFilter(m, pricePerM2, pricePerUnit))) continue;
       sectionTotal.value += materialLineSumForFilter(m, pricePerM2, pricePerUnit);
       rows.push({
-        name: materialDisplayName(m),
+        name: catalogName?.trim() || materialFallbackName(m),
         unit: isPackPricedMaterial(m)
           ? kpPackDisplayUnits(m)
           : typeof m.Units === "string"

@@ -42,8 +42,9 @@ export default function KpList() {
   const navigate = useNavigate();
   const location = useLocation();
   const { isAuthed, status } = useAuth();
-  const { isEditingDraft, activeOfferId, startDraft, markNewDraftOffer } =
+  const { isEditingDraft, activeOfferId, startDraft, markNewDraftOffer, isNewDraftOffer } =
     useOfferEditSession();
+  const clearSession = useOfferEditSessionStore((s) => s.clearSession);
   const hasUnsavedChanges = useOfferEditSessionStore((s) => s.hasUnsavedChanges);
   const kpSnapshot = useOfferEditSessionStore((s) => s.kpSnapshot);
   const kpSnapshotsByOfferId = useOfferEditSessionStore(
@@ -85,17 +86,30 @@ export default function KpList() {
     // После «Выйти» не открывать КП снова (kpExit в state или allowExitToList).
     if (allowExitToList || location.state?.kpExit === true) return;
 
-    const autoOpenId =
-      location.state?.autoOpenOfferId ||
-      (isEditingDraft ? activeOfferId : null);
-    if (autoOpenId) {
-      navigate(`/kp/${autoOpenId}`, { replace: true });
+    const explicitId = location.state?.autoOpenOfferId;
+    if (explicitId) {
+      navigate(`/kp/${explicitId}`, { replace: true });
+      return;
     }
+
+    if (loadStatus !== "loaded" || !isEditingDraft || !activeOfferId) return;
+
+    const inList = offers.some((o) => String(o.id) === String(activeOfferId));
+    if (isNewDraftOffer(activeOfferId) || inList) {
+      navigate(`/kp/${activeOfferId}`, { replace: true });
+      return;
+    }
+
+    clearSession();
   }, [
     location.state,
     isEditingDraft,
     activeOfferId,
     allowExitToList,
+    loadStatus,
+    offers,
+    isNewDraftOffer,
+    clearSession,
     navigate,
   ]);
 

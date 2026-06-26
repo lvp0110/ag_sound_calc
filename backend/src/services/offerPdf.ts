@@ -151,7 +151,9 @@ const renderPdfFromHtml = async (
   const browser = await getBrowser();
   const page = await browser.newPage();
   try {
-    await page.setContent(html, { waitUntil: "domcontentloaded" });
+    page.setDefaultTimeout(120_000);
+    page.setDefaultNavigationTimeout(120_000);
+    await page.setContent(html, { waitUntil: "domcontentloaded", timeout: 120_000 });
     const pdf = await page.pdf({
       format: "A4",
       margin: { top: "20mm", bottom: "28mm", left: "12mm", right: "12mm" },
@@ -182,7 +184,15 @@ export const renderOfferPdf = async (offer: OfferForRender): Promise<Buffer> => 
     buildConstructionDetailsHtml(offer, catalog).catch(() => ""),
   ]);
 
-  const html = renderOfferKpHtml({ offer, priceLookup, catalog, constructionDetailsHtml });
+  let html: string;
+  try {
+    html = renderOfferKpHtml({ offer, priceLookup, catalog, constructionDetailsHtml });
+  } catch (err) {
+    throw new OfferPdfError(
+      err instanceof Error ? `PDF template failed: ${err.message}` : "PDF template failed",
+      err
+    );
+  }
   const footerHtml = buildFooterHtml(offer);
 
   let lastError: unknown;
