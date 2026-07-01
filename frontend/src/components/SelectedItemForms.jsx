@@ -5,9 +5,9 @@ import FacingForm from "./forms/FacingForm";
 import SoundboardForm from "./forms/SoundboardForm";
 import ConstructionParameters from "./ConstructionParameters";
 import {
-  AG_CT_ECO_CIPHER,
   applyUltrasonicHangerDisplayText,
   hasFloorSealantChoice,
+  isSimpleCeilingMatCipher,
 } from "../utils/calcUlTapeFallback";
 import { isFacingTemplate } from "../utils/validation";
 
@@ -52,7 +52,7 @@ const SelectedItemForms = ({
     hasFloorParameters || hasFloorSealantChoice({ agId: selectedItem?.ag_id });
   const isCeilingTemplate = [4, 5].includes(template);
   const showCeilingConstructionParameters =
-    selectedItem?.ag_id !== AG_CT_ECO_CIPHER;
+    !isSimpleCeilingMatCipher(selectedItem?.ag_id);
   const isFacing = isFacingTemplate(template);
   const isSoundboardTemplate = [201, 202].includes(template);
   const isVerticalSoundboard = template === 201 && selectedItem?.c_id === "5";

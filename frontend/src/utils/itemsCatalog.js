@@ -2,8 +2,10 @@ import ItemsBase from "../data/items.js";
 import { resolveDisplayCipher } from "./calculations.js";
 import { sectionIdFromCode } from "./constructionSection.js";
 import {
+  AG_CS_MAT_CIPHER,
   AG_CT_ECO_CIPHER,
   applyUltrasonicHangerDisplayText,
+  isAgCsMatCipher,
   isAgCtEcoCipher,
 } from "./calcUlTapeFallback.js";
 /** Map ag_id → item (для resolveDisplayCipher; дубликаты ag_id не мешают шифру). */
@@ -23,6 +25,7 @@ function normalizeItemsAgId(calcCode, cipher = "") {
   const code = String(calcCode ?? "").trim();
   const id = String(cipher ?? "").trim();
   if (isAgCtEcoCipher(id, code)) return AG_CT_ECO_CIPHER;
+  if (isAgCsMatCipher(id, code)) return AG_CS_MAT_CIPHER;
   const keyMap = getItemsAgIdKeyMap();
   return id || resolveDisplayCipher(code, keyMap) || "";
 }

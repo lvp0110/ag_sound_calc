@@ -17,21 +17,30 @@ export const AG_F_BASE_CIPHER = "AG.F";
 
 /** Шуманет-Термо ЭКО — порт frontend AG_CT_ECO_CIPHER. */
 export const AG_CT_ECO_CIPHER = "AG.Ct_eco";
+/** Ультракустик Супер Мат — порт frontend AG_CS_MAT_CIPHER. */
+export const AG_CS_MAT_CIPHER = "AG.Cs_mat";
 
-export const isAgCtEcoCipher = (agId = "", calcCode = ""): boolean => {
+const isCipherWithSuffix = (agId: string, calcCode: string, cipher: string): boolean => {
   const id = String(agId ?? "").trim();
   const code = String(calcCode ?? "").trim();
-  if (id === AG_CT_ECO_CIPHER || code === AG_CT_ECO_CIPHER) return true;
-  return (
-    id.startsWith(`${AG_CT_ECO_CIPHER}_`) ||
-    code.startsWith(`${AG_CT_ECO_CIPHER}_`)
-  );
+  if (id === cipher || code === cipher) return true;
+  return id.startsWith(`${cipher}_`) || code.startsWith(`${cipher}_`);
 };
 
-/** resolveDisplayCipher режет AG.Ct_eco до AG.Ct — для каталога/PDF берём полный шифр. */
+export const isAgCtEcoCipher = (agId = "", calcCode = ""): boolean =>
+  isCipherWithSuffix(agId, calcCode, AG_CT_ECO_CIPHER);
+
+export const isAgCsMatCipher = (agId = "", calcCode = ""): boolean =>
+  isCipherWithSuffix(agId, calcCode, AG_CS_MAT_CIPHER);
+
+export const isSimpleCeilingMatCipher = (agId = "", calcCode = ""): boolean =>
+  isAgCtEcoCipher(agId, calcCode) || isAgCsMatCipher(agId, calcCode);
+
+/** resolveDisplayCipher режет AG.Ct_eco / AG.Cs_mat — для каталога/PDF берём полный шифр. */
 export const normalizeCatalogCipher = (calcCode: string, resolved: string): string => {
   const code = String(calcCode ?? "").trim();
   if (isAgCtEcoCipher("", code)) return AG_CT_ECO_CIPHER;
+  if (isAgCsMatCipher("", code)) return AG_CS_MAT_CIPHER;
   return resolved;
 };
 
@@ -126,7 +135,7 @@ export const constructionDisplayCipher = ({
 
   const id = String(agId ?? "").trim();
   const code = String(calcCode ?? "").trim();
-  if (isAgCtEcoCipher(id, code)) return "—";
+  if (isSimpleCeilingMatCipher(id, code)) return "—";
 
   const useUl =
     hangerType === HANGER_ULTRACOUSTIC || (code !== "" && isUlHangerCalcCode(code));

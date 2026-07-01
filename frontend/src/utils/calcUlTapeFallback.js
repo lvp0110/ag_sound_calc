@@ -92,18 +92,26 @@ export const isAgFConstructionCipher = (agId = "", calcCode = "") => {
   return /^AG\.F(?:_|$)/i.test(code);
 };
 
-/** Шифр в UI (таблица КП, PDF, /info): AG.F / AG.Ct_eco → «—»; AG.C501–503 / AG.L404–405 + Ультракустик → «—». */
+/** Шифр в UI (таблица КП, PDF, /info): AG.F / AG.Ct_eco / AG.Cs_mat → «—»; AG.C501–503 / AG.L404–405 + Ультракустик → «—». */
 export const AG_CT_ECO_CIPHER = "AG.Ct_eco";
+export const AG_CS_MAT_CIPHER = "AG.Cs_mat";
 
-export const isAgCtEcoCipher = (agId = "", calcCode = "") => {
+const isCipherWithSuffix = (agId, calcCode, cipher) => {
   const id = String(agId ?? "").trim();
   const code = String(calcCode ?? "").trim();
-  if (id === AG_CT_ECO_CIPHER || code === AG_CT_ECO_CIPHER) return true;
-  return (
-    id.startsWith(`${AG_CT_ECO_CIPHER}_`) ||
-    code.startsWith(`${AG_CT_ECO_CIPHER}_`)
-  );
+  if (id === cipher || code === cipher) return true;
+  return id.startsWith(`${cipher}_`) || code.startsWith(`${cipher}_`);
 };
+
+export const isAgCtEcoCipher = (agId = "", calcCode = "") =>
+  isCipherWithSuffix(agId, calcCode, AG_CT_ECO_CIPHER);
+
+export const isAgCsMatCipher = (agId = "", calcCode = "") =>
+  isCipherWithSuffix(agId, calcCode, AG_CS_MAT_CIPHER);
+
+/** Потолочные маты без параметров конструкции (шифр скрыт в КП). */
+export const isSimpleCeilingMatCipher = (agId = "", calcCode = "") =>
+  isAgCtEcoCipher(agId, calcCode) || isAgCsMatCipher(agId, calcCode);
 
 export function constructionDisplayCipher({
   agId = "",
@@ -116,7 +124,7 @@ export function constructionDisplayCipher({
 
   const id = String(agId ?? "").trim();
   const code = String(calcCode ?? "").trim();
-  if (isAgCtEcoCipher(id, code)) {
+  if (isSimpleCeilingMatCipher(id, code)) {
     return "—";
   }
 
