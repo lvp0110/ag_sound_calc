@@ -23,6 +23,8 @@ const REGION_KEY_ALIASES: Record<string, string> = {
   тюмень: "ural",
   surgut: "ural",
   сургут: "ural",
+  novosibirsk: "ural",
+  новосибирск: "ural",
   ufa: "ural",
   уфа: "ural",
   south: "south",
@@ -51,6 +53,8 @@ const URAL_CITY_PRICE_COEFFICIENTS: Record<string, number> = {
   тюмень: 1.1,
   surgut: 1.15,
   сургут: 1.15,
+  novosibirsk: 1.05,
+  новосибирск: 1.05,
 };
 
 export const getPriceRegionCoefficient = (region: string | null | undefined): number => {
