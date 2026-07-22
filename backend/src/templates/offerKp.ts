@@ -88,6 +88,8 @@ export type OfferForRender = {
   phone: string | null;
   email: string | null;
   kp_date: string | null;
+  /** Код КП вида «ИПВ-12» (инициалы ФИО владельца + порядковый номер). */
+  kp_code?: string | null;
   object_name: string | null;
   region: string | null;
   logo_url: string | null;
@@ -482,6 +484,15 @@ export function renderOfferKpHtml({
   });
 
   const dateStr = formatDateRu(offer.kp_date);
+  const kpCode = (offer.kp_code ?? "").trim();
+  const issueNo =
+    kpCode && dateStr
+      ? `${esc(kpCode)} от ${esc(dateStr)}`
+      : kpCode
+        ? esc(kpCode)
+        : dateStr
+          ? `от ${esc(dateStr)}`
+          : "";
 
   // Блок условий: только транзитные значения из диалога печати. Дефолтов нет —
   // строки с пустым значением в PDF НЕ выводим.
@@ -511,7 +522,7 @@ export function renderOfferKpHtml({
 
   const placeholders: Record<string, string> = {
     TITLE: esc(offer.id),
-    ISSUE_DATE: dateStr ? `от ${esc(dateStr)}` : "",
+    ISSUE_DATE: issueNo,
     OBJECT_NAME: esc(offer.object_name ?? ""),
     SECTIONS: sectionsHtml,
     CONSTRUCTION_DETAILS: constructionDetailsHtml,

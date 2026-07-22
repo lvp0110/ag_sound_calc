@@ -327,10 +327,10 @@ export default function KpList() {
       ) : (
         <>
           <div className="kp-list__cards" role="list">
-            {offers.map((o, i) => (
+            {offers.map((o) => (
               <article key={o.id} className="kp-list__card" role="listitem">
                 <div className="kp-list__card-header">
-                  <span className="kp-list__card-num">{(page - 1) * meta.limit + i + 1}</span>
+                  <span className="kp-list__card-num">{o.kp_code || "—"}</span>
                   <button
                     type="button"
                     className="kp-list__link kp-list__card-title"
@@ -370,9 +370,9 @@ export default function KpList() {
               </tr>
             </thead>
             <tbody>
-              {offers.map((o, i) => (
+              {offers.map((o) => (
                 <tr key={o.id}>
-                  <td className="kp-list__num-cell">{(page - 1) * meta.limit + i + 1}</td>
+                  <td className="kp-list__num-cell">{o.kp_code || "—"}</td>
                   <td>
                     <button
                       type="button"

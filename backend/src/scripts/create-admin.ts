@@ -18,6 +18,7 @@
  */
 import bcrypt from "bcrypt";
 import { prisma } from "../lib/prisma.js";
+import { nextEmployeeNumberForCompany } from "../utils/employeeNumber.js";
 
 const SALT_ROUNDS = 10;
 const DEFAULT_COMPANY_ID = "00000000-0000-0000-0000-000000000001";
@@ -57,14 +58,18 @@ async function main(): Promise<void> {
   }
 
   const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
-  await prisma.user.create({
-    data: {
-      fullName: fullName || "Администратор",
-      email,
-      passwordHash,
-      role: "ADMIN",
-      companyId: company.id,
-    },
+  await prisma.$transaction(async (tx) => {
+    const employeeNumber = await nextEmployeeNumberForCompany(tx, company.id);
+    await tx.user.create({
+      data: {
+        fullName: fullName || "Администратор",
+        email,
+        passwordHash,
+        role: "ADMIN",
+        companyId: company.id,
+        employeeNumber,
+      },
+    });
   });
   console.log(`✓ Создан админ ${email} (компания: ${company.name}).`);
 }

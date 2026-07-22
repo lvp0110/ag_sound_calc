@@ -346,6 +346,7 @@ const KpPage = () => {
     Boolean(id) && isOfferPdfExportBlocked(id);
 
   const [form, setForm] = useState(initialForm);
+  const [kpCode, setKpCode] = useState("");
   const [calcTables, setCalcTables] = useState({
     tableConstrToCalc: null,
     ConstrToCalc: [],
@@ -481,6 +482,7 @@ const KpPage = () => {
         const offer = await getOffer(id);
         if (cancelled) return;
 
+        setKpCode(offer.kp_code || "");
         const view = mapOfferResponseToKpView(offer);
         originalConstructionsRef.current = offer.constructions || [];
 
@@ -1734,13 +1736,20 @@ const KpPage = () => {
             <label className="kp-page__label" htmlFor="kp-date">
               Дата:
             </label>
-            <input
-              id="kp-date"
-              className="kp-page__input"
-              type="date"
-              value={dateInputValue}
-              onChange={onFieldChange("date")}
-            />
+            <div className="kp-page__date-with-code">
+              {kpCode ? (
+                <span className="kp-page__kp-code" aria-label={`Номер КП ${kpCode}`}>
+                  {kpCode}
+                </span>
+              ) : null}
+              <input
+                id="kp-date"
+                className="kp-page__input"
+                type="date"
+                value={dateInputValue}
+                onChange={onFieldChange("date")}
+              />
+            </div>
           </div>
           <div className="kp-page__field-row">
             <label className="kp-page__label" htmlFor="kp-region">

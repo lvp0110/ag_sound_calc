@@ -15,9 +15,22 @@ import { requireAuth } from "../middleware/requireAuth.js";
 import { CalcServiceError, calculateByProduct } from "../services/calcService.js";
 import { recalcConstructionsMaterials } from "../services/offerRecalc.js";
 import { OfferPdfError, renderOfferPdf } from "../services/offerPdf.js";
+import { formatKpCode } from "../utils/kpCode.js";
 import { parsePagination, paginated } from "../utils/pagination.js";
 
 const router = Router();
+
+/** Следующий порядковый номер КП для пользователя (внутри транзакции). */
+const nextKpNumberForUser = async (
+  tx: Prisma.TransactionClient,
+  userId: string
+): Promise<number> => {
+  const agg = await tx.offer.aggregate({
+    where: { userId },
+    _max: { kpNumber: true },
+  });
+  return (agg._max.kpNumber ?? 0) + 1;
+};
 
 type AsyncRouteHandler = (
   req: Request,
@@ -76,12 +89,17 @@ const applyProfileDefaults = (
   kpDate: form.kpDate ?? todayIsoDate(),
 });
 
-const toOfferSummary = (offer: Offer) => ({
+const toOfferSummary = (
+  offer: Offer,
+  ownerEmployeeNumber?: number | null
+) => ({
   id: offer.id,
   title: offer.title,
   object_name: offer.objectName,
   region: offer.region,
   kp_date: offer.kpDate,
+  kp_number: offer.kpNumber,
+  kp_code: formatKpCode(offer.kpNumber, ownerEmployeeNumber),
   created_at: offer.createdAt.toISOString(),
   updated_at: offer.updatedAt.toISOString(),
 });
@@ -97,7 +115,8 @@ interface ConstructionForDto {
 const toOfferDto = (
   offer: Offer,
   constructions: ConstructionForDto[],
-  company?: Company | null
+  company?: Company | null,
+  ownerEmployeeNumber?: number | null
 ) => ({
   id: offer.id,
   user_id: offer.userId,
@@ -107,6 +126,8 @@ const toOfferDto = (
   email: offer.email,
   office_address: offer.officeAddress,
   kp_date: offer.kpDate,
+  kp_number: offer.kpNumber,
+  kp_code: formatKpCode(offer.kpNumber, ownerEmployeeNumber),
   object_name: offer.objectName,
   region: offer.region,
   markup_percent: decimalToNumber(offer.markupPercent),
@@ -168,9 +189,11 @@ router.post(
     const freshMaterials = await calculateByProduct(calcParamsList);
 
     const created = await prisma.$transaction(async (tx) => {
+      const kpNumber = await nextKpNumberForUser(tx, userId);
       const offer = await tx.offer.create({
         data: {
           userId,
+          kpNumber,
           ...form,
           services: (parsed.offerDraft.services ?? []) as unknown as Prisma.InputJsonValue,
           additionalMaterials:
@@ -201,7 +224,16 @@ router.post(
       return { offer, constructions };
     });
 
-    return res.status(201).json(toOfferDto(created.offer, created.constructions, user.company));
+    return res
+      .status(201)
+      .json(
+        toOfferDto(
+          created.offer,
+          created.constructions,
+          user.company,
+          user.employeeNumber
+        )
+      );
   })
 );
 
@@ -215,7 +247,11 @@ router.get(
     if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
     const { page, limit, skip, take } = parsePagination(req.query);
-    const [offers, total] = await prisma.$transaction([
+    const [user, offers, total] = await prisma.$transaction([
+      prisma.user.findUnique({
+        where: { id: userId },
+        select: { employeeNumber: true },
+      }),
       prisma.offer.findMany({
         where: { userId },
         orderBy: { updatedAt: "desc" },
@@ -225,7 +261,15 @@ router.get(
       prisma.offer.count({ where: { userId } }),
     ]);
 
-    return res.json(paginated(offers.map(toOfferSummary), total, page, limit));
+    const ownerEmployeeNumber = user?.employeeNumber ?? null;
+    return res.json(
+      paginated(
+        offers.map((o) => toOfferSummary(o, ownerEmployeeNumber)),
+        total,
+        page,
+        limit
+      )
+    );
   })
 );
 
@@ -259,7 +303,12 @@ const loadOfferDto = async (
     materials: (materialsById.get(c.id) ?? c.materials ?? []) as unknown,
   }));
 
-  return toOfferDto(offer, constructionsWithFreshMaterials, offer.user.company);
+  return toOfferDto(
+    offer,
+    constructionsWithFreshMaterials,
+    offer.user.company,
+    offer.user.employeeNumber
+  );
 };
 
 /**
@@ -306,6 +355,7 @@ router.get(
       phone: dto.phone,
       email: dto.email,
       kp_date: dto.kp_date,
+      kp_code: dto.kp_code,
       object_name: dto.object_name,
       region: dto.region,
       logo_url: dto.company?.logo_url ?? null,
@@ -483,7 +533,14 @@ router.patch(
       where: { id: userId },
       include: { company: true },
     });
-    return res.json(toOfferDto(updated.offer, updated.constructions, owner?.company));
+    return res.json(
+      toOfferDto(
+        updated.offer,
+        updated.constructions,
+        owner?.company,
+        owner?.employeeNumber
+      )
+    );
   })
 );
 
@@ -524,9 +581,11 @@ router.post(
     if (!source) return res.status(404).json({ error: "Offer not found" });
 
     const newOffer = await prisma.$transaction(async (tx) => {
+      const kpNumber = await nextKpNumberForUser(tx, userId);
       const offer = await tx.offer.create({
         data: {
           userId,
+          kpNumber,
           title: source.title,
           managerName: source.managerName,
           phone: source.phone,

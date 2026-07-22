@@ -136,6 +136,27 @@
   border-bottom: 1px solid #c9d0d6;
 }
 
+.kp-page__date-with-code {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.kp-page__kp-code {
+  flex: 0 0 auto;
+  font-size: 14px;
+  font-weight: 700;
+  font-style: italic;
+  color: #1a1d21;
+  white-space: nowrap;
+}
+
+.kp-page__date-with-code .kp-page__input {
+  flex: 1 1 auto;
+  width: auto;
+}
+
 .kp-page__field-row--last {
   border-bottom: none;
   padding-bottom: 4px;
