@@ -7,6 +7,7 @@ import {
   floorPerimeterTapeCodes,
   HANGER_ULTRACOUSTIC,
   HANGER_VIBROSTEK,
+  hasCeilingMatChoice,
   hasCeilingTapeChoice,
   hasFacingTapeChoice,
   hasFloorSealantChoice,
@@ -15,6 +16,9 @@ import {
   hasHangerChoice,
   UL_TAPE_SUFFIX,
   WOOL_ECO_S,
+  AG_CT_ECO_CIPHER,
+  AG_CS_MAT_CIPHER,
+  AG_CU_MEM_CIPHER,
 } from "../utils/calcUlTapeFallback";
 import {
   getMaxLenZInMeters,
@@ -216,6 +220,70 @@ function SealantChoiceRadios({ idPrefix, itemId, value, onChange }) {
   );
 }
 
+function CeilingMatChoiceCheckboxes({ idPrefix, itemId, value, onChange }) {
+  const selected = Array.isArray(value) ? value : [];
+  const toggle = (code) => {
+    if (selected.includes(code)) {
+      onChange(selected.filter((c) => c !== code));
+    } else {
+      onChange([...selected, code]);
+    }
+  };
+
+  return (
+    <>
+      <h4 className="selected-item-forms__group-heading">
+        Добавить к конструкции
+      </h4>
+      <div className="radio-option">
+        <input
+          className="checkbox"
+          type="checkbox"
+          onChange={() => toggle(AG_CT_ECO_CIPHER)}
+          id={`${idPrefix}_ceiling_mat_ct_eco_${itemId}`}
+          checked={selected.includes(AG_CT_ECO_CIPHER)}
+        />
+        <label
+          className="label"
+          htmlFor={`${idPrefix}_ceiling_mat_ct_eco_${itemId}`}
+        >
+          Шуманет-Термо ЭКО
+        </label>
+      </div>
+      <div className="radio-option">
+        <input
+          className="checkbox"
+          type="checkbox"
+          onChange={() => toggle(AG_CS_MAT_CIPHER)}
+          id={`${idPrefix}_ceiling_mat_cs_mat_${itemId}`}
+          checked={selected.includes(AG_CS_MAT_CIPHER)}
+        />
+        <label
+          className="label"
+          htmlFor={`${idPrefix}_ceiling_mat_cs_mat_${itemId}`}
+        >
+          Ультракустик Супер Мат
+        </label>
+      </div>
+      <div className="radio-option">
+        <input
+          className="checkbox"
+          type="checkbox"
+          onChange={() => toggle(AG_CU_MEM_CIPHER)}
+          id={`${idPrefix}_ceiling_mat_cu_mem_${itemId}`}
+          checked={selected.includes(AG_CU_MEM_CIPHER)}
+        />
+        <label
+          className="label"
+          htmlFor={`${idPrefix}_ceiling_mat_cu_mem_${itemId}`}
+        >
+          Мембрана звукоизоляционная Ультракустик
+        </label>
+      </div>
+    </>
+  );
+}
+
 /**
  * Компонент параметров конструкции (гипсокартон, минвата, шаг профиля, проемы)
  */
@@ -229,6 +297,8 @@ const ConstructionParameters = ({
   setCurrentFloorSealant,
   currentHangerType,
   setCurrentHangerType,
+  currentCeilingMats,
+  setCurrentCeilingMats,
   unvisible,
   onToggleVisible,
   currentSubCategory,
@@ -331,12 +401,21 @@ const ConstructionParameters = ({
     }
   }, [selectedItem?.ag_id, currentGkla, setCurrentGkla]);
 
+  useEffect(() => {
+    if (!setCurrentCeilingMats) return;
+    if (hasCeilingMatChoice(selectedItem?.ag_id)) return;
+    if (Array.isArray(currentCeilingMats) && currentCeilingMats.length > 0) {
+      setCurrentCeilingMats([]);
+    }
+  }, [selectedItem?.ag_id, currentCeilingMats, setCurrentCeilingMats]);
+
   if (mode === "ceiling") {
     const currentTemplate = template ?? selectedItem?.template;
     const isSuspendedCeiling = currentTemplate == 5;
     const showCeilingTapeChoice = hasCeilingTapeChoice(selectedItem?.ag_id);
     const showHangerChoice = hasHangerChoice(selectedItem?.ag_id);
     const showGklaChoice = hasGklaChoice(selectedItem?.ag_id);
+    const showCeilingMatChoice = hasCeilingMatChoice(selectedItem?.ag_id);
 
     return (
       <div className="selected-item-forms__stack">
@@ -456,6 +535,15 @@ const ConstructionParameters = ({
                 agId={selectedItem.ag_id}
                 value={currentConstr}
                 onChange={setCurrentConstr}
+              />
+            )}
+
+            {showCeilingMatChoice && (
+              <CeilingMatChoiceCheckboxes
+                idPrefix="ceiling"
+                itemId={selectedItem.id}
+                value={currentCeilingMats}
+                onChange={setCurrentCeilingMats}
               />
             )}
 
@@ -764,6 +852,7 @@ const ConstructionParameters = ({
   const showFacingTapeChoice = hasFacingTapeChoice(selectedItem?.ag_id);
   const showHangerChoice = hasHangerChoice(selectedItem?.ag_id);
   const showGklaChoice = hasGklaChoice(selectedItem?.ag_id);
+  const showCeilingMatChoice = hasCeilingMatChoice(selectedItem?.ag_id);
 
   return (
     <div className="selected-item-forms__stack">
@@ -939,6 +1028,15 @@ const ConstructionParameters = ({
           agId={selectedItem.ag_id}
           value={currentConstr}
           onChange={setCurrentConstr}
+        />
+      )}
+
+      {showCeilingMatChoice && (
+        <CeilingMatChoiceCheckboxes
+          idPrefix="facing"
+          itemId={selectedItem.id}
+          value={currentCeilingMats}
+          onChange={setCurrentCeilingMats}
         />
       )}
 

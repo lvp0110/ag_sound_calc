@@ -25,6 +25,8 @@ const SelectedItemForms = ({
   setCurrentFloorSealant,
   currentHangerType,
   setCurrentHangerType,
+  currentCeilingMats,
+  setCurrentCeilingMats,
   unvisible,
   setUnvisible,
   currentGkla,
@@ -153,6 +155,8 @@ const SelectedItemForms = ({
               setCurrentFloorSealant={setCurrentFloorSealant}
               currentHangerType={currentHangerType}
               setCurrentHangerType={setCurrentHangerType}
+              currentCeilingMats={currentCeilingMats}
+              setCurrentCeilingMats={setCurrentCeilingMats}
               constR={constR}
               setConstR={setConstR}
               unvisible={unvisible}
@@ -184,6 +188,8 @@ const SelectedItemForms = ({
               setCurrentFloorSealant={setCurrentFloorSealant}
               currentHangerType={currentHangerType}
               setCurrentHangerType={setCurrentHangerType}
+              currentCeilingMats={currentCeilingMats}
+              setCurrentCeilingMats={setCurrentCeilingMats}
               profileStep={facingProfileStep}
               setProfileStep={setFacingProfileStep}
               dFrame={dFrame}
