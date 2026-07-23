@@ -124,6 +124,79 @@ const UL_SEALANT_BY_VIBROSIL_CODE: Record<
 export const isUltracousticFloorSealant = (sealant: unknown): boolean =>
   sealant === FLOOR_SEALANT_ULTRACOUSTIC;
 
+export const AG_CT_ECO_CIPHER = "AG.Ct_eco";
+export const AG_CS_MAT_CIPHER = "AG.Cs_mat";
+
+/**
+ * Синтетический шифр мембраны (во внешнем calc нет отдельной конструкции).
+ * Материалы собираем локально по площади.
+ */
+export const AG_CU_MEM_CIPHER = "AG.Cu_mem";
+
+export const UL_MEMBRANE_ARTICLE = {
+  Code: "1405.0101",
+  Name: "Мембрана звукоизоляционная Ультракустик с клеевым слоем, 2500х1200х3,7 мм",
+  Units: "рул",
+  InfoPack: "2500х1200х3,7 мм (3 м²)",
+};
+
+/** Площадь одного рулона мембраны, м². */
+export const UL_MEMBRANE_AREA_PER_ROLL_M2 = 3;
+
+const CEILING_ADDON_CODES = new Set([
+  AG_CT_ECO_CIPHER,
+  AG_CS_MAT_CIPHER,
+  AG_CU_MEM_CIPHER,
+]);
+
+/** Нормализует один код аддона → код или null. */
+export const normalizeCeilingMatCode = (value: unknown): string | null => {
+  const v = String(value ?? "").trim();
+  return CEILING_ADDON_CODES.has(v) ? v : null;
+};
+
+/**
+ * Нормализует CeilingMats / legacy CeilingMat из calc_params → массив кодов.
+ */
+export const normalizeCeilingMats = (
+  mats: unknown,
+  legacySingle?: unknown
+): string[] => {
+  const out: string[] = [];
+  const push = (v: unknown) => {
+    const code = normalizeCeilingMatCode(v);
+    if (code && !out.includes(code)) out.push(code);
+  };
+  if (Array.isArray(mats)) {
+    for (const v of mats) push(v);
+  } else if (mats != null && mats !== "") {
+    push(mats);
+  }
+  if (legacySingle != null && legacySingle !== "") {
+    push(legacySingle);
+  }
+  return out;
+};
+
+/** Материалы мембраны по площади конструкции (Area в мм²). */
+export const buildUlMembraneMaterials = (
+  areaMm2: unknown
+): unknown[] => {
+  const areaM2 = Number(areaMm2) / 1e6;
+  if (!Number.isFinite(areaM2) || areaM2 <= 0) return [];
+  const quantity = Math.max(1, Math.ceil(areaM2 / UL_MEMBRANE_AREA_PER_ROLL_M2));
+  return [
+    {
+      Code: UL_MEMBRANE_ARTICLE.Code,
+      Name: UL_MEMBRANE_ARTICLE.Name,
+      Quantity: quantity,
+      Units: UL_MEMBRANE_ARTICLE.Units,
+      InfoPack: UL_MEMBRANE_ARTICLE.InfoPack,
+      Order: 100,
+    },
+  ];
+};
+
 export const WOOL_ECO_S = "eco_s";
 export const WOOL_ECO_S_SUFFIX = `_${WOOL_ECO_S}`;
 

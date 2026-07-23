@@ -13,7 +13,8 @@ import { syncConstructionsTitlesFromItems } from "../utils/itemsCatalog.js";
  *   - табличное состояние (tableConstrToCalc);
  *   - выбор пользователя в UI (currentSubCategory/Items, openedSubCategories,
  *     template, profileStep (лаги пола), facingProfileStep (облицовка/перегородки),
- *     dFrame, currentConstr, currentHangerType, currentFloorSealant, currentGkla/Wool, unvisible).
+ *     dFrame, currentConstr, currentHangerType, currentFloorSealant,
+ *     currentCeilingMats, currentGkla/Wool, unvisible).
  *
  * Эфемерные вещи (текущая форма нового элемента `constR`/`constrSent`/`opening`,
  * лоадеры, модалки) остаются useState в компоненте.
@@ -34,6 +35,7 @@ const initialState = {
   currentConstr: "",
   currentHangerType: "vibrostek",
   currentFloorSealant: "vibrosil",
+  currentCeilingMats: [],
   ConstrToCalcToSent: [],
   ConstrToCalc: [],
   materialsByConstruction: [],
@@ -95,6 +97,10 @@ export const useCalculatorStore = create(
           Object.keys(initialState).map((k) => [k, state[k]])
         ),
       onRehydrateStorage: () => (state) => {
+        if (!state) return;
+        if (!Array.isArray(state.currentCeilingMats)) {
+          state.currentCeilingMats = [];
+        }
         if (!state?.ConstrToCalc?.length) return;
         const synced = syncConstructionsTitlesFromItems(
           state.ConstrToCalc,

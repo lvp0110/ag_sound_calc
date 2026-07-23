@@ -3,6 +3,7 @@ import { Router, type NextFunction, type Request, type Response } from "express"
 import { prisma } from "../lib/prisma.js";
 import { requireAuth } from "../middleware/requireAuth.js";
 import { requireAdmin } from "../middleware/requireAdmin.js";
+import { nextEmployeeNumberForCompany } from "../utils/employeeNumber.js";
 import { toCompanyDto, toUserDto } from "../utils/userDto.js";
 import { parsePagination, paginated } from "../utils/pagination.js";
 
@@ -198,17 +199,21 @@ router.post(
     }
 
     const passwordHash = await bcrypt.hash(String(password), SALT_ROUNDS);
-    const user = await prisma.user.create({
-      data: {
-        fullName: String(full_name).trim(),
-        email: normalizedEmail,
-        phone: trimOrNull(phone),
-        officeAddress: trimOrNull(office_address),
-        role: role !== undefined ? (role as "USER" | "ADMIN") : "USER",
-        companyId: company.id,
-        passwordHash,
-      },
-      include: { company: { include: { country: true } } },
+    const user = await prisma.$transaction(async (tx) => {
+      const employeeNumber = await nextEmployeeNumberForCompany(tx, company.id);
+      return tx.user.create({
+        data: {
+          fullName: String(full_name).trim(),
+          email: normalizedEmail,
+          phone: trimOrNull(phone),
+          officeAddress: trimOrNull(office_address),
+          role: role !== undefined ? (role as "USER" | "ADMIN") : "USER",
+          companyId: company.id,
+          employeeNumber,
+          passwordHash,
+        },
+        include: { company: { include: { country: true } } },
+      });
     });
     return res.status(201).json(toUserDto(user));
   })
@@ -243,17 +248,28 @@ router.patch(
       if (!company) return res.status(400).json({ error: "Company not found" });
     }
 
-    const updated = await prisma.user.update({
-      where: { id: req.params.id },
-      data: {
-        fullName: full_name !== undefined ? String(full_name).trim() : undefined,
-        email: email !== undefined ? String(email).trim().toLowerCase() : undefined,
-        phone: phone !== undefined ? trimOrNull(phone) : undefined,
-        officeAddress: office_address !== undefined ? trimOrNull(office_address) : undefined,
-        role: role !== undefined ? (role as "USER" | "ADMIN") : undefined,
-        companyId: company_id !== undefined ? String(company_id) : undefined,
-      },
-      include: { company: { include: { country: true } } },
+    const nextCompanyId =
+      company_id !== undefined ? String(company_id) : existing.companyId;
+    const companyChanged = nextCompanyId !== existing.companyId;
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const employeeNumber = companyChanged
+        ? await nextEmployeeNumberForCompany(tx, nextCompanyId)
+        : undefined;
+
+      return tx.user.update({
+        where: { id: req.params.id },
+        data: {
+          fullName: full_name !== undefined ? String(full_name).trim() : undefined,
+          email: email !== undefined ? String(email).trim().toLowerCase() : undefined,
+          phone: phone !== undefined ? trimOrNull(phone) : undefined,
+          officeAddress: office_address !== undefined ? trimOrNull(office_address) : undefined,
+          role: role !== undefined ? (role as "USER" | "ADMIN") : undefined,
+          companyId: company_id !== undefined ? nextCompanyId : undefined,
+          ...(employeeNumber !== undefined ? { employeeNumber } : {}),
+        },
+        include: { company: { include: { country: true } } },
+      });
     });
     return res.json(toUserDto(updated));
   })

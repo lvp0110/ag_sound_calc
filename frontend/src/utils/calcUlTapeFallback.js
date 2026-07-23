@@ -113,6 +113,90 @@ export const isAgCsMatCipher = (agId = "", calcCode = "") =>
 export const isSimpleCeilingMatCipher = (agId = "", calcCode = "") =>
   isAgCtEcoCipher(agId, calcCode) || isAgCsMatCipher(agId, calcCode);
 
+/**
+ * Конструкции, к которым можно добавить мат/мембрану
+ * (потолки C501–503 и облицовки L401–405).
+ */
+export const CEILING_MAT_CHOICE_AG_IDS = new Set([
+  "AG.C501",
+  "AG.C502",
+  "AG.C503",
+  "AG.L401",
+  "AG.L402",
+  "AG.L403",
+  "AG.L404",
+  "AG.L405",
+]);
+
+export const hasCeilingMatChoice = (agId) =>
+  Boolean(agId) && CEILING_MAT_CHOICE_AG_IDS.has(String(agId).trim());
+
+/**
+ * Синтетический шифр мембраны (во внешнем calc нет отдельной конструкции).
+ * Материалы собираем локально по площади.
+ */
+export const AG_CU_MEM_CIPHER = "AG.Cu_mem";
+
+export const UL_MEMBRANE_ARTICLE = {
+  Code: "1405.0101",
+  Name: "Мембрана звукоизоляционная Ультракустик с клеевым слоем, 2500х1200х3,7 мм",
+  Units: "рул",
+  InfoPack: "2500х1200х3,7 мм (3 м²)",
+};
+
+/** Площадь одного рулона мембраны, м². */
+export const UL_MEMBRANE_AREA_PER_ROLL_M2 = 3;
+
+export const CEILING_ADDON_CODES = new Set([
+  AG_CT_ECO_CIPHER,
+  AG_CS_MAT_CIPHER,
+  AG_CU_MEM_CIPHER,
+]);
+
+/** Нормализует один код аддона → код или null. */
+export const normalizeCeilingMatCode = (value) => {
+  const v = String(value ?? "").trim();
+  return CEILING_ADDON_CODES.has(v) ? v : null;
+};
+
+/**
+ * Нормализует CeilingMats / legacy CeilingMat из calc_params → массив кодов.
+ * Поддерживает старый формат `CeilingMat: "AG.Ct_eco"`.
+ */
+export const normalizeCeilingMats = (mats, legacySingle) => {
+  const out = [];
+  const push = (v) => {
+    const code = normalizeCeilingMatCode(v);
+    if (code && !out.includes(code)) out.push(code);
+  };
+  if (Array.isArray(mats)) {
+    for (const v of mats) push(v);
+  } else if (mats != null && mats !== "") {
+    push(mats);
+  }
+  if (legacySingle != null && legacySingle !== "") {
+    push(legacySingle);
+  }
+  return out;
+};
+
+/** Материалы мембраны по площади конструкции (Area в мм²). */
+export const buildUlMembraneMaterials = (areaMm2) => {
+  const areaM2 = Number(areaMm2) / 1e6;
+  if (!Number.isFinite(areaM2) || areaM2 <= 0) return [];
+  const quantity = Math.max(1, Math.ceil(areaM2 / UL_MEMBRANE_AREA_PER_ROLL_M2));
+  return [
+    {
+      Code: UL_MEMBRANE_ARTICLE.Code,
+      Name: UL_MEMBRANE_ARTICLE.Name,
+      Quantity: quantity,
+      Units: UL_MEMBRANE_ARTICLE.Units,
+      InfoPack: UL_MEMBRANE_ARTICLE.InfoPack,
+      Order: 100,
+    },
+  ];
+};
+
 export function constructionDisplayCipher({
   agId = "",
   calcCode = "",

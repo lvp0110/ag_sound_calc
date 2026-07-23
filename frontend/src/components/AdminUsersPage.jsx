@@ -343,6 +343,7 @@ export default function AdminUsersPage() {
         <table className="admin-table">
           <thead>
             <tr>
+              <th>№</th>
               <th>ФИО</th>
               <th>Email</th>
               <th>Телефон</th>
@@ -358,6 +359,11 @@ export default function AdminUsersPage() {
                 key={u.id}
                 className={u.is_blocked ? "admin-table__row--blocked" : undefined}
               >
+                <td>
+                  {typeof u.employee_number === "number"
+                    ? String(u.employee_number).padStart(2, "0")
+                    : "—"}
+                </td>
                 <td>{u.full_name}</td>
                 <td>{u.email}</td>
                 <td>{u.phone || "—"}</td>

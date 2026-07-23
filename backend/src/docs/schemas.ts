@@ -16,6 +16,7 @@ export const UserSchema = z
     phone: z.string().nullable(),
     email: z.string().email(),
     office_address: z.string().nullable(),
+    employee_number: z.number().int().optional(),
     created_at: z.string().datetime(),
     updated_at: z.string().datetime(),
   })
@@ -233,6 +234,8 @@ export const OfferSummarySchema = z
     object_name: z.string().nullable(),
     region: z.string().nullable(),
     kp_date: z.string().nullable(),
+    kp_number: z.number().int(),
+    kp_code: z.string(),
     created_at: z.string().datetime(),
     updated_at: z.string().datetime(),
   })
@@ -271,6 +274,8 @@ export const OfferSchema = z
     email: z.string().nullable(),
     office_address: z.string().nullable(),
     kp_date: z.string().nullable(),
+    kp_number: z.number().int(),
+    kp_code: z.string(),
     object_name: z.string().nullable(),
     region: z.string().nullable(),
     markup_percent: z.number().nullable(),

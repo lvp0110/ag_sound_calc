@@ -27,11 +27,13 @@ import {
 } from "../utils/calculations";
 import {
   applyUltrasonicHangerDisplayText,
+  hasCeilingMatChoice,
   hasEcoSWoolChoice,
   hangerTypeFromCode,
   hasFloorSealantChoice,
   hasGklaChoice,
   HANGER_VIBROSTEK,
+  normalizeCeilingMats,
   stripHangerSuffix,
 } from "../utils/calcUlTapeFallback";
 import {
@@ -94,6 +96,8 @@ const Calculator = () => {
     useCalcField("currentFloorSealant");
   const [currentHangerType, setCurrentHangerType] =
     useCalcField("currentHangerType");
+  const [currentCeilingMats, setCurrentCeilingMats] =
+    useCalcField("currentCeilingMats");
   const [ConstrToCalcToSent, setConstrToCalcToSent] = useCalcField("ConstrToCalcToSent");
   const [ConstrToCalc, setConstrToCalc] = useCalcField("ConstrToCalc");
   const [materialsByConstruction, setMaterialsByConstruction] = useCalcField(
@@ -365,6 +369,7 @@ const Calculator = () => {
         setCurrentConstr("");
         setCurrentFloorSealant("vibrosil");
         setCurrentHangerType(HANGER_VIBROSTEK);
+        setCurrentCeilingMats([]);
       } else {
         setCurrentItems(item.id);
         setTemplate(item.template);
@@ -372,6 +377,7 @@ const Calculator = () => {
         setCurrentConstr(item.ag_id);
         setCurrentFloorSealant("vibrosil");
         setCurrentHangerType(hangerTypeFromCode(item.ag_id));
+        setCurrentCeilingMats([]);
         if (!hasGklaChoice(item.ag_id)) {
           setCurrentGkla("default");
         }
@@ -386,7 +392,13 @@ const Calculator = () => {
         }
       }
     },
-    [currentItems, setCurrentWool, setFacingProfileStep, setCurrentGkla]
+    [
+      currentItems,
+      setCurrentWool,
+      setFacingProfileStep,
+      setCurrentGkla,
+      setCurrentCeilingMats,
+    ]
   );
 
   useEffect(() => {
@@ -400,6 +412,7 @@ const Calculator = () => {
         if (initializedItemIdRef.current !== currentItems) {
           setCurrentConstr(selectedItem.ag_id);
           setCurrentHangerType(hangerTypeFromCode(selectedItem.ag_id));
+          setCurrentCeilingMats([]);
           initializedItemIdRef.current = currentItems;
         }
       }
@@ -408,6 +421,7 @@ const Calculator = () => {
       setCurrentConstr("");
       setCurrentFloorSealant("vibrosil");
       setCurrentHangerType(HANGER_VIBROSTEK);
+      setCurrentCeilingMats([]);
       initializedItemIdRef.current = null;
     }
   }, [
@@ -416,6 +430,7 @@ const Calculator = () => {
     setCurrentConstr,
     setCurrentFloorSealant,
     setCurrentHangerType,
+    setCurrentCeilingMats,
     setTableConstrToCalc,
     setTemplate,
   ]);
@@ -794,6 +809,13 @@ const Calculator = () => {
     if (sendSealantChoice) {
       newConstrSent.FloorSealant = currentFloorSealant;
     }
+    const ceilingMats = normalizeCeilingMats(currentCeilingMats);
+    if (
+      hasCeilingMatChoice(Constr?.ag_id || agId) &&
+      ceilingMats.length > 0
+    ) {
+      newConstrSent.CeilingMats = ceilingMats;
+    }
 
     const deep = JSON.parse(JSON.stringify(newConstrSent));
 
@@ -826,6 +848,7 @@ const Calculator = () => {
       setCurrentWool("default");
       setCurrentFloorSealant("vibrosil");
       setCurrentHangerType(HANGER_VIBROSTEK);
+      setCurrentCeilingMats([]);
     } catch (error) {
       let errorMessage = error.message;
       if (error.message.includes("invalid construction size")) {
@@ -860,6 +883,7 @@ const Calculator = () => {
     currentWool,
     currentFloorSealant,
     currentHangerType,
+    currentCeilingMats,
     template,
   ]);
 
@@ -1107,6 +1131,8 @@ const Calculator = () => {
                             setCurrentFloorSealant={setCurrentFloorSealant}
                             currentHangerType={currentHangerType}
                             setCurrentHangerType={setCurrentHangerType}
+                            currentCeilingMats={currentCeilingMats}
+                            setCurrentCeilingMats={setCurrentCeilingMats}
                             unvisible={unvisible}
                             setUnvisible={setUnvisible}
                             currentGkla={currentGkla}

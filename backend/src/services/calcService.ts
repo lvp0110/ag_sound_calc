@@ -1,5 +1,7 @@
 import { env } from "../config/env.js";
 import {
+  AG_CU_MEM_CIPHER,
+  buildUlMembraneMaterials,
   ecoSWoolFallbackCalcCode,
   isEcoSWoolCalcCode,
   isUlHangerCalcCode,
@@ -9,6 +11,7 @@ import {
   mapVibroflexHangerToUltracoustic,
   mapVibrosilSealantToUltracoustic,
   mapVibrostekMaterialsToUlTape,
+  normalizeCeilingMats,
   ulHangerFallbackCalcCode,
   ulTapeFallbackCalcCodes,
 } from "./calcUlTapeFallback.js";
@@ -101,10 +104,59 @@ const fetchMaterialsFromCalcService = async (
 /**
  * Вызывает внешний сервис расчёта для ОДНОЙ конструкции.
  * Возвращает плоский массив материалов этой конструкции.
+ *
+ * `CeilingMats` (AG.Ct_eco / AG.Cs_mat / AG.Cu_mem) — опциональные аддоны
+ * для C501–503 / L401–405: считаем основную конструкцию и каждый аддон
+ * с теми же размерами, материалы склеиваем. Legacy: `CeilingMat` (строка).
  */
 const calculateOne = async (params: CalcParams): Promise<CalcMaterial[]> => {
   const cached = getCachedCalcMaterials(params);
   if (cached) return cached;
+
+  const paramsRec = {
+    ...(params as unknown as Record<string, unknown>),
+  };
+  const ceilingMats = normalizeCeilingMats(
+    paramsRec.CeilingMats,
+    paramsRec.CeilingMat
+  );
+  if (ceilingMats.length > 0) {
+    delete paramsRec.CeilingMats;
+    delete paramsRec.CeilingMat;
+    const baseParams = paramsRec as unknown as CalcParams;
+    const primary = await calculateOne(baseParams);
+    if (primary.length === 0) return [];
+
+    let merged = [...primary];
+    for (const matCode of ceilingMats) {
+      if (matCode === AG_CU_MEM_CIPHER) {
+        const membrane = buildUlMembraneMaterials(baseParams.Area);
+        if (membrane.length === 0) {
+          throw new CalcServiceError(
+            `Could not build materials for ceiling membrane ${matCode}`,
+            502
+          );
+        }
+        merged = [...merged, ...(membrane as CalcMaterial[])];
+        continue;
+      }
+
+      const matMaterials = await calculateOne({
+        ...baseParams,
+        Code: matCode,
+      });
+      if (matMaterials.length === 0) {
+        throw new CalcServiceError(
+          `Calc service returned no materials for ceiling mat ${matCode}`,
+          502
+        );
+      }
+      merged = [...merged, ...matMaterials];
+    }
+
+    setCachedCalcMaterials(params, merged);
+    return merged;
+  }
 
   let materials = await fetchMaterialsFromCalcService(params);
 

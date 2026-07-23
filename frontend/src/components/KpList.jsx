@@ -18,6 +18,7 @@ import Pagination from "./Pagination.jsx";
 import "./KpList.css";
 
 const PAGE_SIZE = 20;
+const SEARCH_DEBOUNCE_MS = 300;
 
 function formatRegionCell(region) {
   const label = getRegionCityLabel(region);
@@ -54,6 +55,9 @@ export default function KpList() {
   const [offers, setOffers] = useState([]);
   const [page, setPage] = useState(1);
   const [meta, setMeta] = useState({ total: 0, pages: 1, limit: PAGE_SIZE });
+  const [searchInput, setSearchInput] = useState("");
+  const [search, setSearch] = useState("");
+  const [dateFilter, setDateFilter] = useState("");
   const [loadStatus, setLoadStatus] = useState("idle");
   const [error, setError] = useState(null);
   const [cloningId, setCloningId] = useState(null);
@@ -64,11 +68,31 @@ export default function KpList() {
   const [pdfDialogOffer, setPdfDialogOffer] = useState(null);
   const [pdfDialogError, setPdfDialogError] = useState(null);
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const next = searchInput.trim();
+      if (next === search) return;
+      setPage(1);
+      setSearch(next);
+    }, SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [searchInput, search]);
+
+  const handleDateFilterChange = (value) => {
+    setDateFilter(value);
+    setPage(1);
+  };
+
   const load = useCallback(async () => {
-    setLoadStatus("loading");
+    setLoadStatus((s) => (s === "loaded" || s === "refreshing" ? "refreshing" : "loading"));
     setError(null);
     try {
-      const data = await listOffers({ page, limit: PAGE_SIZE });
+      const data = await listOffers({
+        page,
+        limit: PAGE_SIZE,
+        q: search,
+        date: dateFilter,
+      });
       setOffers(Array.isArray(data?.items) ? data.items : []);
       setMeta({ total: data?.total ?? 0, pages: data?.pages ?? 1, limit: data?.limit ?? PAGE_SIZE });
       setLoadStatus("loaded");
@@ -80,7 +104,7 @@ export default function KpList() {
         setLoadStatus("error");
       }
     }
-  }, [page]);
+  }, [page, search, dateFilter]);
 
   useEffect(() => {
     // После «Выйти» не открывать КП снова (kpExit в state или allowExitToList).
@@ -306,6 +330,11 @@ export default function KpList() {
     );
   }
 
+  const hasFilters = Boolean(search || dateFilter);
+  const emptyMessage = hasFilters
+    ? "Ничего не найдено. Измените номер, объект или дату."
+    : "Пока нет ни одного КП. Начните с калькулятора.";
+
   return (
     <div className="kp-list">
       <div className="kp-list__header">
@@ -320,76 +349,111 @@ export default function KpList() {
         </button>
       </div>
 
+      <div className="kp-list__filters">
+        <div className="kp-list__filter kp-list__filter--search">
+          <label className="kp-list__search-label" htmlFor="kp-list-search">
+            Поиск по номеру или объекту
+          </label>
+          <input
+            id="kp-list-search"
+            className="kp-list__search"
+            type="search"
+            autoComplete="off"
+            placeholder="№ КП или название объекта"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+          />
+        </div>
+        <div className="kp-list__filter kp-list__filter--date">
+          <label className="kp-list__search-label" htmlFor="kp-list-date">
+            Дата КП
+          </label>
+          <input
+            id="kp-list-date"
+            className="kp-list__search kp-list__date"
+            type="date"
+            value={dateFilter}
+            onChange={(e) => handleDateFilterChange(e.target.value)}
+          />
+        </div>
+      </div>
+
       {error && <div className="kp-list__error" role="alert">{error}</div>}
 
       {offers.length === 0 ? (
-        <p className="kp-list__empty">Пока нет ни одного КП. Начните с калькулятора.</p>
+        <p className="kp-list__empty">
+          {loadStatus === "refreshing" ? "Загрузка..." : emptyMessage}
+        </p>
       ) : (
         <>
-          <div className="kp-list__cards" role="list">
-            {offers.map((o, i) => (
-              <article key={o.id} className="kp-list__card" role="listitem">
-                <div className="kp-list__card-header">
-                  <span className="kp-list__card-num">{(page - 1) * meta.limit + i + 1}</span>
-                  <button
-                    type="button"
-                    className="kp-list__link kp-list__card-title"
-                    onClick={() => openOffer(o.id)}
-                  >
-                    {o.object_name || "(без названия)"}
-                  </button>
-                </div>
-                <dl className="kp-list__card-meta">
-                  <div className="kp-list__card-row">
-                    <dt>Регион</dt>
-                    <dd>{formatRegionCell(o.region)}</dd>
-                  </div>
-                  <div className="kp-list__card-row">
-                    <dt>Дата КП</dt>
-                    <dd>{o.kp_date || "—"}</dd>
-                  </div>
-                  <div className="kp-list__card-row">
-                    <dt>Обновлено</dt>
-                    <dd>{formatDate(o.updated_at)}</dd>
-                  </div>
-                </dl>
-                <div className="kp-list__card-actions">{renderOfferActions(o)}</div>
-              </article>
-            ))}
-          </div>
-
-          <table className="kp-list__table">
-            <thead>
-              <tr>
-                <th className="kp-list__num-col">№</th>
-                <th>Объект</th>
-                <th>Регион</th>
-                <th>Дата КП</th>
-                <th>Обновлено</th>
-                <th className="kp-list__actions-col">Действия</th>
-              </tr>
-            </thead>
-            <tbody>
-              {offers.map((o, i) => (
-                <tr key={o.id}>
-                  <td className="kp-list__num-cell">{(page - 1) * meta.limit + i + 1}</td>
-                  <td>
+          <div
+            className={`kp-list__results${loadStatus === "refreshing" ? " kp-list__results--refreshing" : ""}`}
+          >
+            <div className="kp-list__cards" role="list">
+              {offers.map((o) => (
+                <article key={o.id} className="kp-list__card" role="listitem">
+                  <div className="kp-list__card-header">
+                    <span className="kp-list__card-num">{o.kp_code || "—"}</span>
                     <button
                       type="button"
-                      className="kp-list__link"
+                      className="kp-list__link kp-list__card-title"
                       onClick={() => openOffer(o.id)}
                     >
                       {o.object_name || "(без названия)"}
                     </button>
-                  </td>
-                  <td>{formatRegionCell(o.region)}</td>
-                  <td>{o.kp_date || "—"}</td>
-                  <td>{formatDate(o.updated_at)}</td>
-                  <td className="kp-list__actions">{renderOfferActions(o)}</td>
-                </tr>
+                  </div>
+                  <dl className="kp-list__card-meta">
+                    <div className="kp-list__card-row">
+                      <dt>Регион</dt>
+                      <dd>{formatRegionCell(o.region)}</dd>
+                    </div>
+                    <div className="kp-list__card-row">
+                      <dt>Дата КП</dt>
+                      <dd>{o.kp_date || "—"}</dd>
+                    </div>
+                    <div className="kp-list__card-row">
+                      <dt>Обновлено</dt>
+                      <dd>{formatDate(o.updated_at)}</dd>
+                    </div>
+                  </dl>
+                  <div className="kp-list__card-actions">{renderOfferActions(o)}</div>
+                </article>
               ))}
-            </tbody>
-          </table>
+            </div>
+
+            <table className="kp-list__table">
+              <thead>
+                <tr>
+                  <th className="kp-list__num-col">№</th>
+                  <th>Объект</th>
+                  <th>Регион</th>
+                  <th>Дата КП</th>
+                  <th>Обновлено</th>
+                  <th className="kp-list__actions-col">Действия</th>
+                </tr>
+              </thead>
+              <tbody>
+                {offers.map((o) => (
+                  <tr key={o.id}>
+                    <td className="kp-list__num-cell">{o.kp_code || "—"}</td>
+                    <td>
+                      <button
+                        type="button"
+                        className="kp-list__link"
+                        onClick={() => openOffer(o.id)}
+                      >
+                        {o.object_name || "(без названия)"}
+                      </button>
+                    </td>
+                    <td>{formatRegionCell(o.region)}</td>
+                    <td>{o.kp_date || "—"}</td>
+                    <td>{formatDate(o.updated_at)}</td>
+                    <td className="kp-list__actions">{renderOfferActions(o)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
 
           <Pagination
             page={page}
