@@ -11,9 +11,15 @@ export const createOffer = (payload) =>
 /**
  * GET /api/offers — постраничный список офферов (метаданные, без конструкций).
  * Возвращает { items, total, page, limit, pages }.
+ * `q` — поиск по номеру КП или названию объекта.
+ * `date` — фильтр по дате КП (YYYY-MM-DD или DD.MM.YYYY).
  */
-export const listOffers = ({ page = 1, limit = 20 } = {}) => {
+export const listOffers = ({ page = 1, limit = 20, q = "", date = "" } = {}) => {
   const qs = new URLSearchParams({ page: String(page), limit: String(limit) });
+  const query = typeof q === "string" ? q.trim() : "";
+  if (query) qs.set("q", query);
+  const dateFilter = typeof date === "string" ? date.trim() : "";
+  if (dateFilter) qs.set("date", dateFilter);
   return request(`/api/offers?${qs}`, { method: "GET" });
 };
 

@@ -200,6 +200,22 @@ registry.registerPath({
   tags: ["Offers"],
   summary: "Список офферов текущего пользователя",
   security: [{ cookieAuth: [] }],
+  request: {
+    query: z.object({
+      page: z.coerce.number().int().positive().optional(),
+      limit: z.coerce.number().int().positive().optional(),
+      q: z
+        .string()
+        .optional()
+        .openapi({ description: "Поиск по номеру КП или названию объекта" }),
+      date: z
+        .string()
+        .optional()
+        .openapi({
+          description: "Фильтр по дате КП (YYYY-MM-DD или DD.MM.YYYY)",
+        }),
+    }),
+  },
   responses: {
     200: {
       description: "Метаданные офферов (без конструкций)",

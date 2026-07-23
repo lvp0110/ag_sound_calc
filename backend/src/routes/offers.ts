@@ -16,6 +16,7 @@ import { CalcServiceError, calculateByProduct } from "../services/calcService.js
 import { recalcConstructionsMaterials } from "../services/offerRecalc.js";
 import { OfferPdfError, renderOfferPdf } from "../services/offerPdf.js";
 import { formatKpCode } from "../utils/kpCode.js";
+import { buildOffersListWhere } from "../utils/offerListSearch.js";
 import { parsePagination, paginated } from "../utils/pagination.js";
 
 const router = Router();
@@ -247,18 +248,22 @@ router.get(
     if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
     const { page, limit, skip, take } = parsePagination(req.query);
+    const where = buildOffersListWhere(userId, {
+      q: req.query.q,
+      date: req.query.date,
+    });
     const [user, offers, total] = await prisma.$transaction([
       prisma.user.findUnique({
         where: { id: userId },
         select: { employeeNumber: true },
       }),
       prisma.offer.findMany({
-        where: { userId },
+        where,
         orderBy: { updatedAt: "desc" },
         skip,
         take,
       }),
-      prisma.offer.count({ where: { userId } }),
+      prisma.offer.count({ where }),
     ]);
 
     const ownerEmployeeNumber = user?.employeeNumber ?? null;

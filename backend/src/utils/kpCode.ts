@@ -21,3 +21,16 @@ export function formatKpCode(
   if (!kp || !emp) return "";
   return `КП-${kp}-${emp}`;
 }
+
+/**
+ * Извлекает порядковый номер КП из поисковой строки.
+ * Понимает «12», «012», «КП-012», «КП-012-07».
+ */
+export function parseKpNumberFromQuery(q: string): number | null {
+  const trimmed = q.trim();
+  if (!trimmed) return null;
+  const m = /(?:^|\b)(?:КП[-\s]?)?(\d{1,6})(?:\b|$)/i.exec(trimmed);
+  if (!m) return null;
+  const n = Number.parseInt(m[1], 10);
+  return Number.isFinite(n) ? n : null;
+}
