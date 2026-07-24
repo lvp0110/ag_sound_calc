@@ -55,10 +55,12 @@ export const __resetTemplateCache = (): void => {
 // ─── shape of incoming DTO ──────────────────────────────────────────────────
 
 type ServiceLike = {
+  id?: string | null;
   name?: string | null;
   price?: number | null;
   count?: number | null;
   unit?: string | null;
+  construction_key_id?: string | number | null;
 } & Record<string, unknown>;
 
 type MaterialLike = {
@@ -117,6 +119,8 @@ export type OfferForRender = {
   services: ServiceLike[] | null;
   additional_materials: ServiceLike[] | null;
   constructions: ConstructionLike[];
+  /** JSON kp_settings оффера (ставки монтажа + скидки итога). */
+  kp_settings?: Record<string, unknown> | null;
 };
 
 export type RenderInput = {
@@ -234,6 +238,166 @@ const orderMaterialsLikeKpTable = (materials: MaterialLike[]): MaterialLike[] =>
     else noArticle.push(m);
   }
   return [...withArticle, ...noArticle];
+};
+
+/**
+ * Ключ строки сводки материалов — как `materialAggregateKey` на фронте.
+ * Артикул (код с цифры) → `code:…`, иначе name+units.
+ */
+const materialAggregateKey = (m: MaterialLike): string => {
+  const codeRaw = m.Code != null ? String(m.Code).trim() : "";
+  if (hasKpTableArticle(codeRaw)) return `code:${codeRaw}`;
+  const name = String(m.Name ?? m.name ?? "")
+    .trim()
+    .toLowerCase();
+  const units = String(m.Units ?? "")
+    .trim()
+    .toLowerCase();
+  return `name:${name}|units:${units}`;
+};
+
+const pctOfSum = (sum: number, pctRaw: unknown): number => {
+  const pct = parseKpDecimal(pctRaw);
+  if (pct == null || !(sum > 0)) return 0;
+  return (sum * pct) / 100;
+};
+
+const asDiscountMap = (raw: unknown): Record<string, unknown> =>
+  raw && typeof raw === "object" && !Array.isArray(raw)
+    ? (raw as Record<string, unknown>)
+    : {};
+
+/**
+ * Считает суммы скидок ₽ по секциям из `grand_total_discounts` (% по ключам строк),
+ * с fallback на сохранённые `grand_total_discount_amounts`.
+ */
+const computeSectionDiscountAmounts = (
+  offer: OfferForRender,
+  priceLookup: PriceLookup
+): {
+  constructions: number;
+  montage: number;
+  services: number;
+  additionalMaterials: number;
+} => {
+  const kpSettings =
+    offer.kp_settings && typeof offer.kp_settings === "object"
+      ? offer.kp_settings
+      : {};
+  const discountsRoot = asDiscountMap(
+    kpSettings.grand_total_discounts ?? kpSettings.grandTotalDiscounts
+  );
+  const constructionsPct = asDiscountMap(discountsRoot.constructions);
+  const montagePct = asDiscountMap(discountsRoot.montage);
+  const servicesPct = asDiscountMap(discountsRoot.services);
+  const additionalMaterialsPct = asDiscountMap(
+    discountsRoot.additionalMaterials
+  );
+  const storedAmounts = asDiscountMap(
+    kpSettings.grand_total_discount_amounts ??
+      kpSettings.grandTotalDiscountAmounts
+  );
+  const stored = (key: string): number => {
+    const n = Number(storedAmounts[key]);
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  };
+
+  // ── constructions: агрегат материалов по всем конструкциям ──
+  const qtyByKey = new Map<
+    string,
+    { material: MaterialLike; kpQty: number; rawQty: number }
+  >();
+  const orderKeys: string[] = [];
+  for (const c of offer.constructions || []) {
+    const materials = Array.isArray(c.materials) ? c.materials : [];
+    for (const material of materials) {
+      if (!material || typeof material !== "object") continue;
+      const key = materialAggregateKey(material);
+      const qty = effectiveKpQuantity(material, { forKp: true });
+      const qtyNum = qty != null && Number.isFinite(qty) ? qty : 0;
+      const rawQty = Number(material.Quantity);
+      const rawQtyNum = Number.isFinite(rawQty) ? rawQty : 0;
+      const prev = qtyByKey.get(key);
+      if (!prev) {
+        orderKeys.push(key);
+        qtyByKey.set(key, {
+          material: { ...material, Quantity: rawQtyNum, KpQuantity: qtyNum },
+          kpQty: qtyNum,
+          rawQty: rawQtyNum,
+        });
+      } else {
+        prev.rawQty += rawQtyNum;
+        prev.kpQty += qtyNum;
+        prev.material.Quantity = prev.rawQty;
+        prev.material.KpQuantity = prev.kpQty;
+      }
+    }
+  }
+  let constructions = 0;
+  for (const key of orderKeys) {
+    const entry = qtyByKey.get(key);
+    if (!entry) continue;
+    const article = materialArticle(entry.material);
+    const { pricePerM2, pricePerUnit } = priceLookup(article);
+    const sum = materialLineSum(entry.material, pricePerM2, pricePerUnit);
+    if (!(typeof sum === "number" && Number.isFinite(sum) && sum > 0)) continue;
+    constructions += pctOfSum(sum, constructionsPct[key]);
+  }
+
+  // ── montage: montage-${construction.id} ──
+  let montage = 0;
+  for (const c of offer.constructions || []) {
+    const montageArr = Array.isArray(c.montage) ? c.montage : [];
+    const row = montageArr[0];
+    if (!row) continue;
+    const sum =
+      (parseKpDecimal(row.price) ?? 0) * (parseKpDecimal(row.count) ?? 0);
+    if (!(sum > 0)) continue;
+    montage += pctOfSum(sum, montagePct[`montage-${c.id}`]);
+  }
+
+  // ── services: service-${id} ──
+  let services = 0;
+  for (const s of offer.services || []) {
+    const id = s.id != null ? String(s.id).trim() : "";
+    if (!id) continue;
+    const sum =
+      (parseKpDecimal(s.price) ?? 0) * (parseKpDecimal(s.count) ?? 0);
+    if (!(sum > 0)) continue;
+    services += pctOfSum(sum, servicesPct[`service-${id}`]);
+  }
+
+  // ── additional materials: addmat-${construction_key_id}-${id} ──
+  let additionalMaterials = 0;
+  for (const m of offer.additional_materials || []) {
+    const id = m.id != null ? String(m.id).trim() : "";
+    const rawKey = m.construction_key_id;
+    const keyId =
+      typeof rawKey === "string"
+        ? rawKey.trim()
+        : typeof rawKey === "number"
+          ? String(rawKey)
+          : "";
+    if (!id || !keyId) continue;
+    const sum =
+      (parseKpDecimal(m.price) ?? 0) * (parseKpDecimal(m.count) ?? 0);
+    if (!(sum > 0)) continue;
+    additionalMaterials += pctOfSum(
+      sum,
+      additionalMaterialsPct[`addmat-${keyId}-${id}`]
+    );
+  }
+
+  // Если % не удалось сопоставить (legacy без id) — берём сохранённые суммы.
+  return {
+    constructions: constructions > 0 ? constructions : stored("constructions"),
+    montage: montage > 0 ? montage : stored("montage"),
+    services: services > 0 ? services : stored("services"),
+    additionalMaterials:
+      additionalMaterials > 0
+        ? additionalMaterials
+        : stored("additionalMaterials"),
+  };
 };
 
 // ─── helpers ────────────────────────────────────────────────────────────────
@@ -447,8 +611,29 @@ export function renderOfferKpHtml({
     }
   }
 
-  const grandTotal = sections.reduce((acc, s) => acc + s.sectionTotal, 0);
-  const ndsAmount = Math.round((grandTotal * 20) / 120 * 100) / 100;
+  const grandTotalGross = sections.reduce((acc, s) => acc + s.sectionTotal, 0);
+
+  // Скидки: пересчитываем из % (grand_total_discounts) по тем же ключам, что UI;
+  // fallback — сохранённые суммы, если ключи legacy без id.
+  const discountAmounts = computeSectionDiscountAmounts(offer, priceLookup);
+  const discountLines: Array<{ label: string; amount: number }> = [
+    {
+      label: "Скидка на конструкции:",
+      amount: discountAmounts.constructions,
+    },
+    { label: "Скидка на монтаж:", amount: discountAmounts.montage },
+    {
+      label: "Скидка на дополнительные услуги:",
+      amount: discountAmounts.services,
+    },
+    {
+      label: "Скидка на дополнительные материалы:",
+      amount: discountAmounts.additionalMaterials,
+    },
+  ].filter((line) => line.amount > 0);
+  const totalDiscount = discountLines.reduce((acc, line) => acc + line.amount, 0);
+  const grandTotal = Math.max(0, grandTotalGross - totalDiscount);
+  const ndsAmount = Math.round(((grandTotal * 20) / 120) * 100) / 100;
 
   // Подсчёт количества «наименований» (как в образце: общее число строк).
   const itemsCount = sections.reduce((acc, s) => acc + s.rows.length, 0);
@@ -457,6 +642,16 @@ export function renderOfferKpHtml({
   const itemsNoun = pluralRu(itemsCount, ["наименование", "наименования", "наименований"]);
 
   const grandWords = rublesToWordsRu(grandTotal);
+
+  const discountRowsHtml = discountLines
+    .map(
+      (line) => `
+      <tr>
+        <td class="label">${esc(line.label)}</td>
+        <td class="value">${fmtRub(line.amount)}</td>
+      </tr>`
+    )
+    .join("");
 
   // Сборка динамических строк таблицы. Внутри row.name / row.unit и т.д. —
   // экранируем; <tr>/<td> — наш собственный HTML, доверенный.
@@ -526,7 +721,9 @@ export function renderOfferKpHtml({
     OBJECT_NAME: esc(offer.object_name ?? ""),
     SECTIONS: sectionsHtml,
     CONSTRUCTION_DETAILS: constructionDetailsHtml,
+    DISCOUNT_ROWS: discountRowsHtml,
     NDS_AMOUNT: fmtRub(ndsAmount),
+    GRAND_TOTAL_GROSS: fmtRub(grandTotalGross),
     GRAND_TOTAL: fmtRub(grandTotal),
     ITEMS_NOUN: esc(itemsNoun),
     ITEMS_COUNT: String(itemsCount),

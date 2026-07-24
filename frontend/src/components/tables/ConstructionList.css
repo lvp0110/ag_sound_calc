@@ -4,6 +4,84 @@
   text-align: left;
 }
 
+.construction-grand-total__line-label-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: auto;
+  height: auto;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  color: inherit;
+  font: inherit;
+  font-weight: inherit;
+  font-style: inherit;
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  cursor: pointer;
+}
+
+.construction-grand-total__line-label-button:hover {
+  color: #6cabc8;
+}
+
+.construction-grand-total__line-label-button:focus-visible {
+  outline: 2px solid #6cabc8;
+  outline-offset: 2px;
+}
+
+.construction-grand-total__line-label-button span {
+  display: inline;
+  justify-content: flex-start;
+  color: inherit;
+  font-weight: inherit;
+  pointer-events: auto;
+}
+
+.construction-grand-total__line-label-chevron {
+  box-sizing: border-box;
+  flex-shrink: 0;
+  display: inline-block;
+  width: 0.4em;
+  height: 0.4em;
+  border-style: solid;
+  border-color: currentColor;
+  border-width: 0 0.1em 0.1em 0;
+  transform: rotate(-45deg);
+  transform-origin: 45% 55%;
+  transition: transform 0.15s ease;
+}
+
+.construction-grand-total__line-label-chevron--expanded {
+  transform: rotate(45deg);
+  transform-origin: 50% 50%;
+}
+
+.construction-grand-total__materials-summary {
+  margin-top: 0;
+}
+
+.construction-grand-total__materials-summary .tbl-in {
+  margin-top: 0;
+}
+
+.construction-grand-total__materials-summary-cell {
+  padding: 0 !important;
+  border-top: none !important;
+  background: #fff !important;
+  font-style: normal !important;
+  font-weight: normal !important;
+  vertical-align: top;
+}
+
+.construction-grand-total__materials-summary-row:hover > .construction-grand-total__materials-summary-cell {
+  background: #fff !important;
+}
+
 .construction-grand-total__line-amount {
   font-weight: bold;
   text-align: right;

@@ -184,6 +184,10 @@ export function mapOfferResponseToKpView(offer, { titleByCode: _titleByCode } = 
     serviceRows: mapServicesToRows(offer.services),
     materialRowsByKeyId: mapAdditionalMaterialsToRows(offer.additional_materials),
     kpSettings: mapKpSettingsFromApi(offer.kp_settings),
+    grandTotalDiscounts: mapGrandTotalDiscountsFromApi(offer.kp_settings),
+    grandTotalDiscountAmounts: mapGrandTotalDiscountAmountsFromApi(
+      offer.kp_settings,
+    ),
   };
 }
 
@@ -278,8 +282,12 @@ export function buildDraftSyncFromCalculator({
       .map((r) => mapMaterialRowToApi(r))
       .filter(Boolean);
   }
-  if (snapshotKpSettings) {
-    payload.kp_settings = normalizeKpSettings(snapshotKpSettings);
+  if (snapshotKpSettings || kpSnapshot?.grandTotalDiscounts || kpSnapshot?.grandTotalDiscountAmounts) {
+    payload.kp_settings = normalizeKpSettings({
+      ...(snapshotKpSettings ?? {}),
+      grand_total_discounts: kpSnapshot?.grandTotalDiscounts,
+      grand_total_discount_amounts: kpSnapshot?.grandTotalDiscountAmounts,
+    });
   }
 
   return payload;
@@ -466,7 +474,10 @@ function mapServiceRowToApi(row) {
   const count = parseNumber(row.quantity);
   // пустые и без названия строки не сохраняем
   if (!row.name && price === 0 && count === 0) return null;
+  const id = row.id != null ? String(row.id).trim() : "";
   return {
+    // id нужен для ключей скидок итога (`service-${id}`) после reload.
+    ...(id ? { id } : {}),
     name: row.name || "",
     price,
     count,
@@ -486,7 +497,10 @@ function mapMaterialRowToApi(row, constructionKeyId) {
   const count = parseNumber(row.quantity);
   if (!row.name && price === 0 && count === 0) return null;
   const article = String(row.sourceArticle ?? "").trim();
+  const id = row.id != null ? String(row.id).trim() : "";
   return {
+    // id нужен для ключей скидок итога (`addmat-${keyId}-${id}`) после reload.
+    ...(id ? { id } : {}),
     name: row.name || "",
     price,
     count,
@@ -548,6 +562,58 @@ function mapServicesToRows(services) {
 }
 
 const KP_SETTINGS_KEYS = ["floor", "ceiling", "cladding", "partition"];
+const GRAND_TOTAL_DISCOUNT_SECTIONS = [
+  "constructions",
+  "montage",
+  "services",
+  "additionalMaterials",
+];
+
+export function emptyGrandTotalDiscounts() {
+  return {
+    constructions: {},
+    montage: {},
+    services: {},
+    additionalMaterials: {},
+  };
+}
+
+export function emptyGrandTotalDiscountAmounts() {
+  return {
+    constructions: 0,
+    montage: 0,
+    services: 0,
+    additionalMaterials: 0,
+  };
+}
+
+/** Нормализация карты скидок % из snapshot / kp_settings. */
+export function normalizeGrandTotalDiscounts(raw) {
+  const base = emptyGrandTotalDiscounts();
+  if (!raw || typeof raw !== "object") return base;
+  for (const section of GRAND_TOTAL_DISCOUNT_SECTIONS) {
+    const map = raw[section];
+    if (!map || typeof map !== "object") continue;
+    const next = {};
+    for (const [key, value] of Object.entries(map)) {
+      if (value == null || value === "") continue;
+      next[String(key)] = String(value);
+    }
+    base[section] = next;
+  }
+  return base;
+}
+
+/** Суммы скидок (₽) по секциям — для PDF и восстановления UI. */
+export function normalizeGrandTotalDiscountAmounts(raw) {
+  const base = emptyGrandTotalDiscountAmounts();
+  if (!raw || typeof raw !== "object") return base;
+  for (const section of GRAND_TOTAL_DISCOUNT_SECTIONS) {
+    const n = Number(raw[section]);
+    base[section] = Number.isFinite(n) && n > 0 ? n : 0;
+  }
+  return base;
+}
 
 /**
  * Нормализуем kpSettings перед отправкой: на фронте поля хранятся строками
@@ -560,6 +626,25 @@ function normalizeKpSettings(kpSettings) {
   for (const key of KP_SETTINGS_KEYS) {
     const value = kpSettings[key];
     out[key] = value === undefined || value === null ? "" : String(value);
+  }
+  const discounts = normalizeGrandTotalDiscounts(
+    kpSettings.grand_total_discounts ?? kpSettings.grandTotalDiscounts,
+  );
+  const hasAnyDiscount = GRAND_TOTAL_DISCOUNT_SECTIONS.some(
+    (section) => Object.keys(discounts[section]).length > 0,
+  );
+  if (hasAnyDiscount) {
+    out.grand_total_discounts = discounts;
+  }
+  const amounts = normalizeGrandTotalDiscountAmounts(
+    kpSettings.grand_total_discount_amounts ??
+      kpSettings.grandTotalDiscountAmounts,
+  );
+  const hasAnyAmount = GRAND_TOTAL_DISCOUNT_SECTIONS.some(
+    (section) => amounts[section] > 0,
+  );
+  if (hasAnyAmount) {
+    out.grand_total_discount_amounts = amounts;
   }
   return out;
 }
@@ -577,6 +662,20 @@ function mapKpSettingsFromApi(apiKpSettings) {
     out[key] = value === undefined || value === null ? "" : String(value);
   }
   return out;
+}
+
+/** Скидки итога из kp_settings API. */
+export function mapGrandTotalDiscountsFromApi(apiKpSettings) {
+  const src =
+    apiKpSettings && typeof apiKpSettings === "object" ? apiKpSettings : {};
+  return normalizeGrandTotalDiscounts(src.grand_total_discounts);
+}
+
+/** Суммы скидок (₽) из kp_settings API. */
+export function mapGrandTotalDiscountAmountsFromApi(apiKpSettings) {
+  const src =
+    apiKpSettings && typeof apiKpSettings === "object" ? apiKpSettings : {};
+  return normalizeGrandTotalDiscountAmounts(src.grand_total_discount_amounts);
 }
 
 function parseNumber(s) {

@@ -39,7 +39,8 @@ export const deleteOffer = (id) =>
   request(`/api/offers/${encodeURIComponent(id)}`, { method: "DELETE" });
 
 /**
- * GET /api/offers/:id/pdf — генерирует PDF КП на бэке и инициирует скачивание.
+ * GET /api/offers/:id/pdf — генерирует PDF КП на бэке, возвращает { blob, filename }
+ * без скачивания (для предпросмотра).
  *
  * `printParams` — транзитные параметры печати (в БД не сохраняются, уходят
  * query-строкой, влияют только на текст PDF). Имена ключей = имена query-
@@ -52,7 +53,7 @@ export const deleteOffer = (id) =>
  * берём из Content-Disposition (RFC 5987 filename* для кириллицы); если бэк
  * не отдал — используем дефолт.
  */
-export async function downloadOfferPdf(id, fallbackFilename = "КП.pdf", printParams = {}) {
+export async function fetchOfferPdf(id, fallbackFilename = "КП.pdf", printParams = {}) {
   const search = new URLSearchParams();
   for (const [key, value] of Object.entries(printParams)) {
     const trimmed = (value ?? "").trim();
@@ -78,6 +79,19 @@ export async function downloadOfferPdf(id, fallbackFilename = "КП.pdf", printP
   const filename = parseFilenameFromContentDisposition(
     response.headers.get("content-disposition")
   ) || fallbackFilename;
+  return { blob, filename };
+}
+
+/** Скачать уже полученный PDF-blob (после предпросмотра). */
+export function savePdfBlob(blob, filename) {
+  triggerBlobDownload(blob, filename);
+}
+
+/**
+ * GET /api/offers/:id/pdf — генерирует PDF и сразу скачивает (без предпросмотра).
+ */
+export async function downloadOfferPdf(id, fallbackFilename = "КП.pdf", printParams = {}) {
+  const { blob, filename } = await fetchOfferPdf(id, fallbackFilename, printParams);
   triggerBlobDownload(blob, filename);
 }
 

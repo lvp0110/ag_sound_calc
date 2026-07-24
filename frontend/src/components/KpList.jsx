@@ -9,7 +9,7 @@ import {
   cloneOffer,
   createOffer,
   deleteOffer,
-  downloadOfferPdf,
+  fetchOfferPdf,
   listOffers,
 } from "../services/offersApi";
 import { getRegionCityLabel } from "../constants/regionSelectOptions.js";
@@ -209,10 +209,11 @@ export default function KpList() {
     setPdfDialogError(null);
     try {
       const objectPart = offer.object_name?.trim() || offer.id;
-      await downloadOfferPdf(offer.id, `КП ${objectPart}.pdf`, printParams);
-      setPdfDialogOffer(null);
+      // Blob для предпросмотра в диалоге; скачивание — только по кнопке.
+      return await fetchOfferPdf(offer.id, `КП ${objectPart}.pdf`, printParams);
     } catch (err) {
       setPdfDialogError(err?.message || "Не удалось сгенерировать PDF.");
+      return null;
     } finally {
       setDownloadingId(null);
     }
