@@ -10,27 +10,11 @@ export const UL_TAPE_ARTICLE = {
 
 export const UL_TAPE_SUFFIX = "_ul_tape";
 export const VIBROSTEK_SUFFIX = "_vibrostek";
+
+/** Legacy-суффикс старых КП (выбор подвеса Ультракустик снят). */
 export const UL_HANGER_SUFFIX = "_ul_hanger";
 
-export const HANGER_VIBROSTEK = "vibrostek";
-export const HANGER_ULTRACOUSTIC = "ultracoustic";
-
-/** Конструкции с выбором типа подвеса (Вибростек / Ультракустик). */
-export const HANGER_CHOICE_AG_IDS = new Set([
-  "AG.C501",
-  "AG.C502",
-  "AG.C503",
-  "AG.L404",
-  "AG.L405",
-]);
-
-export const isUlHangerCalcCode = (code) =>
-  typeof code === "string" && code.includes(UL_HANGER_SUFFIX);
-
-export const hangerTypeFromCode = (code) =>
-  isUlHangerCalcCode(code) ? HANGER_ULTRACOUSTIC : HANGER_VIBROSTEK;
-
-/** Убирает суффикс подвеса с полного кода (в т.ч. AG.C501_ul_hanger). */
+/** Убирает legacy-суффикс *_ul_hanger с полного кода. */
 export const stripHangerSuffix = (code) => {
   const s = String(code ?? "").trim();
   if (s.endsWith(UL_HANGER_SUFFIX)) {
@@ -38,47 +22,6 @@ export const stripHangerSuffix = (code) => {
   }
   return { base: s, hanger: "" };
 };
-
-export const hasHangerChoice = (agId) =>
-  Boolean(agId) && HANGER_CHOICE_AG_IDS.has(String(agId).trim());
-
-/** «креплениях/креплений/применением Виброфлекс-…» → «… Ультракустик» в UI-названии. */
-const UL_HANGER_TITLE_SUFFIX_PATTERN =
-  /(креплениях|креплений|применением)\s+Виброфлекс.*$/iu;
-
-/**
- * Подмена типа подвеса в title/description для AG.C501–503 и AG.L404–405,
- * если выбран Ультракустик (по hangerType или суффиксу *_ul_hanger в calcCode).
- */
-export function applyUltrasonicHangerDisplayText({
-  title = "",
-  description = "",
-  agId = "",
-  calcCode = "",
-  hangerType,
-} = {}) {
-  const useUl =
-    hangerType === HANGER_ULTRACOUSTIC ||
-    (calcCode && isUlHangerCalcCode(String(calcCode)));
-
-  if (!useUl || !hasHangerChoice(agId)) {
-    return { title: title ?? "", description: description ?? "" };
-  }
-
-  const mapLine = (text) => {
-    const s = String(text ?? "");
-    if (!s) return s;
-    return s.replace(
-      UL_HANGER_TITLE_SUFFIX_PATTERN,
-      (_, word) => `${word} Ультракустик`,
-    );
-  };
-
-  return {
-    title: mapLine(title),
-    description: mapLine(description),
-  };
-}
 
 /** Базовый шифр «Акуфлор S20» (template 2.1) — в колонке «шифр» показываем «—». */
 export const AG_F_BASE_CIPHER = "AG.F";
@@ -92,7 +35,7 @@ export const isAgFConstructionCipher = (agId = "", calcCode = "") => {
   return /^AG\.F(?:_|$)/i.test(code);
 };
 
-/** Шифр в UI (таблица КП, PDF, /info): AG.F / AG.Ct_eco / AG.Cs_mat → «—»; AG.C501–503 / AG.L404–405 + Ультракустик → «—». */
+/** Шифр в UI (таблица КП, PDF, /info): AG.F / AG.Ct_eco / AG.Cs_mat → «—». */
 export const AG_CT_ECO_CIPHER = "AG.Ct_eco";
 export const AG_CS_MAT_CIPHER = "AG.Cs_mat";
 
@@ -113,18 +56,28 @@ export const isAgCsMatCipher = (agId = "", calcCode = "") =>
 export const isSimpleCeilingMatCipher = (agId = "", calcCode = "") =>
   isAgCtEcoCipher(agId, calcCode) || isAgCsMatCipher(agId, calcCode);
 
+/** Отдельные конструкции на креплениях Ультракустик — шифр в UI/PDF «—». */
+export const ULTRACOUSTIC_MOUNT_CIPHERS = ["AG.C501_ul", "AG.L404_ul"];
+
+export const isUltracousticMountCipher = (agId = "", calcCode = "") =>
+  ULTRACOUSTIC_MOUNT_CIPHERS.some((cipher) =>
+    isCipherWithSuffix(agId, calcCode, cipher),
+  );
+
 /**
  * Конструкции, к которым можно добавить мат/мембрану
  * (потолки C501–503 и облицовки L401–405).
  */
 export const CEILING_MAT_CHOICE_AG_IDS = new Set([
   "AG.C501",
+  "AG.C501_ul",
   "AG.C502",
   "AG.C503",
   "AG.L401",
   "AG.L402",
   "AG.L403",
   "AG.L404",
+  "AG.L404_ul",
   "AG.L405",
 ]);
 
@@ -200,7 +153,6 @@ export const buildUlMembraneMaterials = (areaMm2) => {
 export function constructionDisplayCipher({
   agId = "",
   calcCode = "",
-  hangerType,
 } = {}) {
   if (isAgFConstructionCipher(agId, calcCode)) {
     return "—";
@@ -211,58 +163,12 @@ export function constructionDisplayCipher({
   if (isSimpleCeilingMatCipher(id, code)) {
     return "—";
   }
-
-  const useUl =
-    hangerType === HANGER_ULTRACOUSTIC ||
-    (calcCode && isUlHangerCalcCode(String(calcCode)));
-
-  if (useUl && hasHangerChoice(agId)) {
+  if (isUltracousticMountCipher(id, code)) {
     return "—";
   }
 
   return id || "—";
 }
-
-/** Подвесы Виброфлекс в ответе calc для базового шифра (AG.C501 … AG.L405). */
-const VIBROFLEX_HANGER_ARTICLE_CODES = new Set([
-  "2316.3010",
-  "2316.1010",
-  "2316.4020",
-  "2316.2020",
-]);
-
-/** Артикул «Подвес виброизолирующий Ультракустик универсальный» в прайсе 1С. */
-export const UL_HANGER_ARTICLE = {
-  Code: "2406.5000",
-  Name: "Подвес виброизолирующий Ультракустик универсальный",
-  Units: "шт",
-};
-
-/** Код без суффикса *_ul_hanger (для fallback: AG.C501_ul_tape_ul_hanger → AG.C501_ul_tape). */
-export const ulHangerFallbackCalcCode = (code) => stripHangerSuffix(code).base;
-
-/**
- * В calc-сервисе пока нет *_ul_hanger: считаем базовый шифр (и при необходимости
- * цепочку *_ul_tape) и меняем подвес Виброфлекс на Ультракустик.
- */
-export const mapVibroflexHangerToUltracoustic = (materials) => {
-  if (!Array.isArray(materials) || materials.length === 0) return null;
-
-  let replaced = false;
-  const mapped = materials.map((row) => {
-    const code = String(row?.Code ?? row?.code ?? "").trim();
-    if (!VIBROFLEX_HANGER_ARTICLE_CODES.has(code)) return row;
-    replaced = true;
-    return {
-      ...row,
-      Code: UL_HANGER_ARTICLE.Code,
-      Name: UL_HANGER_ARTICLE.Name,
-      Units: UL_HANGER_ARTICLE.Units,
-    };
-  });
-
-  return replaced ? mapped : null;
-};
 
 export const isUlTapeCalcCode = (code) =>
   typeof code === "string" && code.endsWith(UL_TAPE_SUFFIX);
@@ -351,8 +257,13 @@ export const ceilingPerimeterTapeCodes = (agId) => {
 /** ЗИПС-облицовка без выбора ленты (Синема). */
 export const FACING_NO_TAPE_AG_IDS = new Set(["AG.Z205"]);
 
-/** Облицовка с выбором ленты (каркас / Виброфлекс). */
-export const FACING_TAPE_L_AG_IDS = new Set(["AG.L401", "AG.L404", "AG.L405"]);
+/** Облицовка с выбором ленты (каркас / Виброфлекс / Ультракустик). */
+export const FACING_TAPE_L_AG_IDS = new Set([
+  "AG.L401",
+  "AG.L404",
+  "AG.L404_ul",
+  "AG.L405",
+]);
 
 /** Перегородки с выбором ленты по периметру. */
 export const PARTITION_TAPE_AG_IDS = new Set(["AG.W103", "AG.W104", "AG.W105"]);
@@ -381,11 +292,13 @@ export const WOOL_ECO_S_ARTICLE = {
 /** Конструкции с вариантом минваты «Шуманет-Eco S». */
 export const WOOL_ECO_S_CHOICE_AG_IDS = new Set([
   "AG.C501",
+  "AG.C501_ul",
   "AG.C502",
   "AG.C503",
   "AG.L401",
   "AG.L403",
   "AG.L404",
+  "AG.L404_ul",
   "AG.L405",
   "AG.W101",
   "AG.W103",

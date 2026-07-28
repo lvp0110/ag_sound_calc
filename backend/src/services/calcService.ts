@@ -4,15 +4,12 @@ import {
   buildUlMembraneMaterials,
   ecoSWoolFallbackCalcCode,
   isEcoSWoolCalcCode,
-  isUlHangerCalcCode,
   isUlTapeCalcCode,
   isUltracousticFloorSealant,
   mapDefaultEcoWoolToEcoS,
-  mapVibroflexHangerToUltracoustic,
   mapVibrosilSealantToUltracoustic,
   mapVibrostekMaterialsToUlTape,
   normalizeCeilingMats,
-  ulHangerFallbackCalcCode,
   ulTapeFallbackCalcCodes,
 } from "./calcUlTapeFallback.js";
 import {
@@ -76,11 +73,6 @@ const fetchMaterialsFromCalcService = async (
   }
 
   if (!response.ok) {
-    // Неизвестный суффикс *_ul_hanger — calc отдаёт 404, дальше сработает fallback.
-    if (response.status === 404 && isUlHangerCalcCode(params.Code)) {
-      return [];
-    }
-
     let detail = "";
     try {
       detail = await response.text();
@@ -159,19 +151,6 @@ const calculateOne = async (params: CalcParams): Promise<CalcMaterial[]> => {
   }
 
   let materials = await fetchMaterialsFromCalcService(params);
-
-  // Внешний calc пока не знает *_ul_hanger — считаем без суффикса (цепочка ul_tape/eco_s
-  // через calculateOne) и подменяем подвес Виброфлекс на Ультракустик.
-  if (materials.length === 0 && isUlHangerCalcCode(params.Code)) {
-    const fallbackMaterials = await calculateOne({
-      ...params,
-      Code: ulHangerFallbackCalcCode(params.Code),
-    });
-    const hangerMapped = mapVibroflexHangerToUltracoustic(fallbackMaterials);
-    if (hangerMapped) {
-      materials = hangerMapped as CalcMaterial[];
-    }
-  }
 
   // Внешний calc пока не знает *_ul_tape — считаем через *_vibrostek (полы) или базовый код (потолки).
   if (materials.length === 0 && isUlTapeCalcCode(params.Code)) {

@@ -26,13 +26,10 @@ import {
   resolveDisplayCipher,
 } from "../utils/calculations";
 import {
-  applyUltrasonicHangerDisplayText,
   hasCeilingMatChoice,
   hasEcoSWoolChoice,
-  hangerTypeFromCode,
   hasFloorSealantChoice,
   hasGklaChoice,
-  HANGER_VIBROSTEK,
   normalizeCeilingMats,
   stripHangerSuffix,
 } from "../utils/calcUlTapeFallback";
@@ -94,8 +91,6 @@ const Calculator = () => {
   const [currentConstr, setCurrentConstr] = useCalcField("currentConstr");
   const [currentFloorSealant, setCurrentFloorSealant] =
     useCalcField("currentFloorSealant");
-  const [currentHangerType, setCurrentHangerType] =
-    useCalcField("currentHangerType");
   const [currentCeilingMats, setCurrentCeilingMats] =
     useCalcField("currentCeilingMats");
   const [ConstrToCalcToSent, setConstrToCalcToSent] = useCalcField("ConstrToCalcToSent");
@@ -368,7 +363,6 @@ const Calculator = () => {
         setTemplate(null);
         setCurrentConstr("");
         setCurrentFloorSealant("vibrosil");
-        setCurrentHangerType(HANGER_VIBROSTEK);
         setCurrentCeilingMats([]);
       } else {
         setCurrentItems(item.id);
@@ -376,7 +370,6 @@ const Calculator = () => {
         setTableConstrToCalc(1);
         setCurrentConstr(item.ag_id);
         setCurrentFloorSealant("vibrosil");
-        setCurrentHangerType(hangerTypeFromCode(item.ag_id));
         setCurrentCeilingMats([]);
         if (!hasGklaChoice(item.ag_id)) {
           setCurrentGkla("default");
@@ -411,7 +404,6 @@ const Calculator = () => {
         // Иначе обновление itemsWithImages может затирать выбранный suffix-вариант.
         if (initializedItemIdRef.current !== currentItems) {
           setCurrentConstr(selectedItem.ag_id);
-          setCurrentHangerType(hangerTypeFromCode(selectedItem.ag_id));
           setCurrentCeilingMats([]);
           initializedItemIdRef.current = currentItems;
         }
@@ -420,7 +412,6 @@ const Calculator = () => {
       setTemplate(null);
       setCurrentConstr("");
       setCurrentFloorSealant("vibrosil");
-      setCurrentHangerType(HANGER_VIBROSTEK);
       setCurrentCeilingMats([]);
       initializedItemIdRef.current = null;
     }
@@ -429,7 +420,6 @@ const Calculator = () => {
     itemsWithImages,
     setCurrentConstr,
     setCurrentFloorSealant,
-    setCurrentHangerType,
     setCurrentCeilingMats,
     setTableConstrToCalc,
     setTemplate,
@@ -710,17 +700,12 @@ const Calculator = () => {
 
     const IconType = SubCategories.find((el) => el.id == currentSubCategory);
     const Constr = itemsWithImages.find((el) => el.id == currentItems);
-    const code = getConstructionCode(
-      currentConstr,
-      currentGkla,
-      currentWool,
-      currentHangerType
-    );
+    const code = getConstructionCode(currentConstr, currentGkla, currentWool);
     const sectionId =
       sectionIdFromSubCategory(currentSubCategory) || sectionIdFromCode(code);
     const agId = resolveDisplayCipher(code, getItemsAgIdKeyMap());
 
-    const { title: shortTitle, description: baseDescription } =
+    const { title: shortTitle, description: displayDescription } =
       resolveItemsDisplayMeta({
         calcCode: code,
         cipher: agId,
@@ -728,16 +713,8 @@ const Calculator = () => {
         catalogId: Constr?.id,
       });
 
-    const { title: hangerShortTitle, description: displayDescription } =
-      applyUltrasonicHangerDisplayText({
-        title: shortTitle,
-        description: baseDescription,
-        agId: agId || Constr?.ag_id,
-        calcCode: code,
-        hangerType: currentHangerType,
-      });
     const displayTitle = itemsBaseTableName({
-      title: hangerShortTitle,
+      title: shortTitle,
       description: displayDescription,
     });
 
@@ -747,7 +724,7 @@ const Calculator = () => {
       description: displayDescription,
       key_id: Date.now(),
       title: displayTitle,
-      short_title: hangerShortTitle,
+      short_title: shortTitle,
       catalog_id: Constr?.id,
       type: IconType?.title,
       section_id: sectionId,
@@ -847,7 +824,6 @@ const Calculator = () => {
       setCurrentGkla("default");
       setCurrentWool("default");
       setCurrentFloorSealant("vibrosil");
-      setCurrentHangerType(HANGER_VIBROSTEK);
       setCurrentCeilingMats([]);
     } catch (error) {
       let errorMessage = error.message;
@@ -882,7 +858,6 @@ const Calculator = () => {
     currentGkla,
     currentWool,
     currentFloorSealant,
-    currentHangerType,
     currentCeilingMats,
     template,
   ]);
@@ -928,7 +903,6 @@ const Calculator = () => {
         if (subCategory) {
           setCurrentItems(item.id);
           setCurrentSubCategory(subCategory.id);
-          setCurrentHangerType(hangerTypeFromCode(routeCode));
 
           const sectionId =
             item.c_id === "F"
@@ -953,7 +927,7 @@ const Calculator = () => {
         }
       }
     }
-  }, [id, itemsWithImages, setCurrentHangerType]);
+  }, [id, itemsWithImages]);
 
   return (
     <div className="calculator-page">
@@ -1129,8 +1103,6 @@ const Calculator = () => {
                             setCurrentConstr={setCurrentConstr}
                             currentFloorSealant={currentFloorSealant}
                             setCurrentFloorSealant={setCurrentFloorSealant}
-                            currentHangerType={currentHangerType}
-                            setCurrentHangerType={setCurrentHangerType}
                             currentCeilingMats={currentCeilingMats}
                             setCurrentCeilingMats={setCurrentCeilingMats}
                             unvisible={unvisible}

@@ -4,7 +4,6 @@ import {
 } from "./constructionSection.js";
 import { resolveDisplayCipher } from "./calculations.js";
 import { calculateAreaAndPerimeter } from "./calculations.js";
-import { applyUltrasonicHangerDisplayText } from "./calcUlTapeFallback.js";
 import {
   getItemsAgIdKeyMap,
   itemsBaseTableName,
@@ -89,7 +88,7 @@ export function buildCreateOfferPayload({
 
 // ─── load ───────────────────────────────────────────────────────────────────
 
-/** Подставляет title/description из ItemsBase (ЗИПС/подвес — в applyUltrasonicHangerDisplayText). */
+/** Подставляет title/description из ItemsBase. */
 export function enrichConstructionsWithTitles(
   constructions,
   _titleByCode,
@@ -120,14 +119,8 @@ export function mapOfferResponseToKpView(offer, { titleByCode: _titleByCode } = 
     const cipher = resolveDisplayCipher(code, itemsKeyMap);
     const sectionId = cp.SectionId || sectionIdFromCode(code);
     const meta = resolveConstructionText(cp, { cipher, sectionId });
-    let shortTitle = meta.title;
-    let description = meta.description || "";
-    ({ title: shortTitle, description } = applyUltrasonicHangerDisplayText({
-      title: shortTitle,
-      description,
-      agId: meta.ag_id || cipher,
-      calcCode: code,
-    }));
+    const shortTitle = meta.title;
+    const description = meta.description || "";
     const displayTitle =
       itemsBaseTableName({ title: shortTitle, description }) || cipher || "—";
     return {

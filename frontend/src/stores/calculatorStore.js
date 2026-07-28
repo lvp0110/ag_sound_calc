@@ -13,7 +13,7 @@ import { syncConstructionsTitlesFromItems } from "../utils/itemsCatalog.js";
  *   - табличное состояние (tableConstrToCalc);
  *   - выбор пользователя в UI (currentSubCategory/Items, openedSubCategories,
  *     template, profileStep (лаги пола), facingProfileStep (облицовка/перегородки),
- *     dFrame, currentConstr, currentHangerType, currentFloorSealant,
+ *     dFrame, currentConstr, currentFloorSealant,
  *     currentCeilingMats, currentGkla/Wool, unvisible).
  *
  * Эфемерные вещи (текущая форма нового элемента `constR`/`constrSent`/`opening`,
@@ -33,7 +33,6 @@ const initialState = {
   facingProfileStep: 600,
   dFrame: false,
   currentConstr: "",
-  currentHangerType: "vibrostek",
   currentFloorSealant: "vibrosil",
   currentCeilingMats: [],
   ConstrToCalcToSent: [],

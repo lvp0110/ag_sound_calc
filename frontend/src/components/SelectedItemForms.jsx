@@ -5,7 +5,6 @@ import FacingForm from "./forms/FacingForm";
 import SoundboardForm from "./forms/SoundboardForm";
 import ConstructionParameters from "./ConstructionParameters";
 import {
-  applyUltrasonicHangerDisplayText,
   hasFloorSealantChoice,
   isSimpleCeilingMatCipher,
 } from "../utils/calcUlTapeFallback";
@@ -23,8 +22,6 @@ const SelectedItemForms = ({
   setCurrentConstr,
   currentFloorSealant,
   setCurrentFloorSealant,
-  currentHangerType,
-  setCurrentHangerType,
   currentCeilingMats,
   setCurrentCeilingMats,
   unvisible,
@@ -70,13 +67,7 @@ const SelectedItemForms = ({
     navigate(`/info/${selectedItem.ag_id}`, { state: { c_id: selectedItem.c_id } });
   };
 
-  const displayTitle = selectedItem
-    ? applyUltrasonicHangerDisplayText({
-        title: selectedItem.title,
-        agId: selectedItem.ag_id,
-        hangerType: currentHangerType,
-      }).title
-    : "";
+  const displayTitle = selectedItem?.title ?? "";
 
   return (
     <div className="selected-item-forms">
@@ -118,8 +109,6 @@ const SelectedItemForms = ({
               setCurrentConstr={setCurrentConstr}
               currentFloorSealant={currentFloorSealant}
               setCurrentFloorSealant={setCurrentFloorSealant}
-              currentHangerType={currentHangerType}
-              setCurrentHangerType={setCurrentHangerType}
               profileStep={profileStep}
               setProfileStep={setProfileStep}
               unvisible={unvisible}
@@ -153,8 +142,6 @@ const SelectedItemForms = ({
               setCurrentWool={setCurrentWool}
               currentFloorSealant={currentFloorSealant}
               setCurrentFloorSealant={setCurrentFloorSealant}
-              currentHangerType={currentHangerType}
-              setCurrentHangerType={setCurrentHangerType}
               currentCeilingMats={currentCeilingMats}
               setCurrentCeilingMats={setCurrentCeilingMats}
               constR={constR}
@@ -186,8 +173,6 @@ const SelectedItemForms = ({
               setCurrentWool={setCurrentWool}
               currentFloorSealant={currentFloorSealant}
               setCurrentFloorSealant={setCurrentFloorSealant}
-              currentHangerType={currentHangerType}
-              setCurrentHangerType={setCurrentHangerType}
               currentCeilingMats={currentCeilingMats}
               setCurrentCeilingMats={setCurrentCeilingMats}
               profileStep={facingProfileStep}
@@ -218,10 +203,3 @@ const SelectedItemForms = ({
 };
 
 export default SelectedItemForms;
-
-
-
-
-
-
-

@@ -27,7 +27,7 @@ export const getCachedCalcMaterials = (
 ): CalcMaterial[] | null => {
   const hit = store.get(keyFor(params));
   if (!hit || hit.expiresAt <= Date.now()) return null;
-  // Пустой ответ внешнего calc не кэшируем — для *_ul_hanger и др. срабатывает fallback.
+  // Пустой ответ внешнего calc не кэшируем — для *_ul_tape / *_eco_s срабатывает fallback.
   if (hit.materials.length === 0) return null;
   return hit.materials;
 };

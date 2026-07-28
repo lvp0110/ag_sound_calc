@@ -122,8 +122,8 @@ export function resolveDisplayCipherFromItems(calcCode: string): string {
   const codeWithoutSuffix = code.split("_")[0] || code;
   if (itemsAgIdKeyMap.size === 0) return codeWithoutSuffix;
   if (itemsAgIdKeyMap.has(code)) return code;
-  if (itemsAgIdKeyMap.has(codeWithoutSuffix)) return codeWithoutSuffix;
 
+  // Самый длинный префикс (AG.C501_ul_… → AG.C501_ul, не AG.C501).
   let best = "";
   for (const key of itemsAgIdKeyMap.keys()) {
     const base = key.trim();

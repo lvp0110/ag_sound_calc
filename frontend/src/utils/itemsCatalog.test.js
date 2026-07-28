@@ -61,4 +61,23 @@ describe("itemsCatalog", () => {
       "Звукоизолирующая система ЗИПС-Вектор, смонтированная на потолке",
     );
   });
+
+  it("resolves AG.C501_ul without collapsing to AG.C501", () => {
+    const meta = resolveItemsDisplayMeta({
+      calcCode: "AG.C501_ul",
+      cipher: "AG.C501_ul",
+      sectionId: "C",
+    });
+    expect(meta.ag_id).toBe("AG.C501_ul");
+    expect(meta.title).toBe("Потолок на креплениях Ультракустик");
+  });
+
+  it("resolves AG.L404_ul without collapsing to AG.L404", () => {
+    const meta = resolveItemsDisplayMeta({
+      calcCode: "AG.L404_ul_ul_tape",
+      sectionId: "L",
+    });
+    expect(meta.ag_id).toBe("AG.L404_ul");
+    expect(meta.title).toBe("Облицовка с применением Ультракустик");
+  });
 });

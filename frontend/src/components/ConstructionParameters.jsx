@@ -5,15 +5,12 @@ import {
   FLOOR_K2_PERIMETER_AG_IDS,
   FLOOR_NO_UL_TAPE_AG_IDS,
   floorPerimeterTapeCodes,
-  HANGER_ULTRACOUSTIC,
-  HANGER_VIBROSTEK,
   hasCeilingMatChoice,
   hasCeilingTapeChoice,
   hasFacingTapeChoice,
   hasFloorSealantChoice,
   hasEcoSWoolChoice,
   hasGklaChoice,
-  hasHangerChoice,
   UL_TAPE_SUFFIX,
   WOOL_ECO_S,
   AG_CT_ECO_CIPHER,
@@ -58,47 +55,6 @@ function TapeChoiceRadios({ idPrefix, itemId, agId, value, onChange }) {
         />
         <label className="label" htmlFor={`${idPrefix}_ul_tape_${itemId}`}>
           Ультракустик F100 по периметру
-        </label>
-      </div>
-    </>
-  );
-}
-
-function HangerChoiceRadios({ idPrefix, itemId, value, onChange }) {
-  return (
-    <>
-      <h4 className="selected-item-forms__group-heading">
-        выбрать тип подвеса
-      </h4>
-      <div className="radio-option">
-        <input
-          className="radio"
-          type="radio"
-          onChange={(e) => onChange(e.target.value)}
-          id={`${idPrefix}_hanger_vibrostek_${itemId}`}
-          name={`${idPrefix}_hanger_${itemId}`}
-          value={HANGER_VIBROSTEK}
-          checked={value === HANGER_VIBROSTEK}
-        />
-        <label
-          className="label"
-          htmlFor={`${idPrefix}_hanger_vibrostek_${itemId}`}
-        >
-          Виброфлекс
-        </label>
-      </div>
-      <div className="radio-option">
-        <input
-          className="radio"
-          type="radio"
-          onChange={(e) => onChange(e.target.value)}
-          id={`${idPrefix}_hanger_ul_${itemId}`}
-          name={`${idPrefix}_hanger_${itemId}`}
-          value={HANGER_ULTRACOUSTIC}
-          checked={value === HANGER_ULTRACOUSTIC}
-        />
-        <label className="label" htmlFor={`${idPrefix}_hanger_ul_${itemId}`}>
-          Ультракустик
         </label>
       </div>
     </>
@@ -295,8 +251,6 @@ const ConstructionParameters = ({
   setCurrentConstr,
   currentFloorSealant,
   setCurrentFloorSealant,
-  currentHangerType,
-  setCurrentHangerType,
   currentCeilingMats,
   setCurrentCeilingMats,
   unvisible,
@@ -413,7 +367,6 @@ const ConstructionParameters = ({
     const currentTemplate = template ?? selectedItem?.template;
     const isSuspendedCeiling = currentTemplate == 5;
     const showCeilingTapeChoice = hasCeilingTapeChoice(selectedItem?.ag_id);
-    const showHangerChoice = hasHangerChoice(selectedItem?.ag_id);
     const showGklaChoice = hasGklaChoice(selectedItem?.ag_id);
     const showCeilingMatChoice = hasCeilingMatChoice(selectedItem?.ag_id);
 
@@ -517,15 +470,6 @@ const ConstructionParameters = ({
                   </>
                 )}
               </>
-            )}
-
-            {showHangerChoice && (
-              <HangerChoiceRadios
-                idPrefix="ceiling"
-                itemId={selectedItem.id}
-                value={currentHangerType}
-                onChange={setCurrentHangerType}
-              />
             )}
 
             {showCeilingTapeChoice && (
@@ -850,7 +794,6 @@ const ConstructionParameters = ({
   }
 
   const showFacingTapeChoice = hasFacingTapeChoice(selectedItem?.ag_id);
-  const showHangerChoice = hasHangerChoice(selectedItem?.ag_id);
   const showGklaChoice = hasGklaChoice(selectedItem?.ag_id);
   const showCeilingMatChoice = hasCeilingMatChoice(selectedItem?.ag_id);
 
@@ -1010,15 +953,6 @@ const ConstructionParameters = ({
             добавить сдвоенный каркас
           </label>
         </div>
-      )}
-
-      {showHangerChoice && (
-        <HangerChoiceRadios
-          idPrefix="facing"
-          itemId={selectedItem.id}
-          value={currentHangerType}
-          onChange={setCurrentHangerType}
-        />
       )}
 
       {showFacingTapeChoice && (

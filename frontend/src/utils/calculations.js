@@ -24,12 +24,9 @@ export const calculateAreaAndPerimeter = (lenX, lenY, lenZ, currentSubCategory) 
 
 import {
   hasEcoSWoolChoice,
-  HANGER_ULTRACOUSTIC,
   hasGklaChoice,
-  hasHangerChoice,
   stripHangerSuffix,
   stripTapeSuffix,
-  UL_HANGER_SUFFIX,
 } from "./calcUlTapeFallback.js";
 
 /**
@@ -38,8 +35,7 @@ import {
 export const getConstructionCode = (
   currentConstr,
   currentGkla,
-  currentWool,
-  currentHangerType
+  currentWool
 ) => {
   const { base: baseWithHanger, tape } = stripTapeSuffix(currentConstr);
   const { base } = stripHangerSuffix(baseWithHanger);
@@ -56,12 +52,6 @@ export const getConstructionCode = (
     code = `${base}_${gkla}_${wool}`;
   }
   code += tape;
-  if (
-    hasHangerChoice(base) &&
-    currentHangerType === HANGER_ULTRACOUSTIC
-  ) {
-    code += UL_HANGER_SUFFIX;
-  }
   return code;
 };
 
@@ -77,8 +67,8 @@ export const resolveDisplayCipher = (calcCode, titleByCode) => {
     return codeWithoutSuffix;
   }
   if (titleByCode.has(code)) return code;
-  if (titleByCode.has(codeWithoutSuffix)) return codeWithoutSuffix;
 
+  // Самый длинный префикс (AG.C501_ul_… → AG.C501_ul, не AG.C501).
   let best = "";
   for (const key of titleByCode.keys()) {
     const base = String(key ?? "").trim();
