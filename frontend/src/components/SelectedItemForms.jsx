@@ -30,6 +30,8 @@ const SelectedItemForms = ({
   setCurrentGkla,
   currentWool,
   setCurrentWool,
+  currentSheet,
+  setCurrentSheet,
   profileStep,
   setProfileStep,
   facingProfileStep,
@@ -140,6 +142,8 @@ const SelectedItemForms = ({
               setCurrentGkla={setCurrentGkla}
               currentWool={currentWool}
               setCurrentWool={setCurrentWool}
+              currentSheet={currentSheet}
+              setCurrentSheet={setCurrentSheet}
               currentFloorSealant={currentFloorSealant}
               setCurrentFloorSealant={setCurrentFloorSealant}
               currentCeilingMats={currentCeilingMats}
@@ -171,6 +175,8 @@ const SelectedItemForms = ({
               setCurrentGkla={setCurrentGkla}
               currentWool={currentWool}
               setCurrentWool={setCurrentWool}
+              currentSheet={currentSheet}
+              setCurrentSheet={setCurrentSheet}
               currentFloorSealant={currentFloorSealant}
               setCurrentFloorSealant={setCurrentFloorSealant}
               currentCeilingMats={currentCeilingMats}

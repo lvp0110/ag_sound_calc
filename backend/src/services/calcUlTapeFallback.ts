@@ -197,6 +197,104 @@ export const mapDefaultEcoWoolToEcoS = (
   return replaced ? mapped : null;
 };
 
+export const WOOL_S2 = "s2";
+export const WOOL_S2_SUFFIX = `_${WOOL_S2}`;
+
+export const WOOL_S2_ARTICLE = {
+  Code: "1252.2204",
+  Name: "Плита звукоизолирующая Шумостоп С2, 1200х600х20 (упак. 10шт/7,2м2/0,144 м3)",
+  Units: "уп",
+};
+
+export const isS2WoolCalcCode = (code: string): boolean =>
+  code.includes(WOOL_S2_SUFFIX);
+
+export const s2WoolFallbackCalcCode = (code: string): string =>
+  String(code ?? "").split(WOOL_S2_SUFFIX).join("");
+
+export const mapDefaultEcoWoolToS2 = (
+  materials: unknown[]
+): unknown[] | null => {
+  if (!Array.isArray(materials) || materials.length === 0) return null;
+
+  let replaced = false;
+  const mapped = materials.map((row) => {
+    const rec =
+      row && typeof row === "object" ? (row as Record<string, unknown>) : {};
+    const code = String(rec.Code ?? rec.code ?? "").trim();
+    if (!DEFAULT_ECO_WOOL_ARTICLE_CODES.has(code)) return row;
+    replaced = true;
+    return {
+      ...rec,
+      Code: WOOL_S2_ARTICLE.Code,
+      Name: WOOL_S2_ARTICLE.Name,
+      Units: WOOL_S2_ARTICLE.Units,
+    };
+  });
+
+  return replaced ? mapped : null;
+};
+
+export const SHEET_2GKL = "2gkl";
+export const SHEET_2GKL_SUFFIX = `_${SHEET_2GKL}`;
+
+const SOUNDLINE_DB_ARTICLE_CODES = new Set(["1211.1001"]);
+
+const GKL_LAYER_ARTICLE_CODES = new Set([
+  "1088665",
+  "1088663",
+  "1088664",
+]);
+
+export const is2GklCalcCode = (code: string): boolean =>
+  code.includes(SHEET_2GKL_SUFFIX);
+
+export const twoGklFallbackCalcCode = (code: string): string =>
+  String(code ?? "").split(SHEET_2GKL_SUFFIX).join("");
+
+/** Для *_2gkl: убрать Саундлайн-dB и удвоить количество листа ГКЛ. */
+export const mapSoundlineDbToTwoGkl = (
+  materials: unknown[]
+): unknown[] | null => {
+  if (!Array.isArray(materials) || materials.length === 0) return null;
+
+  let removedSoundline = false;
+  let doubledGkl = false;
+  const mapped: unknown[] = [];
+
+  for (const row of materials) {
+    const rec =
+      row && typeof row === "object" ? (row as Record<string, unknown>) : {};
+    const code = String(rec.Code ?? rec.code ?? "").trim();
+    if (SOUNDLINE_DB_ARTICLE_CODES.has(code)) {
+      removedSoundline = true;
+      continue;
+    }
+    if (GKL_LAYER_ARTICLE_CODES.has(code)) {
+      const qtyKey =
+        rec.Quantity != null
+          ? "Quantity"
+          : rec.quantity != null
+            ? "quantity"
+            : rec.count != null
+              ? "count"
+              : null;
+      const qty = qtyKey != null ? Number(rec[qtyKey]) : NaN;
+      mapped.push({
+        ...rec,
+        ...(qtyKey != null && Number.isFinite(qty)
+          ? { [qtyKey]: qty * 2 }
+          : {}),
+      });
+      doubledGkl = true;
+      continue;
+    }
+    mapped.push(row);
+  }
+
+  return removedSoundline && doubledGkl ? mapped : null;
+};
+
 export const mapVibrosilSealantToUltracoustic = (
   materials: unknown[]
 ): unknown[] | null => {

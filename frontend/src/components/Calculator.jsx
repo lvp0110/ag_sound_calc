@@ -27,10 +27,14 @@ import {
 } from "../utils/calculations";
 import {
   hasCeilingMatChoice,
-  hasEcoSWoolChoice,
+  hasSheetChoice,
   hasFloorSealantChoice,
   hasGklaChoice,
+  defaultConstrCodeForAgId,
+  defaultFloorSealantForAgId,
+  defaultWoolForAgId,
   normalizeCeilingMats,
+  SHEET_2GKL,
   stripHangerSuffix,
 } from "../utils/calcUlTapeFallback";
 import {
@@ -79,6 +83,7 @@ const Calculator = () => {
   // переходы по страницам в рамках сессии. См. stores/calculatorStore.js.
   const [currentGkla, setCurrentGkla] = useCalcField("currentGkla");
   const [currentWool, setCurrentWool] = useCalcField("currentWool");
+  const [currentSheet, setCurrentSheet] = useCalcField("currentSheet");
   const [unvisible, setUnvisible] = useCalcField("unvisible");
   const [tableConstrToCalc, setTableConstrToCalc] = useCalcField("tableConstrToCalc");
   const [currentSubCategory, setCurrentSubCategory] = useCalcField("currentSubCategory");
@@ -368,15 +373,14 @@ const Calculator = () => {
         setCurrentItems(item.id);
         setTemplate(item.template);
         setTableConstrToCalc(1);
-        setCurrentConstr(item.ag_id);
-        setCurrentFloorSealant("vibrosil");
+        setCurrentConstr(defaultConstrCodeForAgId(item.ag_id));
+        setCurrentFloorSealant(defaultFloorSealantForAgId(item.ag_id));
         setCurrentCeilingMats([]);
         if (!hasGklaChoice(item.ag_id)) {
           setCurrentGkla("default");
         }
-        if (!hasEcoSWoolChoice(item.ag_id)) {
-          setCurrentWool("default");
-        }
+        setCurrentWool(defaultWoolForAgId(item.ag_id));
+        setCurrentSheet(hasSheetChoice(item.ag_id) ? SHEET_2GKL : "default");
         if (isFacingTemplate(item.template)) {
           setFacingProfileStep(600);
         }
@@ -388,9 +392,12 @@ const Calculator = () => {
     [
       currentItems,
       setCurrentWool,
+      setCurrentSheet,
       setFacingProfileStep,
       setCurrentGkla,
       setCurrentCeilingMats,
+      setCurrentConstr,
+      setCurrentFloorSealant,
     ]
   );
 
@@ -403,7 +410,9 @@ const Calculator = () => {
         // Инициализируем шифр только при фактической смене выбранной конструкции.
         // Иначе обновление itemsWithImages может затирать выбранный suffix-вариант.
         if (initializedItemIdRef.current !== currentItems) {
-          setCurrentConstr(selectedItem.ag_id);
+          setCurrentConstr(defaultConstrCodeForAgId(selectedItem.ag_id));
+          setCurrentFloorSealant(defaultFloorSealantForAgId(selectedItem.ag_id));
+          setCurrentWool(defaultWoolForAgId(selectedItem.ag_id));
           setCurrentCeilingMats([]);
           initializedItemIdRef.current = currentItems;
         }
@@ -412,6 +421,7 @@ const Calculator = () => {
       setTemplate(null);
       setCurrentConstr("");
       setCurrentFloorSealant("vibrosil");
+      setCurrentWool("default");
       setCurrentCeilingMats([]);
       initializedItemIdRef.current = null;
     }
@@ -420,6 +430,7 @@ const Calculator = () => {
     itemsWithImages,
     setCurrentConstr,
     setCurrentFloorSealant,
+    setCurrentWool,
     setCurrentCeilingMats,
     setTableConstrToCalc,
     setTemplate,
@@ -700,7 +711,12 @@ const Calculator = () => {
 
     const IconType = SubCategories.find((el) => el.id == currentSubCategory);
     const Constr = itemsWithImages.find((el) => el.id == currentItems);
-    const code = getConstructionCode(currentConstr, currentGkla, currentWool);
+    const code = getConstructionCode(
+      currentConstr,
+      currentGkla,
+      currentWool,
+      currentSheet
+    );
     const sectionId =
       sectionIdFromSubCategory(currentSubCategory) || sectionIdFromCode(code);
     const agId = resolveDisplayCipher(code, getItemsAgIdKeyMap());
@@ -822,9 +838,11 @@ const Calculator = () => {
       setUnvisible(false);
       setFacingProfileStep(600);
       setCurrentGkla("default");
-      setCurrentWool("default");
-      setCurrentFloorSealant("vibrosil");
+      setCurrentWool(defaultWoolForAgId(Constr?.ag_id));
+      setCurrentSheet(SHEET_2GKL);
+      setCurrentFloorSealant(defaultFloorSealantForAgId(Constr?.ag_id));
       setCurrentCeilingMats([]);
+      setCurrentConstr(defaultConstrCodeForAgId(Constr?.ag_id));
     } catch (error) {
       let errorMessage = error.message;
       if (error.message.includes("invalid construction size")) {
@@ -857,6 +875,7 @@ const Calculator = () => {
     constrSent,
     currentGkla,
     currentWool,
+    currentSheet,
     currentFloorSealant,
     currentCeilingMats,
     template,
@@ -1111,6 +1130,8 @@ const Calculator = () => {
                             setCurrentGkla={setCurrentGkla}
                             currentWool={currentWool}
                             setCurrentWool={setCurrentWool}
+                            currentSheet={currentSheet}
+                            setCurrentSheet={setCurrentSheet}
                             profileStep={profileStep}
                             setProfileStep={setProfileStep}
                             facingProfileStep={facingProfileStep}

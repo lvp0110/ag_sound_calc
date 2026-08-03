@@ -254,6 +254,30 @@ export const ceilingPerimeterTapeCodes = (agId) => {
   return [agId, `${agId}${UL_TAPE_SUFFIX}`];
 };
 
+/** Конструкции с дефолтом «Ультракустик F100 по периметру». */
+export const UL_TAPE_DEFAULT_AG_IDS = new Set(["AG.C501_ul", "AG.L404_ul"]);
+
+/** Конструкции с дефолтом герметика «Ультракустик». */
+export const UL_SEALANT_DEFAULT_AG_IDS = new Set(["AG.C501_ul", "AG.L404_ul"]);
+
+/** Стартовый шифр при выборе конструкции (с учётом дефолтной ленты). */
+export const defaultConstrCodeForAgId = (agId) => {
+  const id = String(agId ?? "").trim();
+  if (!id) return "";
+  if (UL_TAPE_DEFAULT_AG_IDS.has(id)) {
+    return `${id}${UL_TAPE_SUFFIX}`;
+  }
+  return id;
+};
+
+export const defaultFloorSealantForAgId = (agId) => {
+  const id = String(agId ?? "").trim();
+  if (UL_SEALANT_DEFAULT_AG_IDS.has(id)) {
+    return FLOOR_SEALANT_ULTRACOUSTIC;
+  }
+  return FLOOR_SEALANT_VIBROSIL;
+};
+
 /** ЗИПС-облицовка без выбора ленты (Синема). */
 export const FACING_NO_TAPE_AG_IDS = new Set(["AG.Z205"]);
 
@@ -339,6 +363,133 @@ export const mapDefaultEcoWoolToEcoS = (materials) => {
   });
 
   return replaced ? mapped : null;
+};
+
+/** Значение currentWool → суффикс *_s2 в шифре расчёта. */
+export const WOOL_S2 = "s2";
+
+export const WOOL_S2_SUFFIX = `_${WOOL_S2}`;
+
+/** Плита «Шумостоп-С2» в прайсе 1С (/api/v2/data). */
+export const WOOL_S2_ARTICLE = {
+  Code: "1252.2204",
+  Name: "Плита звукоизолирующая Шумостоп С2, 1200х600х20 (упак. 10шт/7,2м2/0,144 м3)",
+  Units: "уп",
+};
+
+/** Конструкции с вариантом минваты «Шумостоп-С2». */
+export const WOOL_S2_CHOICE_AG_IDS = new Set(["AG.L404_ul"]);
+
+export const hasS2WoolChoice = (agId) =>
+  Boolean(agId) && WOOL_S2_CHOICE_AG_IDS.has(String(agId).trim());
+
+/** Конструкции с дефолтом минваты «Шумостоп-С2». */
+export const WOOL_S2_DEFAULT_AG_IDS = new Set(["AG.L404_ul"]);
+
+export const defaultWoolForAgId = (agId) => {
+  const id = String(agId ?? "").trim();
+  if (WOOL_S2_DEFAULT_AG_IDS.has(id)) return WOOL_S2;
+  return "default";
+};
+
+export const isS2WoolCalcCode = (code) =>
+  typeof code === "string" && code.includes(WOOL_S2_SUFFIX);
+
+/** Убирает *_s2 из шифра (AG.L404_ul_s2 → AG.L404_ul). */
+export const s2WoolFallbackCalcCode = (code) =>
+  String(code ?? "").split(WOOL_S2_SUFFIX).join("");
+
+/**
+ * Внешний calc пока не знает *_s2: считаем вариант без суффикса (default wool)
+ * и подменяем Шуманет-ЭКО на Шумостоп-С2; количество — как у расчёта.
+ */
+export const mapDefaultEcoWoolToS2 = (materials) => {
+  if (!Array.isArray(materials) || materials.length === 0) return null;
+
+  let replaced = false;
+  const mapped = materials.map((row) => {
+    const code = String(row?.Code ?? row?.code ?? "").trim();
+    if (!DEFAULT_ECO_WOOL_ARTICLE_CODES.has(code)) return row;
+    replaced = true;
+    return {
+      ...row,
+      Code: WOOL_S2_ARTICLE.Code,
+      Name: WOOL_S2_ARTICLE.Name,
+      Units: WOOL_S2_ARTICLE.Units,
+    };
+  });
+
+  return replaced ? mapped : null;
+};
+
+/** Значение currentSheet → суффикс *_2gkl в шифре расчёта («Два листа ГКЛ»). */
+export const SHEET_2GKL = "2gkl";
+
+export const SHEET_2GKL_SUFFIX = `_${SHEET_2GKL}`;
+
+/** Артикул «Саундлайн-dB» в ответе calc / прайсе 1С. */
+export const SOUNDLINE_DB_ARTICLE_CODES = new Set(["1211.1001"]);
+
+/** Листы ГКЛ/АКУ-лайн (default / 2500P / 2000), которые удваиваем вместо Саундлайн-dB. */
+export const GKL_LAYER_ARTICLE_CODES = new Set([
+  "1088665",
+  "1088663",
+  "1088664",
+]);
+
+/** Конструкции с выбором обшивки: два листа ГКЛ ↔ ГКЛ+Саундлайн-dB. */
+export const SHEET_CHOICE_AG_IDS = new Set(["AG.C501_ul", "AG.L404_ul"]);
+
+export const hasSheetChoice = (agId) =>
+  Boolean(agId) && SHEET_CHOICE_AG_IDS.has(String(agId).trim());
+
+export const is2GklCalcCode = (code) =>
+  typeof code === "string" && code.includes(SHEET_2GKL_SUFFIX);
+
+/** Убирает *_2gkl из шифра (AG.C501_ul_2gkl → AG.C501_ul). */
+export const twoGklFallbackCalcCode = (code) =>
+  String(code ?? "").split(SHEET_2GKL_SUFFIX).join("");
+
+/**
+ * Внешний calc отдаёт ГКЛ+Саундлайн-dB: для *_2gkl убираем Саундлайн-dB
+ * и удваиваем количество листа ГКЛ (второй слой обшивки).
+ */
+export const mapSoundlineDbToTwoGkl = (materials) => {
+  if (!Array.isArray(materials) || materials.length === 0) return null;
+
+  let removedSoundline = false;
+  let doubledGkl = false;
+  const mapped = [];
+
+  for (const row of materials) {
+    const code = String(row?.Code ?? row?.code ?? "").trim();
+    if (SOUNDLINE_DB_ARTICLE_CODES.has(code)) {
+      removedSoundline = true;
+      continue;
+    }
+    if (GKL_LAYER_ARTICLE_CODES.has(code)) {
+      const qtyKey =
+        row?.Quantity != null
+          ? "Quantity"
+          : row?.quantity != null
+            ? "quantity"
+            : row?.count != null
+              ? "count"
+              : null;
+      const qty = qtyKey != null ? Number(row[qtyKey]) : NaN;
+      mapped.push({
+        ...row,
+        ...(qtyKey != null && Number.isFinite(qty)
+          ? { [qtyKey]: qty * 2 }
+          : {}),
+      });
+      doubledGkl = true;
+      continue;
+    }
+    mapped.push(row);
+  }
+
+  return removedSoundline && doubledGkl ? mapped : null;
 };
 
 export const hasFacingTapeChoice = (agId) => {

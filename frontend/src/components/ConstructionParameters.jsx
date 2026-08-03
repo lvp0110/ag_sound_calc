@@ -11,8 +11,13 @@ import {
   hasFloorSealantChoice,
   hasEcoSWoolChoice,
   hasGklaChoice,
+  hasS2WoolChoice,
+  hasSheetChoice,
+  defaultConstrCodeForAgId,
   UL_TAPE_SUFFIX,
   WOOL_ECO_S,
+  WOOL_S2,
+  SHEET_2GKL,
   AG_CT_ECO_CIPHER,
   AG_CS_MAT_CIPHER,
   AG_CU_MEM_CIPHER,
@@ -61,7 +66,45 @@ function TapeChoiceRadios({ idPrefix, itemId, agId, value, onChange }) {
   );
 }
 
-function WoolChoiceRadios({ idPrefix, itemId, value, onChange, showEcoS }) {
+function SheetChoiceRadios({ idPrefix, itemId, value, onChange }) {
+  return (
+    <>
+      <h4 className="selected-item-forms__group-heading">
+        выбрать тип обшивки
+      </h4>
+      <div className="radio-option">
+        <input
+          className="radio"
+          type="radio"
+          onChange={(e) => onChange(e.target.value)}
+          id={`${idPrefix}_sheet_2gkl_${itemId}`}
+          name={`${idPrefix}_sheet_${itemId}`}
+          value={SHEET_2GKL}
+          checked={value == SHEET_2GKL}
+        />
+        <label className="label" htmlFor={`${idPrefix}_sheet_2gkl_${itemId}`}>
+          Два листа ГКЛ
+        </label>
+      </div>
+      <div className="radio-option">
+        <input
+          className="radio"
+          type="radio"
+          onChange={(e) => onChange(e.target.value)}
+          id={`${idPrefix}_sheet_sldb_${itemId}`}
+          name={`${idPrefix}_sheet_${itemId}`}
+          value="default"
+          checked={value == "default"}
+        />
+        <label className="label" htmlFor={`${idPrefix}_sheet_sldb_${itemId}`}>
+          ГКЛ+Саундлайн-dB
+        </label>
+      </div>
+    </>
+  );
+}
+
+function WoolChoiceRadios({ idPrefix, itemId, value, onChange, showEcoS, showS2 }) {
   return (
     <>
       <h4 className="selected-item-forms__group-heading">
@@ -128,6 +171,22 @@ function WoolChoiceRadios({ idPrefix, itemId, value, onChange, showEcoS }) {
             htmlFor={`${idPrefix}_wool_eco_s_${itemId}`}
           >
             Шуманет-Eco S
+          </label>
+        </div>
+      )}
+      {showS2 && (
+        <div className="radio-option">
+          <input
+            className="radio"
+            type="radio"
+            onChange={(e) => onChange(e.target.value)}
+            id={`${idPrefix}_wool_s2_${itemId}`}
+            name={`${idPrefix}_wool_${itemId}`}
+            value={WOOL_S2}
+            checked={value == WOOL_S2}
+          />
+          <label className="label" htmlFor={`${idPrefix}_wool_s2_${itemId}`}>
+            Шумостоп-С2
           </label>
         </div>
       )}
@@ -260,6 +319,8 @@ const ConstructionParameters = ({
   setCurrentGkla,
   currentWool,
   setCurrentWool,
+  currentSheet,
+  setCurrentSheet,
   profileStep,
   setProfileStep,
   constR,
@@ -301,6 +362,20 @@ const ConstructionParameters = ({
   }, [selectedItem?.ag_id, currentWool, setCurrentWool]);
 
   useEffect(() => {
+    if (hasS2WoolChoice(selectedItem?.ag_id) || currentWool !== WOOL_S2) {
+      return;
+    }
+    setCurrentWool("default");
+  }, [selectedItem?.ag_id, currentWool, setCurrentWool]);
+
+  useEffect(() => {
+    if (hasSheetChoice(selectedItem?.ag_id) || currentSheet !== SHEET_2GKL) {
+      return;
+    }
+    setCurrentSheet("default");
+  }, [selectedItem?.ag_id, currentSheet, setCurrentSheet]);
+
+  useEffect(() => {
     if (mode !== "floor" || !selectedItem?.ag_id) return;
     const agId = selectedItem.ag_id;
     if (FLOOR_K2_PERIMETER_AG_IDS.has(agId)) {
@@ -329,7 +404,7 @@ const ConstructionParameters = ({
     }
     const validTape = ceilingPerimeterTapeCodes(agId);
     if (!validTape.includes(currentConstr)) {
-      setCurrentConstr(agId);
+      setCurrentConstr(defaultConstrCodeForAgId(agId));
     }
   }, [mode, selectedItem?.ag_id, selectedItem?.id, currentConstr, setCurrentConstr]);
 
@@ -344,7 +419,7 @@ const ConstructionParameters = ({
     }
     const validTape = facingPerimeterTapeCodes(agId);
     if (!validTape.includes(currentConstr)) {
-      setCurrentConstr(agId);
+      setCurrentConstr(defaultConstrCodeForAgId(agId));
     }
   }, [mode, selectedItem?.ag_id, selectedItem?.id, currentConstr, setCurrentConstr]);
 
@@ -369,6 +444,7 @@ const ConstructionParameters = ({
     const showCeilingTapeChoice = hasCeilingTapeChoice(selectedItem?.ag_id);
     const showGklaChoice = hasGklaChoice(selectedItem?.ag_id);
     const showCeilingMatChoice = hasCeilingMatChoice(selectedItem?.ag_id);
+    const showSheetChoice = hasSheetChoice(selectedItem?.ag_id);
 
     return (
       <div className="selected-item-forms__stack">
@@ -382,6 +458,15 @@ const ConstructionParameters = ({
 
         {unvisible && (
           <>
+            {showSheetChoice && (
+              <SheetChoiceRadios
+                idPrefix="ceiling"
+                itemId={selectedItem.id}
+                value={currentSheet}
+                onChange={setCurrentSheet}
+              />
+            )}
+
             {showGklaChoice && (
               <>
                 <h4 className="selected-item-forms__group-heading">
@@ -449,6 +534,7 @@ const ConstructionParameters = ({
                   value={currentWool}
                   onChange={setCurrentWool}
                   showEcoS={hasEcoSWoolChoice(selectedItem?.ag_id)}
+                  showS2={hasS2WoolChoice(selectedItem?.ag_id)}
                 />
 
                 {selectedItem.id == 503 && (
@@ -796,9 +882,19 @@ const ConstructionParameters = ({
   const showFacingTapeChoice = hasFacingTapeChoice(selectedItem?.ag_id);
   const showGklaChoice = hasGklaChoice(selectedItem?.ag_id);
   const showCeilingMatChoice = hasCeilingMatChoice(selectedItem?.ag_id);
+  const showSheetChoice = hasSheetChoice(selectedItem?.ag_id);
 
   return (
     <div className="selected-item-forms__stack">
+      {showSheetChoice && (
+        <SheetChoiceRadios
+          idPrefix="facing"
+          itemId={selectedItem.id}
+          value={currentSheet}
+          onChange={setCurrentSheet}
+        />
+      )}
+
       {showGklaChoice && (
         <>
           <h4 className="selected-item-forms__group-heading">
@@ -856,6 +952,7 @@ const ConstructionParameters = ({
           value={currentWool}
           onChange={setCurrentWool}
           showEcoS={hasEcoSWoolChoice(selectedItem?.ag_id)}
+          showS2={hasS2WoolChoice(selectedItem?.ag_id)}
         />
       )}
 

@@ -25,6 +25,9 @@ export const calculateAreaAndPerimeter = (lenX, lenY, lenZ, currentSubCategory) 
 import {
   hasEcoSWoolChoice,
   hasGklaChoice,
+  hasS2WoolChoice,
+  hasSheetChoice,
+  SHEET_2GKL,
   stripHangerSuffix,
   stripTapeSuffix,
 } from "./calcUlTapeFallback.js";
@@ -35,12 +38,16 @@ import {
 export const getConstructionCode = (
   currentConstr,
   currentGkla,
-  currentWool
+  currentWool,
+  currentSheet = "default"
 ) => {
   const { base: baseWithHanger, tape } = stripTapeSuffix(currentConstr);
   const { base } = stripHangerSuffix(baseWithHanger);
   const gkla = hasGklaChoice(base) ? currentGkla : "default";
-  const wool = hasEcoSWoolChoice(base) ? currentWool : "default";
+  const wool =
+    hasEcoSWoolChoice(base) || hasS2WoolChoice(base) ? currentWool : "default";
+  const sheet =
+    hasSheetChoice(base) && currentSheet === SHEET_2GKL ? SHEET_2GKL : "";
   let code = base;
   if (gkla == "default" && wool == "default") {
     code = base;
@@ -50,6 +57,9 @@ export const getConstructionCode = (
     code = `${base}_${gkla}`;
   } else {
     code = `${base}_${gkla}_${wool}`;
+  }
+  if (sheet) {
+    code = `${code}_${sheet}`;
   }
   code += tape;
   return code;

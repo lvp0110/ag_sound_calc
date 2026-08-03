@@ -5,12 +5,18 @@
 import { BASE_URL } from "./apiClient";
 import {
   ecoSWoolFallbackCalcCode,
+  is2GklCalcCode,
   isEcoSWoolCalcCode,
+  isS2WoolCalcCode,
   isUlTapeCalcCode,
   isUltracousticFloorSealant,
   mapDefaultEcoWoolToEcoS,
+  mapDefaultEcoWoolToS2,
+  mapSoundlineDbToTwoGkl,
   mapVibrosilSealantToUltracoustic,
   mapVibrostekMaterialsToUlTape,
+  s2WoolFallbackCalcCode,
+  twoGklFallbackCalcCode,
   ulTapeFallbackCalcCodes,
 } from "../utils/calcUlTapeFallback.js";
 
@@ -91,7 +97,7 @@ export const calculateConstruction = async (constrList) => {
     }
   }
 
-  // Внешний calc пока не знает *_eco_s (пустой data при HTTP 200).
+  // Внешний calc пока не знает *_eco_s / *_s2 (пустой data при HTTP 200).
   if (
     rows.length === 0 &&
     constrList.length === 1 &&
@@ -104,6 +110,41 @@ export const calculateConstruction = async (constrList) => {
     }));
     const fallback = await calculateConstruction(fallbackPayload);
     const mapped = mapDefaultEcoWoolToEcoS(fallback?.data ?? []);
+    if (mapped?.length) {
+      return { data: mapped };
+    }
+  }
+
+  if (
+    rows.length === 0 &&
+    constrList.length === 1 &&
+    isS2WoolCalcCode(constrList[0]?.Code)
+  ) {
+    const fallbackCode = s2WoolFallbackCalcCode(constrList[0].Code);
+    const fallbackPayload = constrList.map((item) => ({
+      ...item,
+      Code: fallbackCode,
+    }));
+    const fallback = await calculateConstruction(fallbackPayload);
+    const mapped = mapDefaultEcoWoolToS2(fallback?.data ?? []);
+    if (mapped?.length) {
+      return { data: mapped };
+    }
+  }
+
+  // Внешний calc отдаёт ГКЛ+Саундлайн-dB; *_2gkl — два листа ГКЛ.
+  if (
+    rows.length === 0 &&
+    constrList.length === 1 &&
+    is2GklCalcCode(constrList[0]?.Code)
+  ) {
+    const fallbackCode = twoGklFallbackCalcCode(constrList[0].Code);
+    const fallbackPayload = constrList.map((item) => ({
+      ...item,
+      Code: fallbackCode,
+    }));
+    const fallback = await calculateConstruction(fallbackPayload);
+    const mapped = mapSoundlineDbToTwoGkl(fallback?.data ?? []);
     if (mapped?.length) {
       return { data: mapped };
     }

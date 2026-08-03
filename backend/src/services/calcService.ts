@@ -3,13 +3,19 @@ import {
   AG_CU_MEM_CIPHER,
   buildUlMembraneMaterials,
   ecoSWoolFallbackCalcCode,
+  is2GklCalcCode,
   isEcoSWoolCalcCode,
+  isS2WoolCalcCode,
   isUlTapeCalcCode,
   isUltracousticFloorSealant,
   mapDefaultEcoWoolToEcoS,
+  mapDefaultEcoWoolToS2,
+  mapSoundlineDbToTwoGkl,
   mapVibrosilSealantToUltracoustic,
   mapVibrostekMaterialsToUlTape,
   normalizeCeilingMats,
+  s2WoolFallbackCalcCode,
+  twoGklFallbackCalcCode,
   ulTapeFallbackCalcCodes,
 } from "./calcUlTapeFallback.js";
 import {
@@ -165,7 +171,7 @@ const calculateOne = async (params: CalcParams): Promise<CalcMaterial[]> => {
     }
   }
 
-  // Внешний calc пока не знает *_eco_s — считаем без суффикса и подменяем минвату.
+  // Внешний calc пока не знает *_eco_s / *_s2 — считаем без суффикса и подменяем минвату.
   if (materials.length === 0 && isEcoSWoolCalcCode(params.Code)) {
     const fallbackParams = {
       ...params,
@@ -175,6 +181,31 @@ const calculateOne = async (params: CalcParams): Promise<CalcMaterial[]> => {
     const woolMapped = mapDefaultEcoWoolToEcoS(fallbackMaterials);
     if (woolMapped) {
       materials = woolMapped as CalcMaterial[];
+    }
+  }
+
+  if (materials.length === 0 && isS2WoolCalcCode(params.Code)) {
+    const fallbackParams = {
+      ...params,
+      Code: s2WoolFallbackCalcCode(params.Code),
+    };
+    const fallbackMaterials = await calculateOne(fallbackParams);
+    const woolMapped = mapDefaultEcoWoolToS2(fallbackMaterials);
+    if (woolMapped) {
+      materials = woolMapped as CalcMaterial[];
+    }
+  }
+
+  // Внешний calc отдаёт ГКЛ+Саундлайн-dB; *_2gkl — два листа ГКЛ.
+  if (materials.length === 0 && is2GklCalcCode(params.Code)) {
+    const fallbackParams = {
+      ...params,
+      Code: twoGklFallbackCalcCode(params.Code),
+    };
+    const fallbackMaterials = await calculateOne(fallbackParams);
+    const sheetMapped = mapSoundlineDbToTwoGkl(fallbackMaterials);
+    if (sheetMapped) {
+      materials = sheetMapped as CalcMaterial[];
     }
   }
 
