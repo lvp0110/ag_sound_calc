@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   convertUnits,
   filterVariable,
@@ -19,6 +19,7 @@ import {
 } from "../../services/priceApi";
 import { KpNarrowExpandableRow } from "../kp/KpNarrowExpandableRow";
 import { useCalcConstructionCardsViewport } from "../../hooks/useCalcConstructionCardsViewport";
+import { useKpDiscountMultiSelect } from "../../hooks/useKpDiscountMultiSelect";
 import { useKpExpandedRow } from "../../hooks/useKpExpandedRow";
 import { useKpNarrowViewport } from "../../hooks/useKpNarrowViewport";
 import "./MaterialsList.css";
@@ -140,6 +141,78 @@ export function computeGrandTotalRubForConstructions(
   }, 0);
 }
 
+/** Ключ для сводки: артикул, иначе название + ед.изм. */
+export function materialAggregateKey(material) {
+  const codeRaw = material?.Code != null ? String(material.Code).trim() : "";
+  const displayCode = filterVariable(codeRaw);
+  if (displayCode !== "---" && displayCode !== "") {
+    return `code:${displayCode}`;
+  }
+  const name = String(material?.Name ?? material?.name ?? "")
+    .trim()
+    .toLowerCase();
+  const units = String(material?.Units ?? "")
+    .trim()
+    .toLowerCase();
+  return `name:${name}|units:${units}`;
+}
+
+/**
+ * Все материалы КП по конструкциям: одинаковые позиции суммируются (кол-во).
+ * Порядок — первое появление в materialsByConstruction.
+ * Позиции без суммы (нет цены/кол-ва или сумма ≤ 0) не включаются.
+ */
+export function aggregateMaterialsAcrossConstructions(
+  materialsByConstruction,
+  { forKp = true } = {},
+) {
+  if (!Array.isArray(materialsByConstruction)) return [];
+  const order = [];
+  const byKey = new Map();
+
+  for (const entry of materialsByConstruction) {
+    const data = entry?.data;
+    if (!Array.isArray(data)) continue;
+    for (const material of data) {
+      if (!material || typeof material !== "object") continue;
+      const key = materialAggregateKey(material);
+      const qty = effectiveKpQuantity(material, { forKp });
+      const qtyNum = qty != null && Number.isFinite(qty) ? qty : 0;
+      const rawQty = Number(material.Quantity);
+      const rawQtyNum = Number.isFinite(rawQty) ? rawQty : 0;
+
+      if (!byKey.has(key)) {
+        order.push(key);
+        byKey.set(key, {
+          ...material,
+          Quantity: rawQtyNum,
+          KpQuantity: qtyNum,
+        });
+        continue;
+      }
+
+      const agg = byKey.get(key);
+      const prevKp = parseKpDecimal(agg.KpQuantity) ?? 0;
+      agg.Quantity = (Number(agg.Quantity) || 0) + rawQtyNum;
+      agg.KpQuantity = prevKp + qtyNum;
+    }
+  }
+
+  return order
+    .map((key) => byKey.get(key))
+    .filter((material) => {
+      const codeRaw =
+        material.Code != null ? String(material.Code).trim() : "";
+      const sumRub = lineSumRub(
+        material,
+        getPricePerM2(codeRaw),
+        getPricePerUnit(codeRaw),
+        { forKp },
+      );
+      return typeof sumRub === "number" && !Number.isNaN(sumRub) && sumRub > 0;
+    });
+}
+
 /**
  * Таблица со списком материалов
  * @param {object} [calculatedMaterials] — { data: Material[] } (одна группа, например из КП)
@@ -151,6 +224,11 @@ export function computeGrandTotalRubForConstructions(
  * @param {(rowIndex: number, field: 'KpPricePerM2'|'KpPricePerUnit', value: string) => void} [onKpMaterialPriceChange]
  * @param {(rowIndex: number, value: string) => void} [onKpMaterialQuantityChange]
  * @param {boolean} [compositionOnly=false] — только артикул, название, ед.изм и кол-во (без цен и сумм)
+ * @param {boolean} [forKp] — явно включить правила КП (кол-во/суммы); иначе как `collapsible && !compositionOnly`
+ * @param {boolean} [summaryMode=false] — сводка КП: без колонок цен, после суммы — скидка и сумма скидки
+ * @param {Record<string, string>} [discountByKey] — скидки % по ключу строки (controlled)
+ * @param {(rowKey: string, value: string) => void | (patch: Record<string, string>) => void} [onDiscountChange]
+ * @param {(totalDiscountRub: number) => void} [onDiscountTotalChange] — итог скидки по сводке
  */
 const MaterialsList = ({
   calculatedMaterials,
@@ -162,40 +240,79 @@ const MaterialsList = ({
   onKpMaterialPriceChange,
   onKpMaterialQuantityChange,
   compositionOnly = false,
+  forKp: forKpProp,
+  summaryMode = false,
+  discountByKey: discountByKeyProp,
+  onDiscountChange,
+  onDiscountTotalChange,
 }) => {
   const [sectionOpen, setSectionOpen] = useState(false);
+  const [internalDiscountByKey, setInternalDiscountByKey] = useState({});
   const isNarrowScreen = useKpNarrowViewport();
   const calcCardsViewport = useCalcConstructionCardsViewport();
   const { expandedKey, toggleRow } = useKpExpandedRow();
   usePriceData();
 
+  const discountControlled = typeof onDiscountChange === "function";
+  const discountByKey = discountControlled
+    ? (discountByKeyProp ?? {})
+    : internalDiscountByKey;
+
   const data = dataProp ?? calculatedMaterials?.data;
   const hasData = Array.isArray(data) && data.length > 0;
   /** КП: collapsible без compositionOnly — упаковки для материалов «цена за уп». */
-  const forKp = collapsible && !compositionOnly;
+  const forKp = forKpProp ?? (collapsible && !compositionOnly);
 
   /** Одна модель строки: те же sumRub, что в колонке «сумма» — итог = их сумма. */
   const rowModels = hasData
-    ? data.map((Material) => {
+    ? data.map((Material, index) => {
         const codeRaw =
           Material.Code != null ? String(Material.Code).trim() : "";
         const pricePerM2 = getPricePerM2(codeRaw);
         const pricePerUnit = getPricePerUnit(codeRaw);
         const sumRub = lineSumRub(Material, pricePerM2, pricePerUnit, { forKp });
-        return { Material, pricePerM2, pricePerUnit, sumRub };
+        const rowKey = materialAggregateKey(Material) || `idx:${index}`;
+        return { Material, pricePerM2, pricePerUnit, sumRub, rowKey };
       })
     : [];
 
+  const summaryRowKeys = summaryMode ? rowModels.map((row) => row.rowKey) : [];
+  const { selectOnPointer, keysForEdit, isSelected } =
+    useKpDiscountMultiSelect(summaryRowKeys);
+
   const totalSumRub = computeTotalRubForMaterialsData(data, { forKp });
+  const totalDiscountRub = summaryMode
+    ? rowModels.reduce((acc, { sumRub, rowKey }) => {
+        const discountPct = parseKpDecimal(discountByKey[rowKey]);
+        if (
+          discountPct == null ||
+          typeof sumRub !== "number" ||
+          Number.isNaN(sumRub)
+        ) {
+          return acc;
+        }
+        return acc + (sumRub * discountPct) / 100;
+      }, 0)
+    : 0;
+
+  useEffect(() => {
+    if (!summaryMode || typeof onDiscountTotalChange !== "function") return;
+    onDiscountTotalChange(totalDiscountRub);
+  }, [summaryMode, totalDiscountRub, onDiscountTotalChange]);
 
   const showBody = !collapsible || sectionOpen;
   /** Состав конструкции в калькуляторе: < 430px без колонки «артикул». */
   const compositionNarrow = compositionOnly && calcCardsViewport;
-  /** Калькулятор: на узком экране убираем колонки из DOM. КП (collapsible): все колонки в DOM, скрытие через CSS. */
-  const legacyNarrow = !collapsible && !compositionOnly && isNarrowScreen;
-  const singlePriceColumn = editablePriceCells;
+  /** Калькулятор: на узком экране убираем колонки из DOM. КП (collapsible/forKp): все колонки в DOM, скрытие через CSS. */
+  const legacyNarrow = !collapsible && !compositionOnly && !forKp && isNarrowScreen;
+  const singlePriceColumn = editablePriceCells && !summaryMode;
+  const showPriceColumns = !compositionOnly && !summaryMode;
   const editableQuantityCells = !!onKpMaterialQuantityChange;
-  const fullPriceColCount = singlePriceColumn ? 7 : 8;
+  const fullPriceColCount = summaryMode
+    ? 8
+    : singlePriceColumn
+      ? 7
+      : 8;
   const colSpan = compositionOnly
     ? compositionNarrow
       ? 3
@@ -203,10 +320,31 @@ const MaterialsList = ({
     : legacyNarrow
       ? 4
       : fullPriceColCount;
-  const colInDom = compositionOnly || collapsible || !legacyNarrow;
+  const colInDom = compositionOnly || collapsible || forKp || !legacyNarrow;
   const showArticleCol = compositionOnly ? !compositionNarrow : colInDom;
-  const hideOnKpNarrow = collapsible ? " kp-data-col--hide-narrow" : "";
-  const kpNarrowDetail = collapsible && isNarrowScreen && !compositionOnly;
+  const hideOnKpNarrow =
+    (collapsible || forKp) && !compositionOnly ? " kp-data-col--hide-narrow" : "";
+  const kpNarrowDetail = (collapsible || forKp) && isNarrowScreen && !compositionOnly;
+  const kpTableChrome = (collapsible || forKp) && !compositionOnly;
+
+  const updateDiscount = (rowKey, value) => {
+    const targets = summaryMode ? keysForEdit(rowKey) : [rowKey];
+    if (targets.length > 1) {
+      const patch = {};
+      for (const key of targets) patch[key] = value;
+      if (discountControlled) {
+        onDiscountChange(patch);
+        return;
+      }
+      setInternalDiscountByKey((prev) => ({ ...prev, ...patch }));
+      return;
+    }
+    if (discountControlled) {
+      onDiscountChange(rowKey, value);
+      return;
+    }
+    setInternalDiscountByKey((prev) => ({ ...prev, [rowKey]: value }));
+  };
 
   const collapsibleTitle = collapsible ? (
     <span className="kp-collapsible-title-row">
@@ -238,10 +376,10 @@ const MaterialsList = ({
         </button>
       )}
       <table
-        className={`data${collapsible ? " kp-data-table--starts-with-column-headers" : ""}`}
+        className={`data${kpTableChrome ? " kp-data-table--starts-with-column-headers" : ""}`}
         id={tableId}
         data-materials-table="true"
-        {...(collapsible
+        {...(kpTableChrome
           ? {
               "data-export-section-title": sectionTitle,
               "data-erp-data-start-row": "1",
@@ -265,7 +403,7 @@ const MaterialsList = ({
                 {showArticleCol && (
                   <th className={hideOnKpNarrow.trim() || undefined}>артикул</th>
                 )}
-                <th className={collapsible ? "kp-data-col--name" : undefined}>
+                <th className={kpTableChrome ? "kp-data-col--name" : undefined}>
                   название
                 </th>
                 {!compositionOnly && (
@@ -282,22 +420,30 @@ const MaterialsList = ({
                 {colInDom && !compositionOnly && (
                   <th className={hideOnKpNarrow.trim() || undefined}>ед.изм</th>
                 )}
-                {colInDom && !compositionOnly && singlePriceColumn && (
+                {colInDom && showPriceColumns && singlePriceColumn && (
                   <th className={hideOnKpNarrow.trim() || undefined}>цена</th>
                 )}
-                {colInDom && !compositionOnly && !singlePriceColumn && (
+                {colInDom && showPriceColumns && !singlePriceColumn && (
                   <th className={hideOnKpNarrow.trim() || undefined}>
                     цена, ₽/м²
                   </th>
                 )}
-                {colInDom && !compositionOnly && !singlePriceColumn && (
+                {colInDom && showPriceColumns && !singlePriceColumn && (
                   <th className={hideOnKpNarrow.trim() || undefined}>
                     цена, ₽/ед.
                   </th>
                 )}
                 {colInDom && !compositionOnly && (
-                  <th className={collapsible ? "kp-data-col--sum" : undefined}>
+                  <th className={kpTableChrome ? "kp-data-col--sum" : undefined}>
                     сумма, ₽
+                  </th>
+                )}
+                {colInDom && summaryMode && (
+                  <th className={hideOnKpNarrow.trim() || undefined}>скидка</th>
+                )}
+                {colInDom && summaryMode && (
+                  <th className={hideOnKpNarrow.trim() || undefined}>
+                    сумма скидки
                   </th>
                 )}
               </tr>
@@ -307,7 +453,7 @@ const MaterialsList = ({
         {showBody && (
           <tbody>
             {hasData ? (
-              rowModels.map(({ Material, pricePerM2, pricePerUnit, sumRub }, index) => {
+              rowModels.map(({ Material, pricePerM2, pricePerUnit, sumRub, rowKey }, index) => {
                 const codeRaw =
                   Material.Code != null ? String(Material.Code).trim() : "";
                 const priceName = compositionOnly ? "" : getPriceName(codeRaw);
@@ -331,6 +477,40 @@ const MaterialsList = ({
                     pricePerUnit
                   )
                 );
+                const discountRaw = discountByKey[rowKey] ?? "";
+                const discountPct = parseKpDecimal(discountRaw);
+                const discountSumRub =
+                  discountPct != null &&
+                  typeof sumRub === "number" &&
+                  !Number.isNaN(sumRub)
+                    ? (sumRub * discountPct) / 100
+                    : null;
+                const discountInput = summaryMode ? (
+                  <input
+                    type="text"
+                    className={`kp-page__services-input${
+                      isSelected(rowKey)
+                        ? " kp-discount-input--selected"
+                        : ""
+                    }`}
+                    value={discountRaw}
+                    onMouseDown={(e) => {
+                      if (e.shiftKey || e.metaKey || e.ctrlKey) {
+                        e.preventDefault();
+                      }
+                    }}
+                    onClick={(e) => selectOnPointer(rowKey, e)}
+                    onFocus={() => {
+                      if (!isSelected(rowKey)) {
+                        selectOnPointer(rowKey, {});
+                      }
+                    }}
+                    onChange={(e) => updateDiscount(rowKey, e.target.value)}
+                    placeholder="0"
+                    aria-label={`Скидка, %, ${materialName}`}
+                  />
+                ) : null;
+                const discountSumDisplay = formatKpComputedSum(discountSumRub);
                 const singlePriceEditInput = editablePriceCells ? (
                   <input
                     type="text"
@@ -451,31 +631,52 @@ const MaterialsList = ({
                             ? formatMaterialQuantity(Material, { forKp })
                             : convertUnits(Material),
                       },
-                      ...(singlePriceColumn
+                      ...(summaryMode
                         ? [
                             {
-                              id: "price",
-                              label: "Цена",
-                              children: singlePriceEditInput ?? singlePriceDisplayRub,
+                              id: "sum",
+                              label: "Сумма, ₽",
+                              children: sumDisplay,
+                            },
+                            {
+                              id: "discount",
+                              label: "Скидка",
+                              children: discountInput,
+                            },
+                            {
+                              id: "discountSum",
+                              label: "Сумма скидки",
+                              children: discountSumDisplay,
                             },
                           ]
                         : [
+                            ...(singlePriceColumn
+                              ? [
+                                  {
+                                    id: "price",
+                                    label: "Цена",
+                                    children:
+                                      singlePriceEditInput ?? singlePriceDisplayRub,
+                                  },
+                                ]
+                              : [
+                                  {
+                                    id: "priceM2",
+                                    label: "Цена, ₽/м²",
+                                    children: priceM2Input,
+                                  },
+                                  {
+                                    id: "priceUnit",
+                                    label: "Цена, ₽/ед.",
+                                    children: priceUnitInput,
+                                  },
+                                ]),
                             {
-                              id: "priceM2",
-                              label: "Цена, ₽/м²",
-                              children: priceM2Input,
-                            },
-                            {
-                              id: "priceUnit",
-                              label: "Цена, ₽/ед.",
-                              children: priceUnitInput,
+                              id: "sum",
+                              label: "Сумма, ₽",
+                              children: sumDisplay,
                             },
                           ]),
-                      {
-                        id: "sum",
-                        label: "Сумма, ₽",
-                        children: sumDisplay,
-                      },
                     ]
                   : [];
                 const rowCells = compositionOnly ? (
@@ -505,7 +706,7 @@ const MaterialsList = ({
                       </td>
                     )}
                     <td
-                      className={collapsible ? "kp-data-col--name" : undefined}
+                      className={kpTableChrome ? "kp-data-col--name" : undefined}
                     >
                       {materialName}
                     </td>
@@ -522,21 +723,21 @@ const MaterialsList = ({
                         {materialDisplayUnits(Material, { forKp })}
                       </td>
                     )}
-                    {colInDom && singlePriceColumn && (
+                    {colInDom && showPriceColumns && singlePriceColumn && (
                       <td className={hideOnKpNarrow.trim() || undefined}>
                         {showInputsInRow && singlePriceEditInput
                           ? singlePriceEditInput
                           : singlePriceDisplayRub}
                       </td>
                     )}
-                    {colInDom && !singlePriceColumn && (
+                    {colInDom && showPriceColumns && !singlePriceColumn && (
                       <td className={hideOnKpNarrow.trim() || undefined}>
                         {showInputsInRow && editablePriceCells
                           ? priceM2Input
                           : formatRub(pricePerM2)}
                       </td>
                     )}
-                    {colInDom && !singlePriceColumn && (
+                    {colInDom && showPriceColumns && !singlePriceColumn && (
                       <td className={hideOnKpNarrow.trim() || undefined}>
                         {showInputsInRow && editablePriceCells
                           ? priceUnitInput
@@ -546,7 +747,7 @@ const MaterialsList = ({
                     {colInDom && (
                       <td
                         className={
-                          collapsible ? "kp-data-col--sum" : undefined
+                          kpTableChrome ? "kp-data-col--sum" : undefined
                         }
                       >
                         {showInputsInRow && (editablePriceCells || editableQuantityCells)
@@ -554,13 +755,23 @@ const MaterialsList = ({
                           : formatKpComputedSum(sumRub)}
                       </td>
                     )}
+                    {colInDom && summaryMode && (
+                      <td className={hideOnKpNarrow.trim() || undefined}>
+                        {showInputsInRow ? discountInput : discountRaw || "—"}
+                      </td>
+                    )}
+                    {colInDom && summaryMode && (
+                      <td className={hideOnKpNarrow.trim() || undefined}>
+                        {discountSumDisplay}
+                      </td>
+                    )}
                   </>
                 );
                 if (kpNarrowDetail) {
                   return (
                     <KpNarrowExpandableRow
-                      key={index}
-                      rowKey={index}
+                      key={rowKey}
+                      rowKey={rowKey}
                       expandedKey={expandedKey}
                       onToggleRow={toggleRow}
                       narrow
@@ -571,7 +782,7 @@ const MaterialsList = ({
                     </KpNarrowExpandableRow>
                   );
                 }
-                return <tr key={index}>{rowCells}</tr>;
+                return <tr key={rowKey}>{rowCells}</tr>;
               })
             ) : (
               <tr>
@@ -604,11 +815,3 @@ const MaterialsList = ({
 };
 
 export default MaterialsList;
-
-
-
-
-
-
-
-

@@ -32,3 +32,9 @@
   white-space: nowrap;
   text-align: right;
 }
+
+.kp-page__services-input.kp-discount-input--selected {
+  outline: 2px solid #6cabc8;
+  outline-offset: 1px;
+  background-color: #e8f4fa;
+}

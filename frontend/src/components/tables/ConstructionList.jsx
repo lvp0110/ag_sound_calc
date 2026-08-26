@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useCalcConstructionCardsViewport } from "../../hooks/useCalcConstructionCardsViewport";
 import { filterVariable } from "../../utils/formatters";
 import {
@@ -7,14 +7,159 @@ import {
   shouldSkipSectionLabelPrefix,
 } from "../../utils/itemsCatalog.js";
 import MaterialsList, {
+  aggregateMaterialsAcrossConstructions,
   computeGrandTotalRubForConstructions,
   computeTotalRubForMaterialsData,
   formatRub,
   montageLineProductRub,
+  parseKpDecimal,
 } from "./MaterialsList";
+import KpDiscountSummaryTable from "./KpDiscountSummaryTable";
 import { sectionLabelForConstruction } from "../../utils/constructionSection";
 import { constructionDisplayCipher } from "../../utils/calcUlTapeFallback";
+import { usePriceData } from "../../services/priceApi";
 import "./ConstructionList.css";
+
+function positiveLineSum(price, quantity) {
+  const p = parseKpDecimal(price);
+  const q = parseKpDecimal(quantity);
+  if (p === null || q === null) return null;
+  const sum = p * q;
+  return sum > 0 ? sum : null;
+}
+
+function buildMontageSummaryRows(constructions, montageByKeyId) {
+  if (!Array.isArray(constructions) || !montageByKeyId) return [];
+  const rows = [];
+  for (const c of constructions) {
+    const row = montageByKeyId[c.key_id];
+    if (!row) continue;
+    const sumRub = montageLineProductRub(row);
+    if (typeof sumRub !== "number" || !(sumRub > 0)) continue;
+    const code = c.ag_id != null ? String(c.ag_id).trim() : "";
+    rows.push({
+      id: `montage-${c.key_id}`,
+      name: code ? `Монтаж (${code})` : "Монтаж",
+      quantity: row.quantity,
+      unit: row.unit,
+      sumRub,
+    });
+  }
+  return rows;
+}
+
+function buildServicesSummaryRows(serviceRows) {
+  if (!Array.isArray(serviceRows)) return [];
+  return serviceRows
+    .map((row) => {
+      const sumRub = positiveLineSum(row.price, row.quantity);
+      if (sumRub == null) return null;
+      return {
+        id: `service-${row.id}`,
+        name: row.name,
+        quantity: row.quantity,
+        unit: row.unit,
+        sumRub,
+      };
+    })
+    .filter(Boolean);
+}
+
+function buildAdditionalMaterialsSummaryRows(materialRowsByKeyId) {
+  if (!materialRowsByKeyId || typeof materialRowsByKeyId !== "object") {
+    return [];
+  }
+  const rows = [];
+  for (const [keyId, list] of Object.entries(materialRowsByKeyId)) {
+    if (!Array.isArray(list)) continue;
+    for (const row of list) {
+      const sumRub = positiveLineSum(row.price, row.quantity);
+      if (sumRub == null) continue;
+      rows.push({
+        id: `addmat-${keyId}-${row.id}`,
+        name: row.name,
+        quantity: row.quantity,
+        unit: row.unit,
+        sumRub,
+      });
+    }
+  }
+  return rows;
+}
+
+function GrandTotalLineLabel({
+  label,
+  expandable,
+  expanded,
+  controlsId,
+  onToggle,
+  buttonClassName = "construction-grand-total__line-label-button",
+}) {
+  if (!expandable) return label;
+  return (
+    <button
+      type="button"
+      className={buttonClassName}
+      aria-expanded={expanded}
+      aria-controls={controlsId}
+      onClick={onToggle}
+    >
+      <span
+        className={`construction-grand-total__line-label-chevron${
+          expanded
+            ? " construction-grand-total__line-label-chevron--expanded"
+            : ""
+        }`}
+        aria-hidden
+      />
+      <span>{label}</span>
+    </button>
+  );
+}
+
+function GrandTotalDiscountRow({
+  label,
+  amountRub,
+  titleColSpan,
+  lineLabelClass,
+  lineAmountClass,
+}) {
+  if (!(amountRub > 0)) return null;
+  return (
+    <tr className="construction-grand-total__line construction-grand-total__line--next construction-grand-total__line--discount">
+      <th colSpan={Math.max(1, titleColSpan - 1)} className={lineLabelClass}>
+        {label}
+      </th>
+      <th className={lineAmountClass}>{formatRub(amountRub)}</th>
+    </tr>
+  );
+}
+
+function GrandTotalSummaryRow({
+  open,
+  titleColSpan,
+  wrapId,
+  children,
+}) {
+  return (
+    <tr
+      className="construction-grand-total__materials-summary-row"
+      hidden={!open}
+    >
+      <td
+        colSpan={titleColSpan}
+        className="construction-grand-total__materials-summary-cell"
+      >
+        <div
+          id={wrapId}
+          className="construction-grand-total__materials-summary"
+        >
+          {children}
+        </div>
+      </td>
+    </tr>
+  );
+}
 
 /** Строка итога «Стоимость конструкций» (экспорт для КП: итог после блока «Услуги»). */
 export function ConstructionGrandTotalBlock({
@@ -26,8 +171,30 @@ export function ConstructionGrandTotalBlock({
   additionalMaterialsGrandTotalRub,
   /** Итог доп. услуг по КП (блок «Услуги»). */
   additionalServicesGrandTotalRub,
+  /** Материалы по конструкциям — на КП клик по «Стоимость конструкций» открывает сводку. */
+  materialsByConstruction,
+  /** Конструкции + монтаж по key_id — сводка скидок по монтажу. */
+  constructions,
+  montageByKeyId,
+  /** Строки блока «Услуги». */
+  serviceRows,
+  /** Доп. материалы по key_id. */
+  materialRowsByKeyId,
+  /** Скидки % по секциям итога: { constructions, montage, services, additionalMaterials }. */
+  grandTotalDiscounts,
+  /** (section, rowKey, value) — правка скидки в сводке. */
+  onGrandTotalDiscountChange,
+  /** Суммы скидок ₽ по секциям — для сохранения в kp_settings / PDF. */
+  onGrandTotalDiscountAmountsChange,
   wrapClassName = "",
 }) {
+  const [openSections, setOpenSections] = useState({});
+  const [constructionsDiscountRub, setConstructionsDiscountRub] = useState(0);
+  const [montageDiscountRub, setMontageDiscountRub] = useState(0);
+  const [servicesDiscountRub, setServicesDiscountRub] = useState(0);
+  const [additionalMaterialsDiscountRub, setAdditionalMaterialsDiscountRub] =
+    useState(0);
+
   const titleColSpan = readOnly ? 3 : 4;
   const grandTotalCardClass = readOnly ? " kp-table-card" : "";
   const showMontageRow = montageGrandTotalRub !== undefined;
@@ -47,13 +214,128 @@ export function ConstructionGrandTotalBlock({
     !Number.isNaN(additionalMaterialsGrandTotalRub)
       ? additionalMaterialsGrandTotalRub
       : 0;
-  const overallTotalRub =
-    (typeof grandTotalRub === "number" && !Number.isNaN(grandTotalRub)
+  const constructionsGrossRub =
+    typeof grandTotalRub === "number" && !Number.isNaN(grandTotalRub)
       ? grandTotalRub
+      : 0;
+
+  const normDiscount = (value) =>
+    typeof value === "number" && !Number.isNaN(value) && value > 0 ? value : 0;
+
+  const constructionsDiscount = normDiscount(constructionsDiscountRub);
+  const montageDiscount = normDiscount(montageDiscountRub);
+  const servicesDiscount = normDiscount(servicesDiscountRub);
+  const additionalMaterialsDiscount = normDiscount(
+    additionalMaterialsDiscountRub,
+  );
+
+  const overallTotalRub =
+    constructionsGrossRub -
+    constructionsDiscount +
+    (showMontageRow ? montagePart - montageDiscount : 0) +
+    (showAdditionalMaterialsRow
+      ? additionalMaterialsPart - additionalMaterialsDiscount
       : 0) +
-    (showMontageRow ? montagePart : 0) +
-    (showAdditionalMaterialsRow ? additionalMaterialsPart : 0) +
-    (showServicesRow ? servicesPart : 0);
+    (showServicesRow ? servicesPart - servicesDiscount : 0);
+
+  // Не пушим нули при маунте: до отчёта дочерних сводок это затирало
+  // суммы из API/snapshot и ломало PDF после сохранения.
+  const discountAmountsReadyRef = useRef(false);
+  useEffect(() => {
+    if (typeof onGrandTotalDiscountAmountsChange !== "function") return;
+    const anyPositive =
+      constructionsDiscount > 0 ||
+      montageDiscount > 0 ||
+      servicesDiscount > 0 ||
+      additionalMaterialsDiscount > 0;
+    if (!discountAmountsReadyRef.current && !anyPositive) return;
+    discountAmountsReadyRef.current = true;
+    onGrandTotalDiscountAmountsChange({
+      constructions: constructionsDiscount,
+      montage: montageDiscount,
+      services: servicesDiscount,
+      additionalMaterials: additionalMaterialsDiscount,
+    });
+  }, [
+    constructionsDiscount,
+    montageDiscount,
+    servicesDiscount,
+    additionalMaterialsDiscount,
+    onGrandTotalDiscountAmountsChange,
+  ]);
+
+  const { loaded: priceLoaded, selectedRegion } = usePriceData();
+
+  const aggregatedMaterials = useMemo(
+    () =>
+      readOnly
+        ? aggregateMaterialsAcrossConstructions(materialsByConstruction, {
+            forKp: true,
+          })
+        : [],
+    // Прайс грузится асинхронно: без priceLoaded/selectedRegion сводка остаётся пустой
+    // после первого расчёта (фильтр «сумма > 0» отсекает строки без цены).
+    [readOnly, materialsByConstruction, priceLoaded, selectedRegion],
+  );
+  const montageSummaryRows = useMemo(
+    () =>
+      readOnly ? buildMontageSummaryRows(constructions, montageByKeyId) : [],
+    [readOnly, constructions, montageByKeyId],
+  );
+  const servicesSummaryRows = useMemo(
+    () => (readOnly ? buildServicesSummaryRows(serviceRows) : []),
+    [readOnly, serviceRows],
+  );
+  const additionalMaterialsSummaryRows = useMemo(
+    () =>
+      readOnly
+        ? buildAdditionalMaterialsSummaryRows(materialRowsByKeyId)
+        : [],
+    [readOnly, materialRowsByKeyId],
+  );
+
+  const canToggleSummaries = readOnly;
+  const toggleSection = useCallback((section) => {
+    setOpenSections((prev) => ({
+      ...prev,
+      [section]: !prev[section],
+    }));
+  }, []);
+  const isSectionOpen = (section) => !!openSections[section];
+
+  const handleConstructionsDiscount = useCallback((total) => {
+    setConstructionsDiscountRub(
+      typeof total === "number" && !Number.isNaN(total) ? total : 0,
+    );
+  }, []);
+  const handleMontageDiscount = useCallback((total) => {
+    setMontageDiscountRub(
+      typeof total === "number" && !Number.isNaN(total) ? total : 0,
+    );
+  }, []);
+  const handleServicesDiscount = useCallback((total) => {
+    setServicesDiscountRub(
+      typeof total === "number" && !Number.isNaN(total) ? total : 0,
+    );
+  }, []);
+  const handleAdditionalMaterialsDiscount = useCallback((total) => {
+    setAdditionalMaterialsDiscountRub(
+      typeof total === "number" && !Number.isNaN(total) ? total : 0,
+    );
+  }, []);
+
+  const discounts = grandTotalDiscounts ?? {};
+  const constructionsDiscountByKey = discounts.constructions ?? {};
+  const montageDiscountByKey = discounts.montage ?? {};
+  const servicesDiscountByKey = discounts.services ?? {};
+  const additionalMaterialsDiscountByKey = discounts.additionalMaterials ?? {};
+
+  const changeSectionDiscount = useCallback(
+    (section) => (rowKey, value) => {
+      onGrandTotalDiscountChange?.(section, rowKey, value);
+    },
+    [onGrandTotalDiscountChange],
+  );
 
   const lineLabelClass = readOnly
     ? "construction-grand-total__line-label"
@@ -61,6 +343,7 @@ export function ConstructionGrandTotalBlock({
   const lineAmountClass = readOnly
     ? "construction-grand-total__line-amount"
     : "construction-grand-total__line-amount construction-grand-total__line-amount--calc";
+
   return (
     <div
       className={`tbl-in construction-grand-total-wrap${grandTotalCardClass}${
@@ -78,49 +361,211 @@ export function ConstructionGrandTotalBlock({
               colSpan={Math.max(1, titleColSpan - 1)}
               className={lineLabelClass}
             >
-              Стоимость конструкций
+              <GrandTotalLineLabel
+                label="Стоимость конструкций"
+                expandable={canToggleSummaries}
+                expanded={isSectionOpen("constructions")}
+                controlsId="table-kp-materials-summary-wrap"
+                onToggle={() => toggleSection("constructions")}
+              />
             </th>
-            <th className={lineAmountClass}>{formatRub(grandTotalRub)}</th>
+            <th className={lineAmountClass}>
+              {formatRub(constructionsGrossRub)}
+            </th>
           </tr>
+          <GrandTotalDiscountRow
+            label="Скидка на конструкции"
+            amountRub={constructionsDiscount}
+            titleColSpan={titleColSpan}
+            lineLabelClass={lineLabelClass}
+            lineAmountClass={lineAmountClass}
+          />
+          {canToggleSummaries && (
+            <GrandTotalSummaryRow
+              open={isSectionOpen("constructions")}
+              titleColSpan={titleColSpan}
+              wrapId="table-kp-materials-summary-wrap"
+            >
+              <MaterialsList
+                data={aggregatedMaterials}
+                tableId="table-kp-materials-summary"
+                sectionTitle="Все материалы"
+                forKp
+                summaryMode
+                discountByKey={
+                  onGrandTotalDiscountChange
+                    ? constructionsDiscountByKey
+                    : undefined
+                }
+                onDiscountChange={
+                  onGrandTotalDiscountChange
+                    ? changeSectionDiscount("constructions")
+                    : undefined
+                }
+                onDiscountTotalChange={handleConstructionsDiscount}
+              />
+            </GrandTotalSummaryRow>
+          )}
+
           {showMontageRow && (
-            <tr className="construction-grand-total__line construction-grand-total__line--next">
-              <th
-                colSpan={Math.max(1, titleColSpan - 1)}
-                className={lineLabelClass}
-              >
-                Стоимость монтажа
-              </th>
-              <th className={lineAmountClass}>
-                {formatRub(montageGrandTotalRub)}
-              </th>
-            </tr>
+            <>
+              <tr className="construction-grand-total__line construction-grand-total__line--next">
+                <th
+                  colSpan={Math.max(1, titleColSpan - 1)}
+                  className={lineLabelClass}
+                >
+                  <GrandTotalLineLabel
+                    label="Стоимость монтажа"
+                    expandable={canToggleSummaries}
+                    expanded={isSectionOpen("montage")}
+                    controlsId="table-kp-montage-summary-wrap"
+                    onToggle={() => toggleSection("montage")}
+                  />
+                </th>
+                <th className={lineAmountClass}>
+                  {formatRub(montageGrandTotalRub)}
+                </th>
+              </tr>
+              <GrandTotalDiscountRow
+                label="Скидка на монтаж"
+                amountRub={montageDiscount}
+                titleColSpan={titleColSpan}
+                lineLabelClass={lineLabelClass}
+                lineAmountClass={lineAmountClass}
+              />
+              {canToggleSummaries && (
+                <GrandTotalSummaryRow
+                  open={isSectionOpen("montage")}
+                  titleColSpan={titleColSpan}
+                  wrapId="table-kp-montage-summary-wrap"
+                >
+                  <KpDiscountSummaryTable
+                    rows={montageSummaryRows}
+                    tableId="table-kp-montage-summary"
+                    sectionTitle="Монтаж"
+                    discountByKey={
+                      onGrandTotalDiscountChange
+                        ? montageDiscountByKey
+                        : undefined
+                    }
+                    onDiscountChange={
+                      onGrandTotalDiscountChange
+                        ? changeSectionDiscount("montage")
+                        : undefined
+                    }
+                    onDiscountTotalChange={handleMontageDiscount}
+                  />
+                </GrandTotalSummaryRow>
+              )}
+            </>
           )}
+
           {showServicesRow && (
-            <tr className="construction-grand-total__line construction-grand-total__line--next">
-              <th
-                colSpan={Math.max(1, titleColSpan - 1)}
-                className={lineLabelClass}
-              >
-                Стоимость дополнительных услуг
-              </th>
-              <th className={lineAmountClass}>
-                {formatRub(additionalServicesGrandTotalRub)}
-              </th>
-            </tr>
+            <>
+              <tr className="construction-grand-total__line construction-grand-total__line--next">
+                <th
+                  colSpan={Math.max(1, titleColSpan - 1)}
+                  className={lineLabelClass}
+                >
+                  <GrandTotalLineLabel
+                    label="Стоимость дополнительных услуг"
+                    expandable={canToggleSummaries}
+                    expanded={isSectionOpen("services")}
+                    controlsId="table-kp-services-summary-wrap"
+                    onToggle={() => toggleSection("services")}
+                  />
+                </th>
+                <th className={lineAmountClass}>
+                  {formatRub(additionalServicesGrandTotalRub)}
+                </th>
+              </tr>
+              <GrandTotalDiscountRow
+                label="Скидка на дополнительные услуги"
+                amountRub={servicesDiscount}
+                titleColSpan={titleColSpan}
+                lineLabelClass={lineLabelClass}
+                lineAmountClass={lineAmountClass}
+              />
+              {canToggleSummaries && (
+                <GrandTotalSummaryRow
+                  open={isSectionOpen("services")}
+                  titleColSpan={titleColSpan}
+                  wrapId="table-kp-services-summary-wrap"
+                >
+                  <KpDiscountSummaryTable
+                    rows={servicesSummaryRows}
+                    tableId="table-kp-services-summary"
+                    sectionTitle="Дополнительные услуги"
+                    discountByKey={
+                      onGrandTotalDiscountChange
+                        ? servicesDiscountByKey
+                        : undefined
+                    }
+                    onDiscountChange={
+                      onGrandTotalDiscountChange
+                        ? changeSectionDiscount("services")
+                        : undefined
+                    }
+                    onDiscountTotalChange={handleServicesDiscount}
+                  />
+                </GrandTotalSummaryRow>
+              )}
+            </>
           )}
+
           {showAdditionalMaterialsRow && (
-            <tr className="construction-grand-total__line construction-grand-total__line--next">
-              <th
-                colSpan={Math.max(1, titleColSpan - 1)}
-                className={lineLabelClass}
-              >
-                Стоимость дополнительных материалов
-              </th>
-              <th className={lineAmountClass}>
-                {formatRub(additionalMaterialsGrandTotalRub)}
-              </th>
-            </tr>
+            <>
+              <tr className="construction-grand-total__line construction-grand-total__line--next">
+                <th
+                  colSpan={Math.max(1, titleColSpan - 1)}
+                  className={lineLabelClass}
+                >
+                  <GrandTotalLineLabel
+                    label="Стоимость дополнительных материалов"
+                    expandable={canToggleSummaries}
+                    expanded={isSectionOpen("additionalMaterials")}
+                    controlsId="table-kp-additional-materials-summary-wrap"
+                    onToggle={() => toggleSection("additionalMaterials")}
+                  />
+                </th>
+                <th className={lineAmountClass}>
+                  {formatRub(additionalMaterialsGrandTotalRub)}
+                </th>
+              </tr>
+              <GrandTotalDiscountRow
+                label="Скидка на дополнительные материалы"
+                amountRub={additionalMaterialsDiscount}
+                titleColSpan={titleColSpan}
+                lineLabelClass={lineLabelClass}
+                lineAmountClass={lineAmountClass}
+              />
+              {canToggleSummaries && (
+                <GrandTotalSummaryRow
+                  open={isSectionOpen("additionalMaterials")}
+                  titleColSpan={titleColSpan}
+                  wrapId="table-kp-additional-materials-summary-wrap"
+                >
+                  <KpDiscountSummaryTable
+                    rows={additionalMaterialsSummaryRows}
+                    tableId="table-kp-additional-materials-summary"
+                    sectionTitle="Дополнительные материалы"
+                    discountByKey={
+                      onGrandTotalDiscountChange
+                        ? additionalMaterialsDiscountByKey
+                        : undefined
+                    }
+                    onDiscountChange={
+                      onGrandTotalDiscountChange
+                        ? changeSectionDiscount("additionalMaterials")
+                        : undefined
+                    }
+                    onDiscountTotalChange={handleAdditionalMaterialsDiscount}
+                  />
+                </GrandTotalSummaryRow>
+              )}
+            </>
           )}
+
           <tr className="construction-grand-total__total-row">
             <th
               colSpan={Math.max(1, titleColSpan - 1)}

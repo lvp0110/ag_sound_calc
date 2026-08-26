@@ -24,12 +24,12 @@ export const calculateAreaAndPerimeter = (lenX, lenY, lenZ, currentSubCategory) 
 
 import {
   hasEcoSWoolChoice,
-  HANGER_ULTRACOUSTIC,
   hasGklaChoice,
-  hasHangerChoice,
+  hasS2WoolChoice,
+  hasSheetChoice,
+  SHEET_2GKL,
   stripHangerSuffix,
   stripTapeSuffix,
-  UL_HANGER_SUFFIX,
 } from "./calcUlTapeFallback.js";
 
 /**
@@ -39,12 +39,15 @@ export const getConstructionCode = (
   currentConstr,
   currentGkla,
   currentWool,
-  currentHangerType
+  currentSheet = "default"
 ) => {
   const { base: baseWithHanger, tape } = stripTapeSuffix(currentConstr);
   const { base } = stripHangerSuffix(baseWithHanger);
   const gkla = hasGklaChoice(base) ? currentGkla : "default";
-  const wool = hasEcoSWoolChoice(base) ? currentWool : "default";
+  const wool =
+    hasEcoSWoolChoice(base) || hasS2WoolChoice(base) ? currentWool : "default";
+  const sheet =
+    hasSheetChoice(base) && currentSheet === SHEET_2GKL ? SHEET_2GKL : "";
   let code = base;
   if (gkla == "default" && wool == "default") {
     code = base;
@@ -55,13 +58,10 @@ export const getConstructionCode = (
   } else {
     code = `${base}_${gkla}_${wool}`;
   }
-  code += tape;
-  if (
-    hasHangerChoice(base) &&
-    currentHangerType === HANGER_ULTRACOUSTIC
-  ) {
-    code += UL_HANGER_SUFFIX;
+  if (sheet) {
+    code = `${code}_${sheet}`;
   }
+  code += tape;
   return code;
 };
 
@@ -77,8 +77,8 @@ export const resolveDisplayCipher = (calcCode, titleByCode) => {
     return codeWithoutSuffix;
   }
   if (titleByCode.has(code)) return code;
-  if (titleByCode.has(codeWithoutSuffix)) return codeWithoutSuffix;
 
+  // Самый длинный префикс (AG.C501_ul_… → AG.C501_ul, не AG.C501).
   let best = "";
   for (const key of titleByCode.keys()) {
     const base = String(key ?? "").trim();

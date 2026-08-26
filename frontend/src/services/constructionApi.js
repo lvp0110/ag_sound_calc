@@ -5,15 +5,18 @@
 import { BASE_URL } from "./apiClient";
 import {
   ecoSWoolFallbackCalcCode,
+  is2GklCalcCode,
   isEcoSWoolCalcCode,
-  isUlHangerCalcCode,
+  isS2WoolCalcCode,
   isUlTapeCalcCode,
   isUltracousticFloorSealant,
   mapDefaultEcoWoolToEcoS,
-  mapVibroflexHangerToUltracoustic,
+  mapDefaultEcoWoolToS2,
+  mapSoundlineDbToTwoGkl,
   mapVibrosilSealantToUltracoustic,
   mapVibrostekMaterialsToUlTape,
-  ulHangerFallbackCalcCode,
+  s2WoolFallbackCalcCode,
+  twoGklFallbackCalcCode,
   ulTapeFallbackCalcCodes,
 } from "../utils/calcUlTapeFallback.js";
 
@@ -35,72 +38,44 @@ export const calculateConstruction = async (constrList) => {
     credentials: "include",
   });
 
-  const isUnknownUlHanger =
-    !response.ok &&
-    response.status === 404 &&
-    constrList.length === 1 &&
-    isUlHangerCalcCode(constrList[0]?.Code);
-
   let rows;
-  if (isUnknownUlHanger) {
-    rows = [];
-  } else {
-    if (!response.ok) {
-      let errorText = "";
+  if (!response.ok) {
+    let errorText = "";
+    try {
+      const clonedResponse = response.clone();
+      const errorData = await clonedResponse.json();
+      errorText =
+        errorData.error || errorData.message || JSON.stringify(errorData);
+    } catch {
       try {
         const clonedResponse = response.clone();
-        const errorData = await clonedResponse.json();
-        errorText =
-          errorData.error || errorData.message || JSON.stringify(errorData);
+        errorText = await clonedResponse.text();
       } catch {
-        try {
-          const clonedResponse = response.clone();
-          errorText = await clonedResponse.text();
-        } catch {
-          errorText = `HTTP ${response.status}: ${response.statusText}`;
-        }
+        errorText = `HTTP ${response.status}: ${response.statusText}`;
       }
-
-      let errorMessage = errorText;
-      try {
-        const errorJson = JSON.parse(errorText);
-        errorMessage = errorJson.error || errorJson.message || errorText;
-      } catch {
-        // Если не JSON, используем как есть
-      }
-
-      throw new Error(
-        `HTTP error! status: ${response.status}, message: ${errorMessage}`
-      );
     }
 
-    const data = await response.json();
-
-    if (data && data.data) {
-      rows = data.data;
-    } else if (Array.isArray(data)) {
-      rows = data;
-    } else {
-      rows = [];
+    let errorMessage = errorText;
+    try {
+      const errorJson = JSON.parse(errorText);
+      errorMessage = errorJson.error || errorJson.message || errorText;
+    } catch {
+      // Если не JSON, используем как есть
     }
+
+    throw new Error(
+      `HTTP error! status: ${response.status}, message: ${errorMessage}`
+    );
   }
 
-  // Внешний calc пока не знает *_ul_hanger (пустой data при HTTP 200).
-  if (
-    rows.length === 0 &&
-    constrList.length === 1 &&
-    isUlHangerCalcCode(constrList[0]?.Code)
-  ) {
-    const fallbackCode = ulHangerFallbackCalcCode(constrList[0].Code);
-    const fallbackPayload = constrList.map((item) => ({
-      ...item,
-      Code: fallbackCode,
-    }));
-    const fallback = await calculateConstruction(fallbackPayload);
-    const mapped = mapVibroflexHangerToUltracoustic(fallback?.data ?? []);
-    if (mapped?.length) {
-      return { data: mapped };
-    }
+  const data = await response.json();
+
+  if (data && data.data) {
+    rows = data.data;
+  } else if (Array.isArray(data)) {
+    rows = data;
+  } else {
+    rows = [];
   }
 
   // Внешний calc пока не знает *_ul_tape (пустой data при HTTP 200).
@@ -122,7 +97,7 @@ export const calculateConstruction = async (constrList) => {
     }
   }
 
-  // Внешний calc пока не знает *_eco_s (пустой data при HTTP 200).
+  // Внешний calc пока не знает *_eco_s / *_s2 (пустой data при HTTP 200).
   if (
     rows.length === 0 &&
     constrList.length === 1 &&
@@ -135,6 +110,41 @@ export const calculateConstruction = async (constrList) => {
     }));
     const fallback = await calculateConstruction(fallbackPayload);
     const mapped = mapDefaultEcoWoolToEcoS(fallback?.data ?? []);
+    if (mapped?.length) {
+      return { data: mapped };
+    }
+  }
+
+  if (
+    rows.length === 0 &&
+    constrList.length === 1 &&
+    isS2WoolCalcCode(constrList[0]?.Code)
+  ) {
+    const fallbackCode = s2WoolFallbackCalcCode(constrList[0].Code);
+    const fallbackPayload = constrList.map((item) => ({
+      ...item,
+      Code: fallbackCode,
+    }));
+    const fallback = await calculateConstruction(fallbackPayload);
+    const mapped = mapDefaultEcoWoolToS2(fallback?.data ?? []);
+    if (mapped?.length) {
+      return { data: mapped };
+    }
+  }
+
+  // Внешний calc отдаёт ГКЛ+Саундлайн-dB; *_2gkl — два листа ГКЛ.
+  if (
+    rows.length === 0 &&
+    constrList.length === 1 &&
+    is2GklCalcCode(constrList[0]?.Code)
+  ) {
+    const fallbackCode = twoGklFallbackCalcCode(constrList[0].Code);
+    const fallbackPayload = constrList.map((item) => ({
+      ...item,
+      Code: fallbackCode,
+    }));
+    const fallback = await calculateConstruction(fallbackPayload);
+    const mapped = mapSoundlineDbToTwoGkl(fallback?.data ?? []);
     if (mapped?.length) {
       return { data: mapped };
     }

@@ -392,11 +392,16 @@
   <div class="totals">
     <table>
       <tr>
-        <td class="label">Сумма НДС, RUB</td>
+        <td class="label">Итого:</td>
+        <td class="value">{{GRAND_TOTAL_GROSS}}</td>
+      </tr>
+      {{DISCOUNT_ROWS}}
+      <tr>
+        <td class="label">В том числе НДС:</td>
         <td class="value">{{NDS_AMOUNT}}</td>
       </tr>
       <tr>
-        <td class="label">Всего с НДС, RUB</td>
+        <td class="label">Всего:</td>
         <td class="value">{{GRAND_TOTAL}}</td>
       </tr>
     </table>

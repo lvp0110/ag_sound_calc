@@ -13,8 +13,8 @@ import { syncConstructionsTitlesFromItems } from "../utils/itemsCatalog.js";
  *   - табличное состояние (tableConstrToCalc);
  *   - выбор пользователя в UI (currentSubCategory/Items, openedSubCategories,
  *     template, profileStep (лаги пола), facingProfileStep (облицовка/перегородки),
- *     dFrame, currentConstr, currentHangerType, currentFloorSealant,
- *     currentCeilingMats, currentGkla/Wool, unvisible).
+ *     dFrame, currentConstr, currentFloorSealant,
+ *     currentCeilingMats, currentGkla/Wool/Sheet, unvisible).
  *
  * Эфемерные вещи (текущая форма нового элемента `constR`/`constrSent`/`opening`,
  * лоадеры, модалки) остаются useState в компоненте.
@@ -23,6 +23,7 @@ import { syncConstructionsTitlesFromItems } from "../utils/itemsCatalog.js";
 const initialState = {
   currentGkla: "default",
   currentWool: "default",
+  currentSheet: "2gkl",
   unvisible: false,
   tableConstrToCalc: null,
   currentSubCategory: 0,
@@ -33,7 +34,6 @@ const initialState = {
   facingProfileStep: 600,
   dFrame: false,
   currentConstr: "",
-  currentHangerType: "vibrostek",
   currentFloorSealant: "vibrosil",
   currentCeilingMats: [],
   ConstrToCalcToSent: [],
@@ -100,6 +100,9 @@ export const useCalculatorStore = create(
         if (!state) return;
         if (!Array.isArray(state.currentCeilingMats)) {
           state.currentCeilingMats = [];
+        }
+        if (state.currentSheet == null) {
+          state.currentSheet = initialState.currentSheet;
         }
         if (!state?.ConstrToCalc?.length) return;
         const synced = syncConstructionsTitlesFromItems(

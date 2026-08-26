@@ -5,17 +5,19 @@ import {
   FLOOR_K2_PERIMETER_AG_IDS,
   FLOOR_NO_UL_TAPE_AG_IDS,
   floorPerimeterTapeCodes,
-  HANGER_ULTRACOUSTIC,
-  HANGER_VIBROSTEK,
   hasCeilingMatChoice,
   hasCeilingTapeChoice,
   hasFacingTapeChoice,
   hasFloorSealantChoice,
   hasEcoSWoolChoice,
   hasGklaChoice,
-  hasHangerChoice,
+  hasS2WoolChoice,
+  hasSheetChoice,
+  defaultConstrCodeForAgId,
   UL_TAPE_SUFFIX,
   WOOL_ECO_S,
+  WOOL_S2,
+  SHEET_2GKL,
   AG_CT_ECO_CIPHER,
   AG_CS_MAT_CIPHER,
   AG_CU_MEM_CIPHER,
@@ -64,27 +66,24 @@ function TapeChoiceRadios({ idPrefix, itemId, agId, value, onChange }) {
   );
 }
 
-function HangerChoiceRadios({ idPrefix, itemId, value, onChange }) {
+function SheetChoiceRadios({ idPrefix, itemId, value, onChange }) {
   return (
     <>
       <h4 className="selected-item-forms__group-heading">
-        выбрать тип подвеса
+        выбрать тип обшивки
       </h4>
       <div className="radio-option">
         <input
           className="radio"
           type="radio"
           onChange={(e) => onChange(e.target.value)}
-          id={`${idPrefix}_hanger_vibrostek_${itemId}`}
-          name={`${idPrefix}_hanger_${itemId}`}
-          value={HANGER_VIBROSTEK}
-          checked={value === HANGER_VIBROSTEK}
+          id={`${idPrefix}_sheet_2gkl_${itemId}`}
+          name={`${idPrefix}_sheet_${itemId}`}
+          value={SHEET_2GKL}
+          checked={value == SHEET_2GKL}
         />
-        <label
-          className="label"
-          htmlFor={`${idPrefix}_hanger_vibrostek_${itemId}`}
-        >
-          Виброфлекс
+        <label className="label" htmlFor={`${idPrefix}_sheet_2gkl_${itemId}`}>
+          Два листа ГКЛ
         </label>
       </div>
       <div className="radio-option">
@@ -92,20 +91,20 @@ function HangerChoiceRadios({ idPrefix, itemId, value, onChange }) {
           className="radio"
           type="radio"
           onChange={(e) => onChange(e.target.value)}
-          id={`${idPrefix}_hanger_ul_${itemId}`}
-          name={`${idPrefix}_hanger_${itemId}`}
-          value={HANGER_ULTRACOUSTIC}
-          checked={value === HANGER_ULTRACOUSTIC}
+          id={`${idPrefix}_sheet_sldb_${itemId}`}
+          name={`${idPrefix}_sheet_${itemId}`}
+          value="default"
+          checked={value == "default"}
         />
-        <label className="label" htmlFor={`${idPrefix}_hanger_ul_${itemId}`}>
-          Ультракустик
+        <label className="label" htmlFor={`${idPrefix}_sheet_sldb_${itemId}`}>
+          ГКЛ+Саундлайн-dB
         </label>
       </div>
     </>
   );
 }
 
-function WoolChoiceRadios({ idPrefix, itemId, value, onChange, showEcoS }) {
+function WoolChoiceRadios({ idPrefix, itemId, value, onChange, showEcoS, showS2 }) {
   return (
     <>
       <h4 className="selected-item-forms__group-heading">
@@ -172,6 +171,22 @@ function WoolChoiceRadios({ idPrefix, itemId, value, onChange, showEcoS }) {
             htmlFor={`${idPrefix}_wool_eco_s_${itemId}`}
           >
             Шуманет-Eco S
+          </label>
+        </div>
+      )}
+      {showS2 && (
+        <div className="radio-option">
+          <input
+            className="radio"
+            type="radio"
+            onChange={(e) => onChange(e.target.value)}
+            id={`${idPrefix}_wool_s2_${itemId}`}
+            name={`${idPrefix}_wool_${itemId}`}
+            value={WOOL_S2}
+            checked={value == WOOL_S2}
+          />
+          <label className="label" htmlFor={`${idPrefix}_wool_s2_${itemId}`}>
+            Шумостоп-С2
           </label>
         </div>
       )}
@@ -295,8 +310,6 @@ const ConstructionParameters = ({
   setCurrentConstr,
   currentFloorSealant,
   setCurrentFloorSealant,
-  currentHangerType,
-  setCurrentHangerType,
   currentCeilingMats,
   setCurrentCeilingMats,
   unvisible,
@@ -306,6 +319,8 @@ const ConstructionParameters = ({
   setCurrentGkla,
   currentWool,
   setCurrentWool,
+  currentSheet,
+  setCurrentSheet,
   profileStep,
   setProfileStep,
   constR,
@@ -347,6 +362,20 @@ const ConstructionParameters = ({
   }, [selectedItem?.ag_id, currentWool, setCurrentWool]);
 
   useEffect(() => {
+    if (hasS2WoolChoice(selectedItem?.ag_id) || currentWool !== WOOL_S2) {
+      return;
+    }
+    setCurrentWool("default");
+  }, [selectedItem?.ag_id, currentWool, setCurrentWool]);
+
+  useEffect(() => {
+    if (hasSheetChoice(selectedItem?.ag_id) || currentSheet !== SHEET_2GKL) {
+      return;
+    }
+    setCurrentSheet("default");
+  }, [selectedItem?.ag_id, currentSheet, setCurrentSheet]);
+
+  useEffect(() => {
     if (mode !== "floor" || !selectedItem?.ag_id) return;
     const agId = selectedItem.ag_id;
     if (FLOOR_K2_PERIMETER_AG_IDS.has(agId)) {
@@ -375,7 +404,7 @@ const ConstructionParameters = ({
     }
     const validTape = ceilingPerimeterTapeCodes(agId);
     if (!validTape.includes(currentConstr)) {
-      setCurrentConstr(agId);
+      setCurrentConstr(defaultConstrCodeForAgId(agId));
     }
   }, [mode, selectedItem?.ag_id, selectedItem?.id, currentConstr, setCurrentConstr]);
 
@@ -390,7 +419,7 @@ const ConstructionParameters = ({
     }
     const validTape = facingPerimeterTapeCodes(agId);
     if (!validTape.includes(currentConstr)) {
-      setCurrentConstr(agId);
+      setCurrentConstr(defaultConstrCodeForAgId(agId));
     }
   }, [mode, selectedItem?.ag_id, selectedItem?.id, currentConstr, setCurrentConstr]);
 
@@ -413,9 +442,9 @@ const ConstructionParameters = ({
     const currentTemplate = template ?? selectedItem?.template;
     const isSuspendedCeiling = currentTemplate == 5;
     const showCeilingTapeChoice = hasCeilingTapeChoice(selectedItem?.ag_id);
-    const showHangerChoice = hasHangerChoice(selectedItem?.ag_id);
     const showGklaChoice = hasGklaChoice(selectedItem?.ag_id);
     const showCeilingMatChoice = hasCeilingMatChoice(selectedItem?.ag_id);
+    const showSheetChoice = hasSheetChoice(selectedItem?.ag_id);
 
     return (
       <div className="selected-item-forms__stack">
@@ -429,6 +458,15 @@ const ConstructionParameters = ({
 
         {unvisible && (
           <>
+            {showSheetChoice && (
+              <SheetChoiceRadios
+                idPrefix="ceiling"
+                itemId={selectedItem.id}
+                value={currentSheet}
+                onChange={setCurrentSheet}
+              />
+            )}
+
             {showGklaChoice && (
               <>
                 <h4 className="selected-item-forms__group-heading">
@@ -496,6 +534,7 @@ const ConstructionParameters = ({
                   value={currentWool}
                   onChange={setCurrentWool}
                   showEcoS={hasEcoSWoolChoice(selectedItem?.ag_id)}
+                  showS2={hasS2WoolChoice(selectedItem?.ag_id)}
                 />
 
                 {selectedItem.id == 503 && (
@@ -517,15 +556,6 @@ const ConstructionParameters = ({
                   </>
                 )}
               </>
-            )}
-
-            {showHangerChoice && (
-              <HangerChoiceRadios
-                idPrefix="ceiling"
-                itemId={selectedItem.id}
-                value={currentHangerType}
-                onChange={setCurrentHangerType}
-              />
             )}
 
             {showCeilingTapeChoice && (
@@ -850,12 +880,21 @@ const ConstructionParameters = ({
   }
 
   const showFacingTapeChoice = hasFacingTapeChoice(selectedItem?.ag_id);
-  const showHangerChoice = hasHangerChoice(selectedItem?.ag_id);
   const showGklaChoice = hasGklaChoice(selectedItem?.ag_id);
   const showCeilingMatChoice = hasCeilingMatChoice(selectedItem?.ag_id);
+  const showSheetChoice = hasSheetChoice(selectedItem?.ag_id);
 
   return (
     <div className="selected-item-forms__stack">
+      {showSheetChoice && (
+        <SheetChoiceRadios
+          idPrefix="facing"
+          itemId={selectedItem.id}
+          value={currentSheet}
+          onChange={setCurrentSheet}
+        />
+      )}
+
       {showGklaChoice && (
         <>
           <h4 className="selected-item-forms__group-heading">
@@ -913,6 +952,7 @@ const ConstructionParameters = ({
           value={currentWool}
           onChange={setCurrentWool}
           showEcoS={hasEcoSWoolChoice(selectedItem?.ag_id)}
+          showS2={hasS2WoolChoice(selectedItem?.ag_id)}
         />
       )}
 
@@ -1010,15 +1050,6 @@ const ConstructionParameters = ({
             добавить сдвоенный каркас
           </label>
         </div>
-      )}
-
-      {showHangerChoice && (
-        <HangerChoiceRadios
-          idPrefix="facing"
-          itemId={selectedItem.id}
-          value={currentHangerType}
-          onChange={setCurrentHangerType}
-        />
       )}
 
       {showFacingTapeChoice && (

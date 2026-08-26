@@ -75,7 +75,6 @@ const buildOneConstructionBlock = async (input: ConstructionBlockInput): Promise
   const displayCipher = constructionDisplayCipher({
     agId: cipher,
     calcCode,
-    hangerType: String(calcParams?.HangerType ?? calcParams?.hangerType ?? ""),
   });
 
   const metricsHtml = [

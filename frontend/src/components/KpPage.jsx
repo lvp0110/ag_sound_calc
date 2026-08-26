@@ -19,15 +19,21 @@ import {
 } from "./tables/MaterialsList";
 import {
   deleteOffer,
-  downloadOfferPdf,
+  fetchOfferPdf,
   getOffer,
   updateOffer,
 } from "../services/offersApi";
 import {
   buildCalculatorSyncFromKp,
   buildUpdateOfferPayload,
+  emptyGrandTotalDiscountAmounts,
+  emptyGrandTotalDiscounts,
   enrichConstructionsWithTitles,
+  mapGrandTotalDiscountAmountsFromApi,
+  mapGrandTotalDiscountsFromApi,
   mapOfferResponseToKpView,
+  normalizeGrandTotalDiscountAmounts,
+  normalizeGrandTotalDiscounts,
   pickConstrToCalcToSentForSave,
 } from "../utils/offerMapper";
 import { useAuth } from "../context/AuthContext.jsx";
@@ -371,6 +377,14 @@ const KpPage = () => {
     cladding: "",
     partition: "",
   });
+  /** Скидки % в сводках итога КП (секции → ключ строки → %). */
+  const [grandTotalDiscounts, setGrandTotalDiscounts] = useState(
+    emptyGrandTotalDiscounts,
+  );
+  /** Суммы скидок ₽ по секциям (для PDF / kp_settings). */
+  const [grandTotalDiscountAmounts, setGrandTotalDiscountAmounts] = useState(
+    emptyGrandTotalDiscountAmounts,
+  );
   const [settingsSectionOpen, setSettingsSectionOpen] = useState(false);
   /** Открыт ли блок доп. материалов по конструкциям: { [key_id]: boolean } */
   const [additionalMaterialsSectionOpenByKeyId, setAdditionalMaterialsSectionOpenByKeyId] =
@@ -440,7 +454,11 @@ const KpPage = () => {
       montageByKeyId,
       serviceRows,
       materialRowsByKeyId,
-      kpSettings,
+      kpSettings: {
+        ...kpSettings,
+        grand_total_discounts: grandTotalDiscounts,
+        grand_total_discount_amounts: grandTotalDiscountAmounts,
+      },
       originalConstructionsFromOffer: originalConstructionsRef.current,
       constrToCalcToSent: pickConstrToCalcToSentForSave({
         constructions: calcTables.ConstrToCalc,
@@ -457,6 +475,8 @@ const KpPage = () => {
     serviceRows,
     materialRowsByKeyId,
     kpSettings,
+    grandTotalDiscounts,
+    grandTotalDiscountAmounts,
     kpSnapshot?.constrToCalcToSent,
   ]);
 
@@ -516,6 +536,8 @@ const KpPage = () => {
           materialRowsByKeyId: viewMaterialRowsByKeyId,
           manualMontagePriceByKeyId: viewManualMontagePriceByKeyId,
           kpSettings: view.kpSettings,
+          grandTotalDiscounts: view.grandTotalDiscounts,
+          grandTotalDiscountAmounts: view.grandTotalDiscountAmounts,
         };
         const hasOnlyStaleSnapshot = Boolean(
           snap && snapshotsAreEqual(snap, snapshotFromServer),
@@ -592,6 +614,17 @@ const KpPage = () => {
         } else if (view.kpSettings) {
           setKpSettings(view.kpSettings);
         }
+        setGrandTotalDiscounts(
+          normalizeGrandTotalDiscounts(
+            effectiveSnap?.grandTotalDiscounts ?? view.grandTotalDiscounts,
+          ),
+        );
+        setGrandTotalDiscountAmounts(
+          normalizeGrandTotalDiscountAmounts(
+            effectiveSnap?.grandTotalDiscountAmounts ??
+              view.grandTotalDiscountAmounts,
+          ),
+        );
         if (effectiveSnap?.manualMontagePriceByKeyId) {
           setManualMontagePriceByKeyId(effectiveSnap.manualMontagePriceByKeyId);
         } else {
@@ -683,6 +716,14 @@ const KpPage = () => {
     if (snap.serviceRows) setServiceRows(snap.serviceRows);
     if (snap.materialRowsByKeyId) setMaterialRowsByKeyId(snap.materialRowsByKeyId);
     if (snap.kpSettings) setKpSettings(snap.kpSettings);
+    if (snap.grandTotalDiscounts) {
+      setGrandTotalDiscounts(normalizeGrandTotalDiscounts(snap.grandTotalDiscounts));
+    }
+    if (snap.grandTotalDiscountAmounts) {
+      setGrandTotalDiscountAmounts(
+        normalizeGrandTotalDiscountAmounts(snap.grandTotalDiscountAmounts),
+      );
+    }
     if (snap.manualMontagePriceByKeyId) {
       setManualMontagePriceByKeyId(snap.manualMontagePriceByKeyId);
     }
@@ -837,12 +878,13 @@ const KpPage = () => {
       // Поля диалога уходят транзитными query-параметрами в /pdf и в БД не
       // сохраняются (адресат — вступление, остальные — блок условий).
       // Колонтитулы PDF берут название фирмы из формы (company_name), уже
-      // сохранённое в базе.
+      // сохранённое в базе. Возвращаем blob для предпросмотра в диалоге —
+      // скачивание только после кнопки «Скачать PDF».
       const objectPart = form.object?.trim() || id;
-      await downloadOfferPdf(id, `КП ${objectPart}.pdf`, printParams);
-      setIsPdfDialogOpen(false);
+      return await fetchOfferPdf(id, `КП ${objectPart}.pdf`, printParams);
     } catch (err) {
       setPdfDialogError(err?.message || "Не удалось сгенерировать PDF.");
+      return null;
     } finally {
       setIsDownloadingPdf(false);
     }
@@ -1039,6 +1081,69 @@ const KpPage = () => {
     prevMaterialRowsByKeyIdRef.current = next;
   }, [materialRowsByKeyId, updateKpSnapshotMaterialRowsForConstruction]);
 
+  // Скидки итога — в session snapshot, чтобы пережить reload и уход на /calc|/price.
+  useEffect(() => {
+    if (loadStatus !== "loaded") return;
+    const sess = useOfferEditSessionStore.getState();
+    const prev = sess.kpSnapshot ?? {};
+    const normalizedDiscounts = normalizeGrandTotalDiscounts(grandTotalDiscounts);
+    const normalizedAmounts = normalizeGrandTotalDiscountAmounts(
+      grandTotalDiscountAmounts,
+    );
+    if (
+      snapshotsAreEqual(
+        normalizeGrandTotalDiscounts(prev.grandTotalDiscounts),
+        normalizedDiscounts,
+      ) &&
+      snapshotsAreEqual(
+        normalizeGrandTotalDiscountAmounts(prev.grandTotalDiscountAmounts),
+        normalizedAmounts,
+      )
+    ) {
+      return;
+    }
+    sess.stashKpSnapshot({
+      ...prev,
+      grandTotalDiscounts: normalizedDiscounts,
+      grandTotalDiscountAmounts: normalizedAmounts,
+    });
+  }, [grandTotalDiscounts, grandTotalDiscountAmounts, loadStatus]);
+
+  const handleGrandTotalDiscountChange = useCallback(
+    (section, rowKeyOrPatch, value) => {
+      setGrandTotalDiscounts((prev) => {
+        const sectionMap = { ...(prev[section] ?? {}) };
+        const applyOne = (rowKey, raw) => {
+          if (raw == null || String(raw).trim() === "") {
+            delete sectionMap[rowKey];
+          } else {
+            sectionMap[rowKey] = String(raw);
+          }
+        };
+        if (
+          rowKeyOrPatch &&
+          typeof rowKeyOrPatch === "object" &&
+          !Array.isArray(rowKeyOrPatch)
+        ) {
+          for (const [rowKey, raw] of Object.entries(rowKeyOrPatch)) {
+            applyOne(rowKey, raw);
+          }
+        } else if (rowKeyOrPatch != null) {
+          applyOne(rowKeyOrPatch, value);
+        }
+        return {
+          ...prev,
+          [section]: sectionMap,
+        };
+      });
+    },
+    [],
+  );
+
+  const handleGrandTotalDiscountAmountsChange = useCallback((amounts) => {
+    setGrandTotalDiscountAmounts(normalizeGrandTotalDiscountAmounts(amounts));
+  }, []);
+
   const addMaterialRow = useCallback(
     (key_id) => {
       setMaterialRowsByKeyId((prev) => {
@@ -1108,6 +1213,8 @@ const KpPage = () => {
       materialRowsByKeyId,
       manualMontagePriceByKeyId,
       kpSettings,
+      grandTotalDiscounts,
+      grandTotalDiscountAmounts,
       cardCollapseOverridesByKeyId,
       montageSectionOpenByKeyId,
       additionalMaterialsSectionOpenByKeyId,
@@ -1121,6 +1228,8 @@ const KpPage = () => {
     materialRowsByKeyId,
     manualMontagePriceByKeyId,
     kpSettings,
+    grandTotalDiscounts,
+    grandTotalDiscountAmounts,
     cardCollapseOverridesByKeyId,
     montageSectionOpenByKeyId,
     additionalMaterialsSectionOpenByKeyId,
@@ -2140,6 +2249,16 @@ const KpPage = () => {
                 serviceRows,
               )}
               additionalMaterialsGrandTotalRub={additionalMaterialsTotalRub}
+              materialsByConstruction={calcTables.materialsByConstruction}
+              constructions={calcTables.ConstrToCalc}
+              montageByKeyId={montageByKeyId}
+              serviceRows={serviceRows}
+              materialRowsByKeyId={materialRowsByKeyId}
+              grandTotalDiscounts={grandTotalDiscounts}
+              onGrandTotalDiscountChange={handleGrandTotalDiscountChange}
+              onGrandTotalDiscountAmountsChange={
+                handleGrandTotalDiscountAmountsChange
+              }
               wrapClassName="kp-page__construction-grand-total"
             />
           )}

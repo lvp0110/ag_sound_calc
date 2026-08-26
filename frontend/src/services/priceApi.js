@@ -7,7 +7,7 @@ import { BASE_URL } from "./apiClient";
 
 const PRICE_API_URL = `${BASE_URL}/api/v2/data`;
 /** Bump when normalized row shape changes — forces refetch after HMR without full reload. */
-const NORMALIZE_SCHEMA_VERSION = 2;
+const NORMALIZE_SCHEMA_VERSION = 3;
 
 const cache = {
   byArticle: new Map(),
@@ -240,9 +240,30 @@ const shouldHideRegion = (region) => {
 const looksLikeRegionalMapKey = (key) =>
   /(regions?|регион|pricesByRegion|regionPrices|поРегионам)/i.test(key);
 
+const regionNameFromPriceItem = (item) => {
+  const region = item?.region ?? item?.Region;
+  if (region && typeof region === "object" && !Array.isArray(region)) {
+    return region.code ?? region.Code ?? region.name ?? region.Name;
+  }
+  return region;
+};
+
 const extractRegionalPrices = (raw) => {
   if (!raw || typeof raw !== "object") return {};
   const regions = {};
+
+  // Calc /api/v2/data: prices: [{ region: { code, name }, price, m2 }, ...]
+  const pricesList = raw.prices ?? raw.Prices;
+  if (Array.isArray(pricesList)) {
+    pricesList.forEach((item) => {
+      if (!item || typeof item !== "object") return;
+      const normalizedName = normalizeRegionName(regionNameFromPriceItem(item));
+      const pair = toRegionPricePair(item);
+      if (!normalizedName || !pair) return;
+      regions[normalizedName] = pair;
+    });
+  }
+
   Object.entries(raw).forEach(([key, value]) => {
     if (!looksLikeRegionalMapKey(key)) return;
     if (!value || typeof value !== "object" || Array.isArray(value)) return;

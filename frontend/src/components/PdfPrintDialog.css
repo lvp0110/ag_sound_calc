@@ -20,6 +20,24 @@
   box-sizing: border-box;
 }
 
+.kp-pdf-dialog--preview {
+  max-width: min(960px, 100%);
+  width: 100%;
+  height: min(90vh, 900px);
+  display: flex;
+  flex-direction: column;
+  padding: 20px 20px 16px;
+}
+
+.kp-pdf-dialog__preview {
+  flex: 1 1 auto;
+  width: 100%;
+  min-height: 0;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
 .kp-pdf-dialog__close {
   width: auto;
   height: auto;

@@ -389,6 +389,10 @@ router.get(
         materials: (c.materials as Array<Record<string, unknown>>) ?? [],
         montage: (c.montage as Array<Record<string, unknown>> | null) ?? null,
       })),
+      kp_settings:
+        dto.kp_settings && typeof dto.kp_settings === "object"
+          ? (dto.kp_settings as Record<string, unknown>)
+          : null,
     });
 
     // RFC 5987 для кириллицы в имени файла.

@@ -4,7 +4,6 @@ import { sectionIdFromCode } from "./constructionSection.js";
 import {
   AG_CS_MAT_CIPHER,
   AG_CT_ECO_CIPHER,
-  applyUltrasonicHangerDisplayText,
   isAgCsMatCipher,
   isAgCtEcoCipher,
 } from "./calcUlTapeFallback.js";
@@ -177,14 +176,14 @@ export function syncConstructionsTitlesFromItems(
 }
 
 /**
- * Текст для таблицы: ItemsBase.description (+ подвес Ультракустик).
+ * Текст для таблицы: ItemsBase.description.
  */
 export function resolveConstructionTableText(item, calcParams) {
   const calcCode = calcParams?.Code ?? "";
   const agId = normalizeItemsAgId(calcCode, item?.ag_id);
   const sectionId = calcParams?.SectionId ?? item?.section_id;
   const catalogId = item?.catalog_id ?? item?.id;
-  let { title: shortTitle, description } = resolveItemsDisplayMeta({
+  const { title: shortTitle, description } = resolveItemsDisplayMeta({
     calcCode,
     cipher: agId,
     sectionId,
@@ -193,13 +192,6 @@ export function resolveConstructionTableText(item, calcParams) {
   if (!shortTitle && !description) {
     return { title: "", description: "", shortTitle: "" };
   }
-  ({ title: shortTitle, description } = applyUltrasonicHangerDisplayText({
-    title: shortTitle,
-    description,
-    agId,
-    calcCode,
-    hangerType: calcParams?.HangerType ?? calcParams?.hangerType,
-  }));
   const tableName = itemsBaseTableName({ title: shortTitle, description });
   return {
     title: tableName,

@@ -58,10 +58,33 @@ const toRegionPricePair = (
   return { pricePerM2, pricePerUnit };
 };
 
+const regionNameFromPriceItem = (item: Record<string, unknown>): unknown => {
+  const region = item.region ?? item.Region;
+  if (region && typeof region === "object" && !Array.isArray(region)) {
+    const obj = region as Record<string, unknown>;
+    return obj.code ?? obj.Code ?? obj.name ?? obj.Name;
+  }
+  return region;
+};
+
 const extractRegionalPrices = (
   raw: Record<string, unknown>
 ): Record<string, { pricePerM2?: number; pricePerUnit?: number }> => {
   const regions: Record<string, { pricePerM2?: number; pricePerUnit?: number }> = {};
+
+  // Calc /api/v2/data: prices: [{ region: { code, name }, price, m2 }, ...]
+  const pricesList = raw.prices ?? raw.Prices;
+  if (Array.isArray(pricesList)) {
+    for (const item of pricesList) {
+      if (!item || typeof item !== "object" || Array.isArray(item)) continue;
+      const obj = item as Record<string, unknown>;
+      const name = String(regionNameFromPriceItem(obj) ?? "").trim();
+      const pair = toRegionPricePair(obj);
+      if (!name || !pair) continue;
+      regions[name] = pair;
+    }
+  }
+
   for (const [key, value] of Object.entries(raw)) {
     if (!looksLikeRegionalMapKey(key)) continue;
     if (!value || typeof value !== "object" || Array.isArray(value)) continue;

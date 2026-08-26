@@ -6,11 +6,6 @@ import {
   isZipsItemsBaseConstruction,
   shouldSkipSectionLabelPrefix,
 } from "./itemsCatalog.js";
-import {
-  stripHangerSuffix,
-  stripTapeSuffix,
-  UL_HANGER_SUFFIX,
-} from "../services/calcUlTapeFallback.js";
 
 /** Базовый шифр «Акуфлор S20» (template 2.1) — порт frontend AG_F_BASE_CIPHER. */
 export const AG_F_BASE_CIPHER = "AG.F";
@@ -35,6 +30,14 @@ export const isAgCsMatCipher = (agId = "", calcCode = ""): boolean =>
 
 export const isSimpleCeilingMatCipher = (agId = "", calcCode = ""): boolean =>
   isAgCtEcoCipher(agId, calcCode) || isAgCsMatCipher(agId, calcCode);
+
+/** Отдельные конструкции на креплениях Ультракустик — шифр в UI/PDF «—». */
+export const ULTRACOUSTIC_MOUNT_CIPHERS = ["AG.C501_ul", "AG.L404_ul"] as const;
+
+export const isUltracousticMountCipher = (agId = "", calcCode = ""): boolean =>
+  ULTRACOUSTIC_MOUNT_CIPHERS.some((cipher) =>
+    isCipherWithSuffix(agId, calcCode, cipher)
+  );
 
 /** resolveDisplayCipher режет AG.Ct_eco / AG.Cs_mat — для каталога/PDF берём полный шифр. */
 export const normalizeCatalogCipher = (calcCode: string, resolved: string): string => {
@@ -66,8 +69,8 @@ export const resolveDisplayCipher = (
   const codeWithoutSuffix = code.split("_")[0] || code;
   if (titleByCode.size === 0) return codeWithoutSuffix;
   if (titleByCode.has(code)) return code;
-  if (titleByCode.has(codeWithoutSuffix)) return codeWithoutSuffix;
 
+  // Самый длинный префикс (AG.C501_ul_… → AG.C501_ul, не AG.C501).
   let best = "";
   for (const key of titleByCode.keys()) {
     const base = String(key ?? "").trim();
@@ -79,45 +82,6 @@ export const resolveDisplayCipher = (
   return best || codeWithoutSuffix;
 };
 
-const HANGER_CHOICE_AG_IDS = new Set([
-  "AG.C501",
-  "AG.C502",
-  "AG.C503",
-  "AG.L404",
-  "AG.L405",
-]);
-
-const isUlHangerCalcCode = (code: string): boolean => code.includes(UL_HANGER_SUFFIX);
-
-const hasHangerChoice = (agId: string): boolean =>
-  Boolean(agId) && HANGER_CHOICE_AG_IDS.has(String(agId).trim());
-
-const HANGER_ULTRACOUSTIC = "ultracoustic";
-
-const hangerChoiceBaseId = (
-  calcCode: string,
-  catalog: Map<string, CatalogEntry>
-): string => {
-  const cipher = resolveDisplayCipher(calcCode, catalog);
-  if (hasHangerChoice(cipher)) return cipher;
-  const { base: withoutHanger } = stripHangerSuffix(calcCode);
-  const { base: withoutTape } = stripTapeSuffix(withoutHanger);
-  if (hasHangerChoice(withoutTape)) return withoutTape;
-  if (hasHangerChoice(withoutHanger)) return withoutHanger;
-  return "";
-};
-
-const isUltrasonicHangerSelected = (
-  calcParams: Record<string, unknown> | null,
-  calcCode: string,
-  hangerBaseId: string
-): boolean => {
-  if (!hasHangerChoice(hangerBaseId)) return false;
-  const hangerType = String(calcParams?.HangerType ?? calcParams?.hangerType ?? "").trim();
-  if (hangerType === HANGER_ULTRACOUSTIC) return true;
-  return calcCode !== "" && isUlHangerCalcCode(calcCode);
-};
-
 /**
  * Шифр в таблице КП, PDF и на /info.
  * Порт frontend `constructionDisplayCipher`.
@@ -125,29 +89,22 @@ const isUltrasonicHangerSelected = (
 export const constructionDisplayCipher = ({
   agId = "",
   calcCode = "",
-  hangerType = "",
 }: {
   agId?: string;
   calcCode?: string;
-  hangerType?: string;
 } = {}): string => {
   if (isAgFConstructionCipher(agId, calcCode)) return "—";
 
   const id = String(agId ?? "").trim();
   const code = String(calcCode ?? "").trim();
   if (isSimpleCeilingMatCipher(id, code)) return "—";
-
-  const useUl =
-    hangerType === HANGER_ULTRACOUSTIC || (code !== "" && isUlHangerCalcCode(code));
-
-  if (useUl && hasHangerChoice(id)) return "—";
+  if (isUltracousticMountCipher(id, code)) return "—";
 
   return id || code || "—";
 };
 
 /**
- * Блок «Информация о конструкциях» в PDF не выводится для AG.F без цифр
- * и для AG.C501–503 / AG.L404–405 с подвесом Ультракустик (как «—» в шифре на КП).
+ * Блок «Информация о конструкциях» в PDF не выводится для AG.F без цифр.
  */
 export const shouldOmitConstructionInfoInPdf = (
   calcParams: Record<string, unknown> | null,
@@ -155,36 +112,7 @@ export const shouldOmitConstructionInfoInPdf = (
 ): boolean => {
   const calcCode = typeof calcParams?.Code === "string" ? calcParams.Code.trim() : "";
   const cipher = resolveDisplayCipher(calcCode, catalog);
-  if (isAgFConstructionCipher(cipher, calcCode)) return true;
-  const hangerBaseId = hangerChoiceBaseId(calcCode, catalog);
-  return isUltrasonicHangerSelected(calcParams, calcCode, hangerBaseId);
-};
-
-const UL_HANGER_TITLE_SUFFIX_PATTERN =
-  /(креплениях|креплений|применением)\s+Виброфлекс.*$/iu;
-
-/** Порт frontend `applyUltrasonicHangerDisplayText`. */
-export const applyUltrasonicHangerDisplayText = ({
-  title = "",
-  description = "",
-  agId = "",
-  calcCode = "",
-}: {
-  title?: string;
-  description?: string;
-  agId?: string;
-  calcCode?: string;
-}): { title: string; description: string } => {
-  const useUl = calcCode !== "" && isUlHangerCalcCode(String(calcCode));
-  if (!useUl || !hasHangerChoice(agId)) {
-    return { title: title ?? "", description: description ?? "" };
-  }
-  const mapLine = (text: string): string => {
-    const s = String(text ?? "");
-    if (!s) return s;
-    return s.replace(UL_HANGER_TITLE_SUFFIX_PATTERN, (_, word: string) => `${word} Ультракустик`);
-  };
-  return { title: mapLine(title), description: mapLine(description) };
+  return isAgFConstructionCipher(cipher, calcCode);
 };
 
 const SECTION_TYPE_BY_ID: Record<string, string> = {
@@ -265,8 +193,41 @@ const constructionDisplayTitle = ({
 }): string => String(title ?? "").trim();
 
 /**
+ * Площадь конструкции в м² из calc_params.
+ * Как `constructionAreaM2` на странице КП: LenX × высота (LenZ||LenY) / 1e6,
+ * иначе Area (крупные — мм², малые — уже м²).
+ */
+export const constructionAreaM2FromCalcParams = (
+  calcParams: Record<string, unknown> | null
+): number => {
+  if (!calcParams) return NaN;
+
+  const lenX = Number(calcParams.LenX);
+  const lenY = Number(calcParams.LenY);
+  const lenZ = Number(calcParams.LenZ);
+  const heightMm = Number.isFinite(lenZ) && lenZ > 0 ? lenZ : lenY;
+  if (Number.isFinite(lenX) && lenX > 0 && Number.isFinite(heightMm) && heightMm > 0) {
+    return (lenX * heightMm) / 1e6;
+  }
+
+  const areaRaw = Number(calcParams.Area);
+  if (!Number.isFinite(areaRaw) || areaRaw <= 0) return NaN;
+  if (Math.abs(areaRaw) > 1000) return areaRaw / 1e6;
+  return areaRaw;
+};
+
+const withConstructionAreaSuffix = (
+  heading: string,
+  calcParams: Record<string, unknown> | null
+): string => {
+  const areaM2 = constructionAreaM2FromCalcParams(calcParams);
+  if (!Number.isFinite(areaM2) || areaM2 <= 0) return heading;
+  return `${heading}, ${areaM2.toFixed(1)} м²`;
+};
+
+/**
  * Заголовок секции PDF = `constructionCardHeading` на странице КП
- * (ConstructionList + mapOfferResponseToKpView).
+ * (ConstructionList + mapOfferResponseToKpView) + площадь через запятую.
  */
 export const constructionKpCardHeading = (
   calcParams: Record<string, unknown> | null,
@@ -284,14 +245,8 @@ export const constructionKpCardHeading = (
     "";
   const { title: itemsShortTitle, description: itemsDescription } =
     resolveItemsDisplayMeta({ calcCode, cipher, sectionId });
-  let shortTitle = itemsShortTitle;
-  let description = itemsDescription;
-  ({ title: shortTitle, description } = applyUltrasonicHangerDisplayText({
-    title: shortTitle,
-    description,
-    agId: cipher,
-    calcCode,
-  }));
+  const shortTitle = itemsShortTitle;
+  const description = itemsDescription;
   const title = itemsBaseTableName({ title: shortTitle, description }) || cipher || "—";
 
   const type = constructionTypeFromCalcParams(calcParams);
@@ -312,15 +267,17 @@ export const constructionKpCardHeading = (
     ag_id: cipher,
   });
   const zips = isZipsItemsBaseConstruction({ agId: cipher, shortTitle });
+  let heading: string;
   if (
     !sectionLabel ||
     shouldSkipSectionLabelPrefix(sectionLabel, { zips })
   ) {
-    return constructionPart;
+    heading = constructionPart;
+  } else {
+    const prefix = `${sectionLabel} `;
+    heading = constructionPart.toLowerCase().startsWith(prefix.toLowerCase())
+      ? constructionPart
+      : `${sectionLabel} ${constructionPart}`;
   }
-  const prefix = `${sectionLabel} `;
-  if (constructionPart.toLowerCase().startsWith(prefix.toLowerCase())) {
-    return constructionPart;
-  }
-  return `${sectionLabel} ${constructionPart}`;
+  return withConstructionAreaSuffix(heading, calcParams);
 };

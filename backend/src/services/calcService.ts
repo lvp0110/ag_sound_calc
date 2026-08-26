@@ -3,16 +3,19 @@ import {
   AG_CU_MEM_CIPHER,
   buildUlMembraneMaterials,
   ecoSWoolFallbackCalcCode,
+  is2GklCalcCode,
   isEcoSWoolCalcCode,
-  isUlHangerCalcCode,
+  isS2WoolCalcCode,
   isUlTapeCalcCode,
   isUltracousticFloorSealant,
   mapDefaultEcoWoolToEcoS,
-  mapVibroflexHangerToUltracoustic,
+  mapDefaultEcoWoolToS2,
+  mapSoundlineDbToTwoGkl,
   mapVibrosilSealantToUltracoustic,
   mapVibrostekMaterialsToUlTape,
   normalizeCeilingMats,
-  ulHangerFallbackCalcCode,
+  s2WoolFallbackCalcCode,
+  twoGklFallbackCalcCode,
   ulTapeFallbackCalcCodes,
 } from "./calcUlTapeFallback.js";
 import {
@@ -76,11 +79,6 @@ const fetchMaterialsFromCalcService = async (
   }
 
   if (!response.ok) {
-    // Неизвестный суффикс *_ul_hanger — calc отдаёт 404, дальше сработает fallback.
-    if (response.status === 404 && isUlHangerCalcCode(params.Code)) {
-      return [];
-    }
-
     let detail = "";
     try {
       detail = await response.text();
@@ -160,19 +158,6 @@ const calculateOne = async (params: CalcParams): Promise<CalcMaterial[]> => {
 
   let materials = await fetchMaterialsFromCalcService(params);
 
-  // Внешний calc пока не знает *_ul_hanger — считаем без суффикса (цепочка ul_tape/eco_s
-  // через calculateOne) и подменяем подвес Виброфлекс на Ультракустик.
-  if (materials.length === 0 && isUlHangerCalcCode(params.Code)) {
-    const fallbackMaterials = await calculateOne({
-      ...params,
-      Code: ulHangerFallbackCalcCode(params.Code),
-    });
-    const hangerMapped = mapVibroflexHangerToUltracoustic(fallbackMaterials);
-    if (hangerMapped) {
-      materials = hangerMapped as CalcMaterial[];
-    }
-  }
-
   // Внешний calc пока не знает *_ul_tape — считаем через *_vibrostek (полы) или базовый код (потолки).
   if (materials.length === 0 && isUlTapeCalcCode(params.Code)) {
     for (const fallbackCode of ulTapeFallbackCalcCodes(params.Code)) {
@@ -186,7 +171,7 @@ const calculateOne = async (params: CalcParams): Promise<CalcMaterial[]> => {
     }
   }
 
-  // Внешний calc пока не знает *_eco_s — считаем без суффикса и подменяем минвату.
+  // Внешний calc пока не знает *_eco_s / *_s2 — считаем без суффикса и подменяем минвату.
   if (materials.length === 0 && isEcoSWoolCalcCode(params.Code)) {
     const fallbackParams = {
       ...params,
@@ -196,6 +181,31 @@ const calculateOne = async (params: CalcParams): Promise<CalcMaterial[]> => {
     const woolMapped = mapDefaultEcoWoolToEcoS(fallbackMaterials);
     if (woolMapped) {
       materials = woolMapped as CalcMaterial[];
+    }
+  }
+
+  if (materials.length === 0 && isS2WoolCalcCode(params.Code)) {
+    const fallbackParams = {
+      ...params,
+      Code: s2WoolFallbackCalcCode(params.Code),
+    };
+    const fallbackMaterials = await calculateOne(fallbackParams);
+    const woolMapped = mapDefaultEcoWoolToS2(fallbackMaterials);
+    if (woolMapped) {
+      materials = woolMapped as CalcMaterial[];
+    }
+  }
+
+  // Внешний calc отдаёт ГКЛ+Саундлайн-dB; *_2gkl — два листа ГКЛ.
+  if (materials.length === 0 && is2GklCalcCode(params.Code)) {
+    const fallbackParams = {
+      ...params,
+      Code: twoGklFallbackCalcCode(params.Code),
+    };
+    const fallbackMaterials = await calculateOne(fallbackParams);
+    const sheetMapped = mapSoundlineDbToTwoGkl(fallbackMaterials);
+    if (sheetMapped) {
+      materials = sheetMapped as CalcMaterial[];
     }
   }
 
