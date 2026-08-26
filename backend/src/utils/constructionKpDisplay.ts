@@ -193,8 +193,41 @@ const constructionDisplayTitle = ({
 }): string => String(title ?? "").trim();
 
 /**
+ * Площадь конструкции в м² из calc_params.
+ * Как `constructionAreaM2` на странице КП: LenX × высота (LenZ||LenY) / 1e6,
+ * иначе Area (крупные — мм², малые — уже м²).
+ */
+export const constructionAreaM2FromCalcParams = (
+  calcParams: Record<string, unknown> | null
+): number => {
+  if (!calcParams) return NaN;
+
+  const lenX = Number(calcParams.LenX);
+  const lenY = Number(calcParams.LenY);
+  const lenZ = Number(calcParams.LenZ);
+  const heightMm = Number.isFinite(lenZ) && lenZ > 0 ? lenZ : lenY;
+  if (Number.isFinite(lenX) && lenX > 0 && Number.isFinite(heightMm) && heightMm > 0) {
+    return (lenX * heightMm) / 1e6;
+  }
+
+  const areaRaw = Number(calcParams.Area);
+  if (!Number.isFinite(areaRaw) || areaRaw <= 0) return NaN;
+  if (Math.abs(areaRaw) > 1000) return areaRaw / 1e6;
+  return areaRaw;
+};
+
+const withConstructionAreaSuffix = (
+  heading: string,
+  calcParams: Record<string, unknown> | null
+): string => {
+  const areaM2 = constructionAreaM2FromCalcParams(calcParams);
+  if (!Number.isFinite(areaM2) || areaM2 <= 0) return heading;
+  return `${heading}, ${areaM2.toFixed(1)} м²`;
+};
+
+/**
  * Заголовок секции PDF = `constructionCardHeading` на странице КП
- * (ConstructionList + mapOfferResponseToKpView).
+ * (ConstructionList + mapOfferResponseToKpView) + площадь через запятую.
  */
 export const constructionKpCardHeading = (
   calcParams: Record<string, unknown> | null,
@@ -234,15 +267,17 @@ export const constructionKpCardHeading = (
     ag_id: cipher,
   });
   const zips = isZipsItemsBaseConstruction({ agId: cipher, shortTitle });
+  let heading: string;
   if (
     !sectionLabel ||
     shouldSkipSectionLabelPrefix(sectionLabel, { zips })
   ) {
-    return constructionPart;
+    heading = constructionPart;
+  } else {
+    const prefix = `${sectionLabel} `;
+    heading = constructionPart.toLowerCase().startsWith(prefix.toLowerCase())
+      ? constructionPart
+      : `${sectionLabel} ${constructionPart}`;
   }
-  const prefix = `${sectionLabel} `;
-  if (constructionPart.toLowerCase().startsWith(prefix.toLowerCase())) {
-    return constructionPart;
-  }
-  return `${sectionLabel} ${constructionPart}`;
+  return withConstructionAreaSuffix(heading, calcParams);
 };
