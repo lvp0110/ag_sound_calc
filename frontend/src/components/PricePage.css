@@ -182,6 +182,7 @@
   font-variant-numeric: tabular-nums;
   color: #1a1d21;
   text-align: right;
+  word-break: break-word;
 }
 
 .price-page__article {

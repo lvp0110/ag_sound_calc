@@ -41,8 +41,11 @@ export const fetchUpstreamCached = async (
   const promise = fetcher()
     .then((fresh) => {
       const entry: CachedResponse = { ...fresh, expiresAt: now + ttlMs };
-      store.set(cacheKey, entry);
-      evictIfNeeded();
+      // 401/404 не кешируем — иначе после логина ещё 10 минут отдаём старую ошибку.
+      if (fresh.status >= 200 && fresh.status < 400) {
+        store.set(cacheKey, entry);
+        evictIfNeeded();
+      }
       inflight.delete(cacheKey);
       return entry;
     })

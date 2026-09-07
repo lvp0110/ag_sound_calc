@@ -6,24 +6,29 @@ import {
   type CalcParams,
 } from "../services/calcService.js";
 import { fetchUpstreamCached } from "../services/upstreamCache.js";
+import { fetchCommerce } from "../services/commerceClient.js";
 
 /**
- * Прокси на внешний сервис расчёта конструкций.
+ * Прокси на внешний сервис расчёта конструкций и commerce-прайса.
  *
- * Эндпоинты повторяют контракт внешнего сервиса, поэтому фронт может просто
- * сменить origin (с https://dev3.constrtodo.ru:3005 на наш backend) без изменения
- * путей.
+ * Calc-эндпоинты (`/api/v1/*`, `/api/v2/*`) повторяют контракт внешнего сервиса.
+ * Прайс: `/commerce/price-list/:region` и справочник `/commerce/regions`
+ * на AUTH_SERVICE_URL (как в ag_co_worker). Fallback: `/admin/commerce/regions`.
  *
  * Прокси публичный (без requireAuth): калькулятор работает до логина.
  * Лимит/аутентификация — задача внешнего сервиса, backend только прокидывает.
  */
 const router = Router();
 
-const getTargetBase = (): string => env.calcServiceUrl.replace(/\/$/, "");
+const getCalcTargetBase = (): string => env.calcServiceUrl.replace(/\/$/, "");
 
-const buildTargetUrl = (pathAfterApi: string, queryString: string): string => {
+const buildTargetUrl = (
+  targetBase: string,
+  pathAfterApi: string,
+  queryString: string
+): string => {
   const qs = queryString ? `?${queryString}` : "";
-  return `${getTargetBase()}${pathAfterApi}${qs}`;
+  return `${targetBase}${pathAfterApi}${qs}`;
 };
 
 const proxyRequest = async (
@@ -32,8 +37,8 @@ const proxyRequest = async (
   targetPath: string
 ): Promise<void> => {
   const queryString = req.originalUrl.split("?")[1] ?? "";
-  const url = buildTargetUrl(targetPath, queryString);
-  const targetBase = getTargetBase();
+  const targetBase = getCalcTargetBase();
+  const url = buildTargetUrl(targetBase, targetPath, queryString);
   const startedAt = Date.now();
 
   const headers: Record<string, string> = {
@@ -106,11 +111,11 @@ const proxyGetCached = async (
   req: Request,
   res: ExpressResponse,
   targetPath: string,
-  cacheKey: string
+  cacheKey: string,
+  targetBase: string = getCalcTargetBase()
 ): Promise<void> => {
   const queryString = req.originalUrl.split("?")[1] ?? "";
-  const url = buildTargetUrl(targetPath, queryString);
-  const targetBase = getTargetBase();
+  const url = buildTargetUrl(targetBase, targetPath, queryString);
   const startedAt = Date.now();
 
   try {
@@ -160,6 +165,41 @@ const proxyGetCached = async (
         : `Calc service request failed: ${err instanceof Error ? err.message : String(err)}`;
     console.error(
       `[calc-proxy] GET ${req.originalUrl} → ${url} FAIL ${Date.now() - startedAt}ms: ${message}`
+    );
+    res.status(502).json({ error: message });
+  }
+};
+
+const proxyCommerceGet = async (
+  req: Request,
+  res: ExpressResponse,
+  targetPath: string,
+  cacheKey: string
+): Promise<void> => {
+  const startedAt = Date.now();
+  try {
+    const cached = await fetchUpstreamCached(cacheKey, () =>
+      fetchCommerce(targetPath, req.get("cookie") ?? undefined)
+    );
+
+    if (env.nodeEnv !== "production") {
+      console.log(
+        `[commerce-proxy] GET ${req.originalUrl} → ${targetPath} ${cached.status} ${Date.now() - startedAt}ms`
+      );
+    }
+
+    res.status(cached.status);
+    for (const [name, value] of Object.entries(cached.headers)) {
+      res.setHeader(name, value);
+    }
+    res.send(cached.body);
+  } catch (err) {
+    const message =
+      err instanceof Error && err.name === "TimeoutError"
+        ? `Commerce service timeout after ${env.calcServiceTimeoutMs}ms`
+        : `Commerce service request failed: ${err instanceof Error ? err.message : String(err)}`;
+    console.error(
+      `[commerce-proxy] GET ${req.originalUrl} FAIL ${Date.now() - startedAt}ms: ${message}`
     );
     res.status(502).json({ error: message });
   }
@@ -217,9 +257,25 @@ router.get("/api/v2/public/image/:filename", (req, res) =>
   proxyRequest(req, res, `/api/v2/public/image/${encodeURIComponent(req.params.filename)}`)
 );
 
-// Прайс из 1С: используется в frontend/src/services/priceApi.js (cache + поиск).
+// Legacy 1С-прайс (больше не используется фронтом; оставлен для совместимости).
 router.get("/api/v2/data", (req, res) =>
   proxyGetCached(req, res, "/api/v2/data", "v2/data")
 );
+
+// Прайс ConstrTodo: GET /commerce/regions + /commerce/price-list/{region}
+// (JWT: AUTH_EMAIL/AUTH_PASSWORD). Как в ag_co_worker.
+router.get("/commerce/regions", (req, res) => {
+  return proxyCommerceGet(req, res, "/commerce/regions", "commerce/regions");
+});
+
+router.get("/admin/commerce/regions", (req, res) => {
+  return proxyCommerceGet(req, res, "/admin/commerce/regions", "admin/commerce/regions");
+});
+
+router.get("/commerce/price-list/:regionCode", (req, res) => {
+  const regionCode = String(req.params.regionCode ?? "").trim();
+  const path = `/commerce/price-list/${encodeURIComponent(regionCode)}`;
+  return proxyCommerceGet(req, res, path, `commerce/price-list/${regionCode}`);
+});
 
 export default router;

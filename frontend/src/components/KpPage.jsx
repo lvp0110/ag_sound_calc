@@ -38,10 +38,8 @@ import {
 } from "../utils/offerMapper";
 import { useAuth } from "../context/AuthContext.jsx";
 import {
-  REGION_SELECT_OPTIONS,
-  filterVisibleRegionOptions,
-  findRegionOptionByRegionKey,
-  findRegionOptionByValue,
+  catalogToRegionSelectOptions,
+  findCatalogSelectOption,
 } from "../constants/regionSelectOptions.js";
 import { setPriceRegion, usePriceData } from "../services/priceApi";
 import {
@@ -324,8 +322,13 @@ const KpPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { isAuthed, status: authStatus } = useAuth();
-  const { regions, selectedRegion, loaded: priceLoaded, loading: priceLoading, error: priceError } =
-    usePriceData();
+  const {
+    loaded: priceLoaded,
+    loading: priceLoading,
+    error: priceError,
+    regionCatalog,
+    selectedRegion,
+  } = usePriceData();
   const {
     isEditingDraft,
     activeOfferId,
@@ -402,10 +405,25 @@ const KpPage = () => {
     (s) => s.ConstrToCalcToSent,
   );
   const visibleRegionOptions = useMemo(
-    () => filterVisibleRegionOptions(regions),
-    [regions]
+    () => catalogToRegionSelectOptions(regionCatalog),
+    [regionCatalog]
   );
-  const isPriceRegionsLoading = priceLoading || (!priceLoaded && !priceError);
+  const isPriceRegionsLoading =
+    priceLoading || (!priceLoaded && !priceError);
+  const selectedRegionValue = useMemo(() => {
+    if (isPriceRegionsLoading || visibleRegionOptions.length === 0) return "";
+    const mapped = findCatalogSelectOption(visibleRegionOptions, form.region);
+    if (mapped) return mapped.value;
+    if (visibleRegionOptions.some((option) => option.value === selectedRegion)) {
+      return selectedRegion;
+    }
+    return visibleRegionOptions[0]?.value ?? "";
+  }, [
+    form.region,
+    isPriceRegionsLoading,
+    selectedRegion,
+    visibleRegionOptions,
+  ]);
   const additionalMaterialsRubByKeyId = useMemo(() => {
     const result = {};
     for (const [keyId, rows] of Object.entries(materialRowsByKeyId)) {
@@ -953,34 +971,27 @@ const KpPage = () => {
 
   const onRegionChange = (e) => {
     const optionValue = e.target.value;
+    if (!optionValue) return;
     setForm((prev) => ({ ...prev, region: optionValue }));
-    const selectedOption = REGION_SELECT_OPTIONS.find(
-      (option) => option.value === optionValue,
-    );
-    if (!selectedOption) return;
-    setPriceRegion(selectedOption.regionKey, { cityValue: optionValue });
+    setPriceRegion(optionValue);
   };
 
   useEffect(() => {
-    if (!form.region || loadStatus !== "loaded" || !priceLoaded) return;
-    const selectedOption =
-      findRegionOptionByValue(form.region) ??
-      findRegionOptionByRegionKey(form.region);
-    if (!selectedOption) return;
-    setPriceRegion(selectedOption.regionKey, { cityValue: selectedOption.value });
-  }, [form.region, loadStatus, priceLoaded]);
+    if (!form.region || loadStatus !== "loaded") return;
+    const option = findCatalogSelectOption(visibleRegionOptions, form.region);
+    if (!option) return;
+    setPriceRegion(option.value);
+  }, [form.region, loadStatus, visibleRegionOptions]);
 
   useEffect(() => {
-    if (!selectedRegion || form.region) return;
-    const selectedRegionKey = String(selectedRegion).toLowerCase();
-    const matchingOption = visibleRegionOptions.find(
-      (option) => option.regionKey === selectedRegionKey,
-    );
-    if (!matchingOption) return;
-    setForm((prev) => ({ ...prev, region: matchingOption.value }));
-    setPriceRegion(matchingOption.regionKey, {
-      cityValue: matchingOption.value,
-    });
+    if (form.region) return;
+    if (!visibleRegionOptions.length) return;
+    const option =
+      findCatalogSelectOption(visibleRegionOptions, selectedRegion) ??
+      visibleRegionOptions[0];
+    if (!option) return;
+    setForm((prev) => ({ ...prev, region: option.value }));
+    setPriceRegion(option.value);
   }, [form.region, selectedRegion, visibleRegionOptions]);
 
   const updateServiceRow = (id, field) => (e) => {
@@ -1867,14 +1878,10 @@ const KpPage = () => {
             <select
               id="kp-region"
               className="kp-page__input kp-page__select"
-              value={
-                isPriceRegionsLoading || visibleRegionOptions.length === 0
-                  ? ""
-                  : form.region
-              }
+              value={selectedRegionValue}
               onChange={onRegionChange}
-              aria-label="Регион прайса"
               disabled={isPriceRegionsLoading || visibleRegionOptions.length === 0}
+              aria-label="Регион прайса"
             >
               {isPriceRegionsLoading ? (
                 <option value="">Загрузка регионов...</option>

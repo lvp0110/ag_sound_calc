@@ -1,14 +1,19 @@
-import { env } from "../config/env.js";
-import { getPriceRegionCoefficient, resolvePriceRegionKey } from "../utils/priceRegion.js";
+import {
+  normalizePriceRegion,
+  orderPriceRegions,
+  resolvePriceListSource,
+  type PriceRegionRow,
+} from "../utils/priceRegion.js";
+import { fetchCommerce } from "./commerceClient.js";
 import { fetchUpstreamCached } from "./upstreamCache.js";
 
 /**
  * Серверный аналог frontend/src/services/priceApi.js — нужен для генерации
- * PDF КП на бэке (фронтовый кэш недоступен). Тянет тот же /api/v2/data через
- * общий upstreamCache, парсит и нормализует строки по тем же ключам-алиасам.
+ * PDF КП на бэке (фронтовый кэш недоступен).
  *
- * Возвращает фабрику `lookup(article)`, которая по артикулу отдаёт цены
- * с учётом региона (regional → msk fallback → базовая).
+ * Источник: GET /commerce/regions (+ fallback /admin/commerce/regions)
+ * и GET /commerce/price-list/{regionCode}.
+ * Для derived-регионов цена базового прайса × price_coefficient из справочника.
  */
 
 export type PriceRow = {
@@ -19,8 +24,6 @@ export type PriceRow = {
   regionalPrices: Record<string, { pricePerM2?: number; pricePerUnit?: number }>;
 };
 
-const CALC_PATH = "/api/v2/data";
-
 const toNumberOrUndefined = (value: unknown): number | undefined => {
   if (value == null || value === "") return undefined;
   const normalized = typeof value === "string" ? value.replace(",", ".") : value;
@@ -28,135 +31,76 @@ const toNumberOrUndefined = (value: unknown): number | undefined => {
   return Number.isFinite(num) ? num : undefined;
 };
 
-const pick = (obj: Record<string, unknown> | null | undefined, keys: string[]): unknown => {
-  if (!obj) return undefined;
-  for (const key of keys) {
-    if (obj[key] != null) return obj[key];
-  }
-  return undefined;
-};
-
-const looksLikeRegionalMapKey = (key: string): boolean =>
-  /(regions?|регион|pricesByRegion|regionPrices|поРегионам)/i.test(key);
-
-const toRegionPricePair = (
-  value: unknown
-): { pricePerM2?: number; pricePerUnit?: number } | null => {
-  if (value == null) return null;
-  if (typeof value === "number" || typeof value === "string") {
-    return { pricePerM2: undefined, pricePerUnit: toNumberOrUndefined(value) };
-  }
-  if (typeof value !== "object" || Array.isArray(value)) return null;
-  const obj = value as Record<string, unknown>;
-  const pricePerM2 = toNumberOrUndefined(
-    pick(obj, ["pricePerM2", "m2", "price_m2", "priceM2", "priceM2Rub", "price_m2_rub", "ЦенаЗаМ2", "sqm"])
-  );
-  const pricePerUnit = toNumberOrUndefined(
-    pick(obj, ["pricePerUnit", "perUnit", "price_unit", "priceUnit", "price", "Price", "unitPrice", "ЦенаЗаЕд"])
-  );
-  if (pricePerM2 == null && pricePerUnit == null) return null;
-  return { pricePerM2, pricePerUnit };
-};
-
-const regionNameFromPriceItem = (item: Record<string, unknown>): unknown => {
-  const region = item.region ?? item.Region;
-  if (region && typeof region === "object" && !Array.isArray(region)) {
-    const obj = region as Record<string, unknown>;
-    return obj.code ?? obj.Code ?? obj.name ?? obj.Name;
-  }
-  return region;
-};
-
-const extractRegionalPrices = (
-  raw: Record<string, unknown>
-): Record<string, { pricePerM2?: number; pricePerUnit?: number }> => {
-  const regions: Record<string, { pricePerM2?: number; pricePerUnit?: number }> = {};
-
-  // Calc /api/v2/data: prices: [{ region: { code, name }, price, m2 }, ...]
-  const pricesList = raw.prices ?? raw.Prices;
-  if (Array.isArray(pricesList)) {
-    for (const item of pricesList) {
-      if (!item || typeof item !== "object" || Array.isArray(item)) continue;
-      const obj = item as Record<string, unknown>;
-      const name = String(regionNameFromPriceItem(obj) ?? "").trim();
-      const pair = toRegionPricePair(obj);
-      if (!name || !pair) continue;
-      regions[name] = pair;
-    }
-  }
-
-  for (const [key, value] of Object.entries(raw)) {
-    if (!looksLikeRegionalMapKey(key)) continue;
-    if (!value || typeof value !== "object" || Array.isArray(value)) continue;
-    for (const [regionName, regionValue] of Object.entries(value as Record<string, unknown>)) {
-      const name = String(regionName).trim();
-      const pair = toRegionPricePair(regionValue);
-      if (!name || !pair) continue;
-      regions[name] = pair;
-    }
-  }
-  // Flat keys: msk_m2 / msk_price, ural_m2 / ural_price, ...
-  for (const [key, value] of Object.entries(raw)) {
-    const m = /^([a-z0-9_]+)_(m2|price)$/i.exec(String(key));
-    if (!m) continue;
-    const region = String(m[1]).trim();
-    if (!region) continue;
-    const num = toNumberOrUndefined(value);
-    if (num == null) continue;
-    const metric = m[2].toLowerCase();
-    const current = regions[region] ?? { pricePerM2: undefined, pricePerUnit: undefined };
-    if (metric === "m2") current.pricePerM2 = num;
-    if (metric === "price") current.pricePerUnit = num;
-    regions[region] = current;
-  }
-  return regions;
-};
-
-const normalizeRow = (raw: unknown): PriceRow | null => {
-  if (!raw || typeof raw !== "object") return null;
-  const obj = raw as Record<string, unknown>;
-
-  const articleRaw = pick(obj, ["article", "Article", "code", "Code", "Артикул"]);
-  const articleFromApi = pick(obj, ["articulus", "Articulus"]);
-  const articleSource = articleRaw ?? articleFromApi;
-  const article = articleSource == null ? "" : String(articleSource).trim();
-  if (!article) return null;
-
-  const nameRaw = pick(obj, ["name", "Name", "title", "Title", "Наименование"]);
-  const name = nameRaw == null ? "" : String(nameRaw);
-
-  let pricePerM2 = toNumberOrUndefined(
-    pick(obj, ["pricePerM2", "m2", "price_m2", "ЦенаЗаМ2", "priceM2", "priceM2Rub", "price_m2_rub"])
-  );
-  let pricePerUnit = toNumberOrUndefined(
-    pick(obj, ["pricePerUnit", "perUnit", "price_unit", "ЦенаЗаЕд", "priceUnit", "price", "Price", "unitPrice"])
-  );
-  const regionalPrices = extractRegionalPrices(obj);
-  if (pricePerM2 == null && regionalPrices.msk?.pricePerM2 != null) {
-    pricePerM2 = regionalPrices.msk.pricePerM2;
-  }
-  if (pricePerUnit == null && regionalPrices.msk?.pricePerUnit != null) {
-    pricePerUnit = regionalPrices.msk.pricePerUnit;
-  }
-
-  return { article, name, pricePerM2, pricePerUnit, regionalPrices };
-};
-
-const collectRows = (payload: unknown): unknown[] => {
-  if (Array.isArray(payload)) return payload;
-  if (payload && typeof payload === "object") {
-    const p = payload as Record<string, unknown>;
+const unwrapList = (body: unknown): unknown[] => {
+  if (Array.isArray(body)) return body;
+  if (body && typeof body === "object") {
+    const p = body as Record<string, unknown>;
     if (Array.isArray(p.data)) return p.data;
-    if (Array.isArray(p.items)) return p.items;
-    // { "Москва": [rows], "СПб": [rows] } — приводим к плоскому виду без регионального обогащения
-    // (regionalPrices будут пустые, что для большинства материалов ок: они юзают базовую цену).
-    const flat: unknown[] = [];
-    for (const value of Object.values(p)) {
-      if (Array.isArray(value)) flat.push(...value);
+    if (p.data && typeof p.data === "object" && !Array.isArray(p.data)) {
+      const nested = p.data as Record<string, unknown>;
+      if (Array.isArray(nested.items)) return nested.items;
     }
-    return flat;
+    if (Array.isArray(p.items)) return p.items;
   }
   return [];
+};
+
+const fetchJsonCached = async (cacheKey: string, path: string): Promise<unknown | null> => {
+  try {
+    const cached = await fetchUpstreamCached(cacheKey, () => fetchCommerce(path));
+
+    if (cached.status >= 400 || cached.body.length === 0) return null;
+    try {
+      return JSON.parse(cached.body.toString("utf-8"));
+    } catch {
+      return null;
+    }
+  } catch {
+    return null;
+  }
+};
+
+const normalizeCommercePriceRow = (raw: unknown, regionCode: string): PriceRow | null => {
+  if (!raw || typeof raw !== "object") return null;
+  const obj = raw as Record<string, unknown>;
+  const article = String(obj.code ?? obj.article ?? "").trim();
+  if (!article) return null;
+  const pricePerM2 = toNumberOrUndefined(obj.m2 ?? obj.pricePerM2);
+  const pricePerUnit = toNumberOrUndefined(obj.price ?? obj.pricePerUnit ?? obj.price_unit);
+  const name = String(obj.product_name ?? obj.name ?? "").trim();
+  const region = String(regionCode ?? "").trim();
+  return {
+    article,
+    name,
+    pricePerM2,
+    pricePerUnit,
+    regionalPrices: region ? { [region]: { pricePerM2, pricePerUnit } } : {},
+  };
+};
+
+const scalePrice = (value: number | undefined, coefficient: number): number | undefined => {
+  if (value == null) return undefined;
+  if (!Number.isFinite(coefficient) || coefficient === 1) return value;
+  return Math.round(value * coefficient * 100) / 100;
+};
+
+const applyDerivedRegionPrices = (
+  rows: PriceRow[],
+  regionCode: string,
+  coefficient: number
+): PriceRow[] => {
+  const region = String(regionCode ?? "").trim();
+  const coef = Number.isFinite(coefficient) && coefficient > 0 ? coefficient : 1;
+  return rows.map((row) => {
+    const pricePerM2 = scalePrice(row.pricePerM2, coef);
+    const pricePerUnit = scalePrice(row.pricePerUnit, coef);
+    return {
+      ...row,
+      pricePerM2,
+      pricePerUnit,
+      regionalPrices: region ? { [region]: { pricePerM2, pricePerUnit } } : row.regionalPrices,
+    };
+  });
 };
 
 const storePriceRow = (out: Map<string, PriceRow>, key: string, row: PriceRow): void => {
@@ -187,42 +131,38 @@ const buildByArticle = (rows: PriceRow[]): Map<string, PriceRow> => {
   return out;
 };
 
-const fetchPriceRows = async (): Promise<Map<string, PriceRow>> => {
-  try {
-    const targetBase = env.calcServiceUrl.replace(/\/$/, "");
-    const cached = await fetchUpstreamCached("v2/data", async () => {
-      const upstream = await fetch(`${targetBase}${CALC_PATH}`, {
-        method: "GET",
-        headers: { accept: "application/json", origin: targetBase, referer: `${targetBase}/` },
-        signal: AbortSignal.timeout(env.calcServiceTimeoutMs),
-      });
-      const headers: Record<string, string> = {};
-      for (const name of ["content-type", "cache-control", "etag", "last-modified"]) {
-        const v = upstream.headers.get(name);
-        if (v) headers[name] = v;
-      }
-      const body = upstream.body ? Buffer.from(await upstream.arrayBuffer()) : Buffer.alloc(0);
-      return { status: upstream.status, headers, body };
-    });
-
-    if (cached.status >= 400 || cached.body.length === 0) return new Map();
-    let payload: unknown = null;
-    try {
-      payload = JSON.parse(cached.body.toString("utf-8"));
-    } catch {
-      return new Map();
-    }
-    const raw = collectRows(payload);
-    const rows = raw.map(normalizeRow).filter((r): r is PriceRow => r !== null);
-    return buildByArticle(rows);
-  } catch {
-    // Таймаут/сеть dev3 — PDF всё равно соберётся с Name из calc, как на КП без прайса.
-    return new Map();
-  }
+const fetchPriceListForCode = async (regionCode: string): Promise<PriceRow[]> => {
+  const region = String(regionCode ?? "").trim();
+  if (!region) return [];
+  const body = await fetchJsonCached(
+    `commerce/price-list/${region}`,
+    `/commerce/price-list/${encodeURIComponent(region)}`
+  );
+  if (body == null) return [];
+  return unwrapList(body)
+    .map((row) => normalizeCommercePriceRow(row, region))
+    .filter((r): r is PriceRow => r !== null);
 };
 
-const normalizeRegion = (region: string | null | undefined): string =>
-  resolvePriceRegionKey(region);
+const catalogFromBody = (body: unknown): PriceRegionRow[] =>
+  orderPriceRegions(
+    unwrapList(body)
+      .map(normalizePriceRegion)
+      .filter((row): row is PriceRegionRow => row !== null)
+  ).filter((row) => row.is_active !== false && row.code);
+
+const fetchRegionCatalog = async (): Promise<PriceRegionRow[]> => {
+  for (const [cacheKey, path] of [
+    ["commerce/regions", "/commerce/regions"],
+    ["admin/commerce/regions", "/admin/commerce/regions"],
+  ] as const) {
+    const body = await fetchJsonCached(cacheKey, path);
+    if (body == null) continue;
+    const rows = catalogFromBody(body);
+    if (rows.length) return rows;
+  }
+  return [];
+};
 
 export type PriceLookup = (article: string | null | undefined) => {
   name?: string;
@@ -239,42 +179,42 @@ const pickRegionalOrBase = (
     const regional = row.regionalPrices[region]?.[key];
     if (regional != null) return regional;
   }
-  const msk = row.regionalPrices.msk?.[key];
-  if (msk != null) return msk;
-  return row[key];
-};
-
-const applyPriceCoefficient = (
-  price: number | undefined,
-  region: string | null | undefined
-): number | undefined => {
-  if (price == null) return undefined;
-  const coef = getPriceRegionCoefficient(region);
-  return coef === 1 ? price : price * coef;
+  if (row[key] != null) return row[key];
+  return undefined;
 };
 
 /**
- * Загружает прайс и строит замыкание-lookup по артикулу.
- * Регион — slug из offer.region (как фронт его пишет, например "moscow"/"msk").
+ * Загружает прайс выбранного региона и строит lookup по артикулу.
+ * `region` — код из GET /commerce/regions (offer.region).
  */
 export const buildPriceLookup = async (
   region: string | null | undefined
 ): Promise<PriceLookup> => {
-  const byArticle = await fetchPriceRows();
-  const reg = normalizeRegion(region);
+  const catalog = await fetchRegionCatalog();
+  if (!catalog.length) {
+    return () => ({});
+  }
+  const source = resolvePriceListSource(catalog, region);
+  if (!source.fetchCode) {
+    return () => ({});
+  }
+
+  let rows = await fetchPriceListForCode(source.fetchCode);
+  if (source.fetchCode !== source.regionCode || source.coefficient !== 1) {
+    rows = applyDerivedRegionPrices(rows, source.regionCode, source.coefficient);
+  }
+
+  const byArticle = buildByArticle(rows);
   return (article) => {
     if (article == null || article === "") return {};
     const key = String(article).trim();
     const row = byArticle.get(key) ?? byArticle.get(key.toLowerCase());
     if (!row) return {};
-    const pricePerM2 = pickRegionalOrBase(row, reg, "pricePerM2");
-    const pricePerUnit = pickRegionalOrBase(row, reg, "pricePerUnit");
     const name = typeof row.name === "string" ? row.name.trim() || undefined : undefined;
     return {
       name,
-      pricePerM2: reg === "ural" ? applyPriceCoefficient(pricePerM2, region) : pricePerM2,
-      pricePerUnit:
-        reg === "ural" ? applyPriceCoefficient(pricePerUnit, region) : pricePerUnit,
+      pricePerM2: pickRegionalOrBase(row, source.regionCode, "pricePerM2"),
+      pricePerUnit: pickRegionalOrBase(row, source.regionCode, "pricePerUnit"),
     };
   };
 };
