@@ -2,10 +2,8 @@ import { Fragment, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { formatRub } from "./tables/MaterialsList";
 import {
-  REGION_SELECT_OPTIONS,
-  filterVisibleRegionOptions,
-  findRegionOptionByValue,
-  getPriceCoefficient,
+  catalogToRegionSelectOptions,
+  findCatalogSelectOption,
 } from "../constants/regionSelectOptions.js";
 import { setPriceRegion, usePriceData } from "../services/priceApi";
 import { filterPriceRows } from "./priceSearch";
@@ -13,26 +11,20 @@ import { useOfferEditSession } from "../stores/offerEditSessionStore.js";
 import { usePriceNarrowViewport } from "../hooks/usePriceNarrowViewport";
 import "./PricePage.css";
 
-
-const getDefaultRegionOption = (availableRegionKeys) =>
-  REGION_SELECT_OPTIONS.find((option) => availableRegionKeys.has(option.regionKey))?.value ??
-  "";
-
 function formatPriceCell(value) {
   if (value == null || Number.isNaN(Number(value))) return "—";
   return formatRub(Number(value));
 }
 
-function getPriceByRegion(row, region, key, cityValue) {
+function formatTextCell(value) {
+  const text = value == null ? "" : String(value).trim();
+  return text || "—";
+}
+
+function getPriceByRegion(row, region, key) {
   if (!row) return undefined;
   const regional = region ? row.regionalPrices?.[region]?.[key] : undefined;
-  if (regional != null) {
-    if (region === "ural") {
-      const coef = getPriceCoefficient(cityValue);
-      return coef === 1 ? regional : regional * coef;
-    }
-    return regional;
-  }
+  if (regional != null) return regional;
   return row[key];
 }
 
@@ -40,7 +32,7 @@ function getPriceRowKey(row, region) {
   return `${row.article}-${region || "default"}`;
 }
 
-function PriceRowDetailCard({ row, selectedRegion, selectedCity }) {
+function PriceRowDetailCard({ row, selectedRegion }) {
   return (
     <div className="price-page__detail-card">
       <p className="price-page__detail-name">
@@ -53,13 +45,21 @@ function PriceRowDetailCard({ row, selectedRegion, selectedCity }) {
         </div>
         <div className="price-page__detail-meta-row">
           <dt>Ед. изм.</dt>
-          <dd>{row.units?.trim() ? row.units : "—"}</dd>
+          <dd>{formatTextCell(row.units)}</dd>
+        </div>
+        <div className="price-page__detail-meta-row">
+          <dt>Вес</dt>
+          <dd>{formatTextCell(row.weight)}</dd>
+        </div>
+        <div className="price-page__detail-meta-row">
+          <dt>Объём</dt>
+          <dd>{formatTextCell(row.volume)}</dd>
         </div>
         <div className="price-page__detail-meta-row">
           <dt>₽ / м²</dt>
           <dd>
             {formatPriceCell(
-              getPriceByRegion(row, selectedRegion, "pricePerM2", selectedCity)
+              getPriceByRegion(row, selectedRegion, "pricePerM2")
             )}
           </dd>
         </div>
@@ -67,7 +67,7 @@ function PriceRowDetailCard({ row, selectedRegion, selectedCity }) {
           <dt>₽ / ед.</dt>
           <dd>
             {formatPriceCell(
-              getPriceByRegion(row, selectedRegion, "pricePerUnit", selectedCity)
+              getPriceByRegion(row, selectedRegion, "pricePerUnit")
             )}
           </dd>
         </div>
@@ -76,23 +76,13 @@ function PriceRowDetailCard({ row, selectedRegion, selectedCity }) {
   );
 }
 
-function newMaterialRowFromPrice(row, selectedRegion, selectedCity) {
+function newMaterialRowFromPrice(row, selectedRegion) {
   const id =
     typeof crypto !== "undefined" && crypto.randomUUID
       ? crypto.randomUUID()
       : `mat-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
-  const pricePerUnit = getPriceByRegion(
-    row,
-    selectedRegion,
-    "pricePerUnit",
-    selectedCity
-  );
-  const pricePerM2 = getPriceByRegion(
-    row,
-    selectedRegion,
-    "pricePerM2",
-    selectedCity
-  );
+  const pricePerUnit = getPriceByRegion(row, selectedRegion, "pricePerUnit");
+  const pricePerM2 = getPriceByRegion(row, selectedRegion, "pricePerM2");
   const price =
     pricePerUnit != null && !Number.isNaN(Number(pricePerUnit))
       ? pricePerUnit
@@ -127,60 +117,41 @@ const PricePage = () => {
     error,
     loaded,
     loading,
-    regions,
+    regionCatalog,
     selectedRegion,
-    selectedCityRegion,
   } = usePriceData();
 
   const visibleRegionOptions = useMemo(
-    () => filterVisibleRegionOptions(regions),
-    [regions]
-  );
-
-  const availableRegionKeys = useMemo(
-    () => new Set(visibleRegionOptions.map((option) => option.regionKey)),
-    [visibleRegionOptions]
+    () => catalogToRegionSelectOptions(regionCatalog),
+    [regionCatalog]
   );
 
   const isPriceRegionsLoading = loading || (!loaded && !error);
 
-  const effectiveSelectedRegionOption = useMemo(() => {
-    if (
-      selectedCityRegion &&
-      visibleRegionOptions.some((option) => option.value === selectedCityRegion)
-    ) {
-      return selectedCityRegion;
+  const selectedRegionValue = useMemo(() => {
+    if (isPriceRegionsLoading || visibleRegionOptions.length === 0) return "";
+    if (visibleRegionOptions.some((option) => option.value === selectedRegion)) {
+      return selectedRegion;
     }
-    if (selectedRegion) {
-      const regionKey = String(selectedRegion).toLowerCase();
-      const match = visibleRegionOptions.find(
-        (option) => option.regionKey === regionKey
-      );
-      if (match) return match.value;
-    }
-    return getDefaultRegionOption(availableRegionKeys);
-  }, [
-    selectedCityRegion,
-    selectedRegion,
-    visibleRegionOptions,
-    availableRegionKeys,
-  ]);
+    return (
+      findCatalogSelectOption(visibleRegionOptions, selectedRegion)?.value ??
+      visibleRegionOptions[0]?.value ??
+      ""
+    );
+  }, [isPriceRegionsLoading, visibleRegionOptions, selectedRegion]);
 
   useEffect(() => {
     if (!isEditingDraft) return;
     const cityFromKp = kpSnapshot?.form?.region;
-    if (!cityFromKp) return;
-    const option = findRegionOptionByValue(cityFromKp);
+    if (!cityFromKp || visibleRegionOptions.length === 0) return;
+    const option = findCatalogSelectOption(visibleRegionOptions, cityFromKp);
     if (!option) return;
-    setPriceRegion(option.regionKey, { cityValue: option.value });
-  }, [isEditingDraft, kpSnapshot?.form?.region]);
+    setPriceRegion(option.value);
+  }, [isEditingDraft, kpSnapshot?.form?.region, visibleRegionOptions]);
 
   const handleRegionChange = (optionValue) => {
-    const selectedOption = REGION_SELECT_OPTIONS.find(
-      (option) => option.value === optionValue
-    );
-    if (!selectedOption) return;
-    setPriceRegion(selectedOption.regionKey, { cityValue: optionValue });
+    if (!optionValue) return;
+    setPriceRegion(optionValue);
   };
 
   const selectedSet = useMemo(
@@ -224,11 +195,7 @@ const PricePage = () => {
         ? withoutEmpty
         : [
             ...withoutEmpty,
-            newMaterialRowFromPrice(
-              row,
-              selectedRegion,
-              effectiveSelectedRegionOption
-            ),
+            newMaterialRowFromPrice(row, selectedRegion),
           ];
     }
 
@@ -268,11 +235,7 @@ const PricePage = () => {
         <select
           id="price-region"
           className="price-page__search price-page__region-select"
-          value={
-            isPriceRegionsLoading || visibleRegionOptions.length === 0
-              ? ""
-              : effectiveSelectedRegionOption
-          }
+          value={selectedRegionValue}
           onChange={(e) => handleRegionChange(e.target.value)}
           disabled={isPriceRegionsLoading || visibleRegionOptions.length === 0}
         >
@@ -372,22 +335,12 @@ const PricePage = () => {
                       </td>
                       <td>
                         {formatPriceCell(
-                          getPriceByRegion(
-                            row,
-                            selectedRegion,
-                            "pricePerM2",
-                            effectiveSelectedRegionOption
-                          )
+                          getPriceByRegion(row, selectedRegion, "pricePerM2")
                         )}
                       </td>
                       <td>
                         {formatPriceCell(
-                          getPriceByRegion(
-                            row,
-                            selectedRegion,
-                            "pricePerUnit",
-                            effectiveSelectedRegionOption
-                          )
+                          getPriceByRegion(row, selectedRegion, "pricePerUnit")
                         )}
                       </td>
                       <td>
@@ -416,7 +369,6 @@ const PricePage = () => {
                           <PriceRowDetailCard
                             row={row}
                             selectedRegion={selectedRegion}
-                            selectedCity={effectiveSelectedRegionOption}
                           />
                         </td>
                       </tr>

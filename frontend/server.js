@@ -3,7 +3,8 @@
  *
  * TLS и маршрутизация по домену — на хостовом nginx. Этот процесс:
  *   1) отдаёт статику из /app/dist (собранная vite-бандла);
- *   2) проксирует /api/* в backend-контейнер (сохраняя httpOnly cookies);
+ *   2) проксирует /api/*, /health, /uploads/*, /commerce/*, /admin/commerce/*
+ *      в backend-контейнер (сохраняя httpOnly cookies);
  *   3) делает SPA-fallback на index.html для любых non-asset GET-маршрутов.
  *
  * Слушает только HTTP на PORT (дефолт 3004). В docker-compose.prod.yml
@@ -49,7 +50,11 @@ const backendProxy = createProxyMiddleware({
     pathname === "/health" ||
     pathname === "/api" ||
     pathname.startsWith("/api/") ||
-    pathname.startsWith("/uploads/"),
+    pathname.startsWith("/uploads/") ||
+    pathname === "/commerce" ||
+    pathname.startsWith("/commerce/") ||
+    pathname === "/admin/commerce" ||
+    pathname.startsWith("/admin/commerce/"),
 });
 app.use(backendProxy);
 

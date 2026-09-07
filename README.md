@@ -180,7 +180,9 @@ Backend — `backend/.env` (создаётся из `.env.example` через `m
 | `ACCESS_TOKEN_EXPIRES_IN` | `15m` | TTL access cookie |
 | `REFRESH_TOKEN_EXPIRES_IN` | `30d` | TTL refresh cookie |
 | `CALC_SERVICE_URL` | `https://dev3.constrtodo.ru:3005` | База внешнего сервиса расчёта |
-| `CALC_SERVICE_TIMEOUT_MS` | `60000` | Таймаут запроса к calc-сервису (прайс `/api/v2/data` на dev3 часто >15s) |
+| `AUTH_SERVICE_URL` | значение `CALC_SERVICE_URL` | База ConstrTodo (`/commerce/price-list`, `/commerce/regions`). Локально `http://localhost:3005` |
+| `AUTH_EMAIL` / `AUTH_PASSWORD` | — | Логин ConstrTodo для прайса (тот же аккаунт, что в ag_co_worker). Без них `/commerce/price-list` отвечает 401 |
+| `CALC_SERVICE_TIMEOUT_MS` | `60000` | Таймаут запроса к calc/commerce (каталог конструкций на dev3 часто >15s) |
 
 Frontend (опционально — через `frontend/.env.local`):
 

@@ -37,6 +37,16 @@ export const env = {
   refreshTokenExpiresIn: process.env.REFRESH_TOKEN_EXPIRES_IN ?? "30d",
   calcServiceUrl:
     process.env.CALC_SERVICE_URL ?? "https://dev3.constrtodo.ru:3005",
+  // Прайс: /commerce/price-list/{region} и /commerce/regions — на auth/commerce сервисе.
+  // Если не задан, берём CALC_SERVICE_URL (локально это часто тот же :3005).
+  authServiceUrl:
+    process.env.AUTH_SERVICE_URL ??
+    process.env.CALC_SERVICE_URL ??
+    "http://localhost:3005",
+  // Логин в ConstrTodo для /admin/commerce/* (публичные /commerce/* JWT не требуют).
+  // X-Client-Type: plugin → access_token в JSON (не только cookie).
+  authEmail: process.env.AUTH_EMAIL ?? "",
+  authPassword: process.env.AUTH_PASSWORD ?? "",
   // AllIsolationConstr на dev3 может отвечать 25–35s; 15s давало обрыв chunked-тела.
   calcServiceTimeoutMs: toInt(process.env.CALC_SERVICE_TIMEOUT_MS, 60000),
 };
