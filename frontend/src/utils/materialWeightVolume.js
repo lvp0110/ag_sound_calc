@@ -8,14 +8,28 @@ function parseLocaleNumber(raw) {
   return Number.isFinite(n) ? n : null;
 }
 
+/** Чистая числовая строка прайса: «36,000», «0,144» (запятая = десятичный разделитель). */
+function parsePlainMeasureNumber(raw) {
+  const s = String(raw ?? "").trim().replace(/\s/g, "");
+  if (!s) return null;
+  if (!/^-?\d+([.,]\d+)?$/.test(s)) return null;
+  return parseLocaleNumber(s);
+}
+
 /**
  * Вес из строки прайса → кг.
- * Примеры: «Вес листа - 35,6 кг», «Вес: 2,15 кг/шт», «Вес опоры: 230 гр»,
+ *
+ * Прод (ConstrTodo commerce): часто голое число — «36,000», «0,150».
+ * Dev/текст: «Вес листа - 35,6 кг», «Вес: 2,15 кг/шт», «Вес опоры: 230 гр»,
  * «Вес упаковки: 4,5 ± 0,3 кг», «Вес упаковки, кг: 0.38».
  */
 export function parsePriceWeightKg(raw) {
   const s = String(raw ?? "").trim();
   if (!s || /неопредел/i.test(s)) return null;
+
+  const plain = parsePlainMeasureNumber(s);
+  if (plain != null) return plain;
+
   if (!/вес/i.test(s)) return null;
 
   // Берём первое число перед кг/kg; допуск «± / +/-» не должен съедать значение.
@@ -40,14 +54,20 @@ export function parsePriceWeightKg(raw) {
 
 /**
  * Объём из строки прайса → м³.
- * Учитывает только явный объём («Объем упаковки: 0,144 м3»).
- * Поля вроде «Максимальная нагрузка: … кг» в колонке volume игнорируются.
+ *
+ * Прод: часто голое число — «0,144», «0,002».
+ * Текст: «Объем упаковки: 0,144 м3».
+ * «Максимальная нагрузка: … кг» и «неопределен» игнорируются.
  */
 export function parsePriceVolumeM3(raw) {
   const s = String(raw ?? "").trim();
   if (!s || /неопредел/i.test(s)) return null;
-  if (!/объем|объём/i.test(s) && !/м\s*³|м3|m3/i.test(s)) return null;
   if (/нагрузк/i.test(s)) return null;
+
+  const plain = parsePlainMeasureNumber(s);
+  if (plain != null) return plain;
+
+  if (!/объем|объём/i.test(s) && !/м\s*³|м3|m3/i.test(s)) return null;
 
   const withUnit = s.match(
     /(\d+(?:[.,]\d+)?)\s*(?:м\s*³|м3|m3)(?=$|[\s/.,;:])/i,
