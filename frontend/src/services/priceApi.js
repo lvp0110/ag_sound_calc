@@ -347,6 +347,22 @@ export const getPriceName = (article) => {
   return row.name == null ? "" : String(row.name).trim();
 };
 
+export const getPriceWeight = (article) => {
+  if (article == null || article === "") return "";
+  const key = String(article).trim();
+  const row = cache.byArticle.get(key);
+  if (!row || row.weight == null) return "";
+  return String(row.weight).trim();
+};
+
+export const getPriceVolume = (article) => {
+  if (article == null || article === "") return "";
+  const key = String(article).trim();
+  const row = cache.byArticle.get(key);
+  if (!row || row.volume == null) return "";
+  return String(row.volume).trim();
+};
+
 export const getRegionLabel = (region) => {
   const code = normalizeRegionName(region);
   if (!code) return "";

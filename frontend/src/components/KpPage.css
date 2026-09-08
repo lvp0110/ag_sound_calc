@@ -473,6 +473,40 @@ textarea.kp-page__input {
   font-variant-numeric: tabular-nums;
 }
 
+.kp-page
+  .construction-grand-total-wrap.kp-table-card
+  .data
+  tbody
+  tr.construction-grand-total__meta-row
+  th {
+  background: linear-gradient(180deg, #f6fbfd 0%, #eaf4f9 100%);
+  font-style: italic;
+  border-top: 1px solid var(--table-border);
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+
+.kp-page
+  .construction-grand-total-wrap.kp-table-card
+  .data
+  tbody
+  tr.construction-grand-total__meta-row
+  th:first-child {
+  text-align: left;
+}
+
+.kp-page
+  .construction-grand-total-wrap.kp-table-card
+  .data
+  tbody
+  tr.construction-grand-total__meta-row
+  th
+  + th {
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
 .kp-page .construction-grand-total-wrap.kp-table-card .data {
   margin: 0;
 }

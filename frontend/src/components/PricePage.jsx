@@ -48,11 +48,11 @@ function PriceRowDetailCard({ row, selectedRegion }) {
           <dd>{formatTextCell(row.units)}</dd>
         </div>
         <div className="price-page__detail-meta-row">
-          <dt>Вес</dt>
+          <dt>Вес, кг</dt>
           <dd>{formatTextCell(row.weight)}</dd>
         </div>
         <div className="price-page__detail-meta-row">
-          <dt>Объём</dt>
+          <dt>Объём, м3</dt>
           <dd>{formatTextCell(row.volume)}</dd>
         </div>
         <div className="price-page__detail-meta-row">

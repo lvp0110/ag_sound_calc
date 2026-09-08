@@ -18,7 +18,10 @@ info "vite build (локально)"
 cd "$REPO_ROOT/frontend"
 # VITE_API_URL="" → в проде apiClient.js будет бить по относительному /api/*,
 # который обработает host nginx → frontend-container → proxy на backend.
-VITE_API_URL="" npm run build
+# VITE_YANDEX_METRIKA_ID — опционально; в коде дефолт 112388350.
+VITE_API_URL="" \
+  VITE_YANDEX_METRIKA_ID="${VITE_YANDEX_METRIKA_ID:-112388350}" \
+  npm run build
 cd "$REPO_ROOT"
 
 info "rsync frontend/dist → $DEPLOY_HOST:$DEPLOY_DIR/frontend/dist/"
