@@ -4,6 +4,7 @@ import {
   formatWeightKg,
   parsePriceVolumeM3,
   parsePriceWeightKg,
+  computeKpMaterialsWeightVolumeTotals,
 } from "./materialWeightVolume";
 
 describe("parsePriceWeightKg", () => {
@@ -13,6 +14,7 @@ describe("parsePriceWeightKg", () => {
     expect(parsePriceWeightKg("Вес упаковки, кг: 0.38")).toBeCloseTo(0.38);
     expect(parsePriceWeightKg("Вес опоры: 230 гр;")).toBeCloseTo(0.23);
     expect(parsePriceWeightKg("Вес упаковки: 8,5 +/- 0,5 кг")).toBeCloseTo(8.5);
+    expect(parsePriceWeightKg("Вес упаковки: 4,5 ± 0,3 кг")).toBeCloseTo(4.5);
   });
 
   it("returns null for unknown or non-weight text", () => {
@@ -36,6 +38,32 @@ describe("parsePriceVolumeM3", () => {
   it("ignores load capacity and undefined", () => {
     expect(parsePriceVolumeM3("Максимальная нагрузка: 15 кг")).toBeNull();
     expect(parsePriceVolumeM3("неопределен")).toBeNull();
+  });
+});
+
+describe("computeKpMaterialsWeightVolumeTotals", () => {
+  it("sums weight and volume from priceList by article", () => {
+    const totals = computeKpMaterialsWeightVolumeTotals({
+      materialsByConstruction: [
+        {
+          key_id: 1,
+          data: [
+            { Code: "1088665", Quantity: 2, Units: "шт" },
+            { Code: "1222.2202", Quantity: 4, Units: "уп" },
+          ],
+        },
+      ],
+      priceList: [
+        { article: "1088665", weight: "Вес листа - 35,6 кг", volume: "неопределен" },
+        {
+          article: "1222.2202",
+          weight: "Вес упаковки: 4,5 ± 0,3 кг",
+          volume: "Объем упаковки: 0,15м3.",
+        },
+      ],
+    });
+    expect(totals.weightKg).toBeCloseTo(2 * 35.6 + 4 * 4.5);
+    expect(totals.volumeM3).toBeCloseTo(4 * 0.15);
   });
 });
 

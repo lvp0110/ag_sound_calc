@@ -22,7 +22,11 @@ import {
   formatVolumeM3,
   formatWeightKg,
 } from "../../utils/materialWeightVolume";
-import { usePriceData } from "../../services/priceApi";
+import {
+  getPriceVolume,
+  getPriceWeight,
+  usePriceData,
+} from "../../services/priceApi";
 import "./ConstructionList.css";
 
 function positiveLineSum(price, quantity) {
@@ -269,7 +273,11 @@ export function ConstructionGrandTotalBlock({
     onGrandTotalDiscountAmountsChange,
   ]);
 
-  const { loaded: priceLoaded, selectedRegion } = usePriceData();
+  const {
+    loaded: priceLoaded,
+    selectedRegion,
+    list: priceList,
+  } = usePriceData();
 
   const aggregatedMaterials = useMemo(
     () =>
@@ -288,12 +296,20 @@ export function ConstructionGrandTotalBlock({
         ? computeKpMaterialsWeightVolumeTotals({
             materialsByConstruction,
             materialRowsByKeyId,
+            // Явно из React-state, чтобы пересчёт шёл при появлении строк прайса,
+            // а не только при смене флага loaded/region.
+            priceList,
+            fallbackLookup: (article) => ({
+              weight: getPriceWeight(article),
+              volume: getPriceVolume(article),
+            }),
           })
         : { weightKg: 0, volumeM3: 0 },
     [
       readOnly,
       materialsByConstruction,
       materialRowsByKeyId,
+      priceList,
       priceLoaded,
       selectedRegion,
     ],
@@ -610,7 +626,11 @@ export function ConstructionGrandTotalBlock({
           </tr>
           {readOnly && (
             <>
-              <tr className="construction-grand-total__meta-row">
+              <tr
+                className="construction-grand-total__meta-row"
+                data-export-skip="true"
+                data-pdf-exclude="true"
+              >
                 <th
                   colSpan={Math.max(1, titleColSpan - 1)}
                   className={lineLabelClass}
@@ -621,7 +641,11 @@ export function ConstructionGrandTotalBlock({
                   {formatWeightKg(materialsWeightVolume.weightKg)}
                 </th>
               </tr>
-              <tr className="construction-grand-total__meta-row">
+              <tr
+                className="construction-grand-total__meta-row"
+                data-export-skip="true"
+                data-pdf-exclude="true"
+              >
                 <th
                   colSpan={Math.max(1, titleColSpan - 1)}
                   className={lineLabelClass}
