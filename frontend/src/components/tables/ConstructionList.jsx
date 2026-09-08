@@ -17,6 +17,11 @@ import MaterialsList, {
 import KpDiscountSummaryTable from "./KpDiscountSummaryTable";
 import { sectionLabelForConstruction } from "../../utils/constructionSection";
 import { constructionDisplayCipher } from "../../utils/calcUlTapeFallback";
+import {
+  computeKpMaterialsWeightVolumeTotals,
+  formatVolumeM3,
+  formatWeightKg,
+} from "../../utils/materialWeightVolume";
 import { usePriceData } from "../../services/priceApi";
 import "./ConstructionList.css";
 
@@ -276,6 +281,22 @@ export function ConstructionGrandTotalBlock({
     // Прайс грузится асинхронно: без priceLoaded/selectedRegion сводка остаётся пустой
     // после первого расчёта (фильтр «сумма > 0» отсекает строки без цены).
     [readOnly, materialsByConstruction, priceLoaded, selectedRegion],
+  );
+  const materialsWeightVolume = useMemo(
+    () =>
+      readOnly
+        ? computeKpMaterialsWeightVolumeTotals({
+            materialsByConstruction,
+            materialRowsByKeyId,
+          })
+        : { weightKg: 0, volumeM3: 0 },
+    [
+      readOnly,
+      materialsByConstruction,
+      materialRowsByKeyId,
+      priceLoaded,
+      selectedRegion,
+    ],
   );
   const montageSummaryRows = useMemo(
     () =>
@@ -587,6 +608,32 @@ export function ConstructionGrandTotalBlock({
               {formatRub(overallTotalRub)}
             </th>
           </tr>
+          {readOnly && (
+            <>
+              <tr className="construction-grand-total__meta-row">
+                <th
+                  colSpan={Math.max(1, titleColSpan - 1)}
+                  className={lineLabelClass}
+                >
+                  Общий вес
+                </th>
+                <th className={lineAmountClass}>
+                  {formatWeightKg(materialsWeightVolume.weightKg)}
+                </th>
+              </tr>
+              <tr className="construction-grand-total__meta-row">
+                <th
+                  colSpan={Math.max(1, titleColSpan - 1)}
+                  className={lineLabelClass}
+                >
+                  Общий объём
+                </th>
+                <th className={lineAmountClass}>
+                  {formatVolumeM3(materialsWeightVolume.volumeM3)}
+                </th>
+              </tr>
+            </>
+          )}
         </tbody>
       </table>
     </div>

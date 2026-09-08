@@ -4,6 +4,7 @@ import AppLayout from './components/AppLayout';
 import Calculator from './components/Calculator';
 import LoginModal from './components/LoginModal';
 import RequireAdmin from './components/RequireAdmin';
+import YandexMetrika from './components/YandexMetrika';
 import { AuthProvider } from './context/AuthContext.jsx';
 
 const ItemInfo = lazy(() => import('./components/ItemInfo'));
@@ -29,6 +30,7 @@ function RouteFallback() {
 function App() {
   return (
     <Router basename={basename}>
+      <YandexMetrika />
       <AuthProvider>
         <Suspense fallback={<RouteFallback />}>
           <Routes>
