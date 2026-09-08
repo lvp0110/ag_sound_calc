@@ -1,5 +1,4 @@
 import { effectiveKpQuantity } from "./materialPackUnits";
-import { getPriceWeight, getPriceVolume } from "../services/priceApi";
 
 function parseLocaleNumber(raw) {
   if (raw == null) return null;
@@ -12,23 +11,25 @@ function parseLocaleNumber(raw) {
 /**
  * Вес из строки прайса → кг.
  * Примеры: «Вес листа - 35,6 кг», «Вес: 2,15 кг/шт», «Вес опоры: 230 гр»,
- * «Вес упаковки, кг: 0.38». «неопределен» и описания без «вес» → null.
+ * «Вес упаковки: 4,5 ± 0,3 кг», «Вес упаковки, кг: 0.38».
  */
 export function parsePriceWeightKg(raw) {
   const s = String(raw ?? "").trim();
   if (!s || /неопредел/i.test(s)) return null;
   if (!/вес/i.test(s)) return null;
 
-  // `\b` после кириллицы в JS не работает (кириллица = non-word).
-  const withTolerance = s.match(
-    /(\d+(?:[.,]\d+)?)\s*(?:\+\/-\s*\d+(?:[.,]\d+)?\s*)?(?:кг|kg)(?=$|[\s/.,;:]|\/)/i,
+  // Берём первое число перед кг/kg; допуск «± / +/-» не должен съедать значение.
+  const beforeKg = s.match(
+    /(\d+(?:[.,]\d+)?)\s*(?:(?:\+|±)\s*\/?\s*-?\s*\d+(?:[.,]\d+)?\s*)?(?:кг|kg)(?=$|[\s/.,;:]|\/)/i,
   );
-  if (withTolerance) return parseLocaleNumber(withTolerance[1]);
+  if (beforeKg) return parseLocaleNumber(beforeKg[1]);
 
   const labeledKg = s.match(/кг\s*:\s*(\d+(?:[.,]\d+)?)/i);
   if (labeledKg) return parseLocaleNumber(labeledKg[1]);
 
-  const grams = s.match(/(\d+(?:[.,]\d+)?)\s*(?:г(?:р)?\.?|g)(?=$|[\s/.,;:])/i);
+  const grams = s.match(
+    /(\d+(?:[.,]\d+)?)\s*(?:г(?:р)?\.?|g)(?=$|[\s/.,;:])/i,
+  );
   if (grams) {
     const g = parseLocaleNumber(grams[1]);
     return g == null ? null : g / 1000;
@@ -48,7 +49,9 @@ export function parsePriceVolumeM3(raw) {
   if (!/объем|объём/i.test(s) && !/м\s*³|м3|m3/i.test(s)) return null;
   if (/нагрузк/i.test(s)) return null;
 
-  const withUnit = s.match(/(\d+(?:[.,]\d+)?)\s*(?:м\s*³|м3|m3)(?=$|[\s/.,;:])/i);
+  const withUnit = s.match(
+    /(\d+(?:[.,]\d+)?)\s*(?:м\s*³|м3|m3)(?=$|[\s/.,;:])/i,
+  );
   if (withUnit) return parseLocaleNumber(withUnit[1]);
 
   const labeled = s.match(/(?:объем|объём)[^0-9]*(\d+(?:[.,]\d+)?)/i);
@@ -65,17 +68,71 @@ function parseKpDecimal(raw) {
   return Number.isFinite(n) ? n : null;
 }
 
-function addArticleQty(totals, article, qty) {
+function materialArticleCodes(material) {
+  const raw = [
+    material?.Code,
+    material?.code,
+    material?.articul,
+    material?.Articul,
+    material?.article,
+    material?.sourceArticle,
+  ];
+  const out = [];
+  for (const value of raw) {
+    if (value == null || value === "") continue;
+    const code = String(value).trim();
+    if (!code || out.includes(code)) continue;
+    out.push(code);
+  }
+  return out;
+}
+
+/** Map артикул → { weight, volume } из списка прайса (и запасной lookup-функции). */
+export function buildPriceWeightVolumeIndex(priceList, fallbackLookup) {
+  const byArticle = new Map();
+
+  const put = (article, weight, volume) => {
+    const key = article != null ? String(article).trim() : "";
+    if (!key) return;
+    const row = { weight: weight ?? "", volume: volume ?? "" };
+    byArticle.set(key, row);
+    byArticle.set(key.toLowerCase(), row);
+  };
+
+  if (Array.isArray(priceList)) {
+    for (const row of priceList) {
+      if (!row || typeof row !== "object") continue;
+      put(row.article ?? row.code, row.weight, row.volume);
+    }
+  }
+
+  return {
+    get(article) {
+      const key = article != null ? String(article).trim() : "";
+      if (!key) return { weight: "", volume: "" };
+      const hit = byArticle.get(key) || byArticle.get(key.toLowerCase());
+      if (hit) return hit;
+      if (typeof fallbackLookup === "function") {
+        return fallbackLookup(key);
+      }
+      return { weight: "", volume: "" };
+    },
+  };
+}
+
+function addArticleQty(totals, index, article, qty) {
   const code = article != null ? String(article).trim() : "";
   if (!code || !Number.isFinite(qty) || qty <= 0) return;
 
-  const weightKg = parsePriceWeightKg(getPriceWeight(code));
+  const { weight, volume } = index.get(code);
+
+  const weightKg = parsePriceWeightKg(weight);
   if (weightKg != null) {
     totals.weightKg += weightKg * qty;
     totals.hasWeight = true;
   }
 
-  const volumeM3 = parsePriceVolumeM3(getPriceVolume(code));
+  const volumeM3 = parsePriceVolumeM3(volume);
   if (volumeM3 != null) {
     totals.volumeM3 += volumeM3 * qty;
     totals.hasVolume = true;
@@ -83,12 +140,14 @@ function addArticleQty(totals, article, qty) {
 }
 
 /**
- * Суммарный вес (кг) и объём (м³) материалов КП:
- * состав конструкций + доп. материалы с артикулом из прайса.
+ * Суммарный вес (кг) и объём (м³) материалов КП.
+ * `priceList` — актуальный список из usePriceData().list (не читать кэш побочно).
  */
 export function computeKpMaterialsWeightVolumeTotals({
   materialsByConstruction,
   materialRowsByKeyId,
+  priceList,
+  fallbackLookup,
 } = {}) {
   const totals = {
     weightKg: 0,
@@ -97,15 +156,20 @@ export function computeKpMaterialsWeightVolumeTotals({
     hasVolume: false,
   };
 
+  const index = buildPriceWeightVolumeIndex(priceList, fallbackLookup);
+
   if (Array.isArray(materialsByConstruction)) {
     for (const entry of materialsByConstruction) {
       const data = entry?.data;
       if (!Array.isArray(data)) continue;
       for (const material of data) {
         if (!material || typeof material !== "object") continue;
-        const code = material.Code ?? material.code;
         const qty = effectiveKpQuantity(material, { forKp: true });
-        addArticleQty(totals, code, qty);
+        for (const code of materialArticleCodes(material)) {
+          addArticleQty(totals, index, code, qty);
+          // Один артикул на позицию достаточно (Code / articul — обычно одно и то же).
+          break;
+        }
       }
     }
   }
@@ -115,9 +179,11 @@ export function computeKpMaterialsWeightVolumeTotals({
       if (!Array.isArray(rows)) continue;
       for (const row of rows) {
         if (!row || typeof row !== "object") continue;
-        const article = row.sourceArticle ?? row.article ?? row.Code;
         const qty = parseKpDecimal(row.quantity);
-        addArticleQty(totals, article, qty);
+        for (const code of materialArticleCodes(row)) {
+          addArticleQty(totals, index, code, qty);
+          break;
+        }
       }
     }
   }
