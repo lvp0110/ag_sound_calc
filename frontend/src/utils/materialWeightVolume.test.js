@@ -103,6 +103,26 @@ describe("computeKpMaterialsWeightVolumeTotals", () => {
     expect(totals.weightKg).toBeCloseTo(2 * 35.6 + 4 * 4.5);
     expect(totals.volumeM3).toBeCloseTo(4 * 0.15);
   });
+
+  it("uses ceil of total area / 30 for 1407.4100, not per-card qty", () => {
+    const totals = computeKpMaterialsWeightVolumeTotals({
+      materialsByConstruction: [
+        {
+          key_id: "a",
+          areaM2: 12,
+          data: [{ Code: "1407.4100", Quantity: 1, Units: "шт" }],
+        },
+        {
+          key_id: "b",
+          areaM2: 12,
+          data: [{ Code: "1407.4100", Quantity: 1, Units: "шт" }],
+        },
+      ],
+      priceList: [{ article: "1407.4100", weight: "5,000", volume: "0,010" }],
+    });
+    expect(totals.weightKg).toBeCloseTo(1 * 5);
+    expect(totals.volumeM3).toBeCloseTo(1 * 0.01);
+  });
 });
 
 describe("formatters", () => {

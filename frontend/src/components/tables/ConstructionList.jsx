@@ -284,17 +284,19 @@ export function ConstructionGrandTotalBlock({
       readOnly
         ? aggregateMaterialsAcrossConstructions(materialsByConstruction, {
             forKp: true,
+            constructions,
           })
         : [],
     // Прайс грузится асинхронно: без priceLoaded/selectedRegion сводка остаётся пустой
     // после первого расчёта (фильтр «сумма > 0» отсекает строки без цены).
-    [readOnly, materialsByConstruction, priceLoaded, selectedRegion],
+    [readOnly, materialsByConstruction, constructions, priceLoaded, selectedRegion],
   );
   const materialsWeightVolume = useMemo(
     () =>
       readOnly
         ? computeKpMaterialsWeightVolumeTotals({
             materialsByConstruction,
+            constructions,
             materialRowsByKeyId,
             // Явно из React-state, чтобы пересчёт шёл при появлении строк прайса,
             // а не только при смене флага loaded/region.
@@ -308,6 +310,7 @@ export function ConstructionGrandTotalBlock({
     [
       readOnly,
       materialsByConstruction,
+      constructions,
       materialRowsByKeyId,
       priceList,
       priceLoaded,
@@ -851,6 +854,7 @@ function LegacyConstructionMaterialsPanels({
   noArticle,
   baseTableId,
   showGeneralConstructionMaterials,
+  constructionAreaM2,
 }) {
   return (
     <>
@@ -862,6 +866,7 @@ function LegacyConstructionMaterialsPanels({
           data={withArticle}
           tableId={baseTableId}
           compositionOnly
+          constructionAreaM2={constructionAreaM2}
         />
       )}
       {showGeneralConstructionMaterials && noArticle.length > 0 && (
@@ -1105,6 +1110,7 @@ const ConstructionList = ({
                   data={withArticle}
                   tableId={baseTableId}
                   collapsible={readOnly}
+                  constructionAreaM2={constructionAreaM2(constRItem)}
                   onKpMaterialQuantityChange={
                     readOnly && onMaterialKpFieldChange
                       ? (rowIndex, value) => {
@@ -1343,6 +1349,7 @@ const ConstructionList = ({
                       showGeneralConstructionMaterials={
                         showGeneralConstructionMaterials
                       }
+                      constructionAreaM2={constructionAreaM2(constRItem)}
                     />
                   </div>
                 )}
@@ -1467,6 +1474,7 @@ const ConstructionList = ({
                         showGeneralConstructionMaterials={
                           showGeneralConstructionMaterials
                         }
+                        constructionAreaM2={constructionAreaM2(constRItem)}
                       />
                     </td>
                   </tr>

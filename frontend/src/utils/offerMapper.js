@@ -10,6 +10,7 @@ import {
   resolveItemsDisplayMeta,
   syncConstructionsTitlesFromItems,
 } from "./itemsCatalog.js";
+import { areaM2FromConstructionLike } from "./materialPackUnits.js";
 
 /** Сохраняет UI-название в calc_params из ItemsBase (не из API-каталога). */
 function mergeUiDisplayIntoCalcParams(calcParams, ui) {
@@ -145,6 +146,7 @@ export function mapOfferResponseToKpView(offer, { titleByCode: _titleByCode } = 
   const materialsByConstruction = (offer.constructions || []).map((c) => ({
     key_id: c.id,
     data: Array.isArray(c.materials) ? c.materials : [],
+    areaM2: areaM2FromConstructionLike(c.calc_params),
   }));
 
   const montageByKeyId = {};

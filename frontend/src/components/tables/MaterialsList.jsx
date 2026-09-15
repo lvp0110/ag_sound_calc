@@ -7,8 +7,11 @@ import {
 import {
   effectiveKpQuantity,
   formatMaterialQuantity,
+  isAggregatedPackMaterial,
   isPackPricedMaterial,
   kpQuantityInputValue,
+  listAggregatedPackMaterials,
+  materialArticleCode,
   materialDisplayUnits,
 } from "../../utils/materialPackUnits";
 import {
@@ -88,6 +91,14 @@ export function effectiveSingleMaterialPrice(
 }
 
 const lineSumRub = (material, pricePerM2, pricePerUnit, { forKp = false } = {}) => {
+  // На КП деньги по 1407.4100 — только в строке общего расчёта (__kpAggregatedPackLine).
+  if (
+    forKp &&
+    isAggregatedPackMaterial(material) &&
+    !material?.__kpAggregatedPackLine
+  ) {
+    return null;
+  }
   const { effM2, effUnit } = effectiveMaterialPrices(
     material,
     pricePerM2,
@@ -111,6 +122,42 @@ const lineSumRub = (material, pricePerM2, pricePerUnit, { forKp = false } = {}) 
   return null;
 };
 
+/** Сумма ₽ по материалам с общим округлением до упаковки (отдельный блок КП). */
+export function computeAggregatedPackMaterialsTotalRub(
+  materialsByConstruction,
+  constructions,
+) {
+  return computeTotalRubForMaterialsData(
+    buildAggregatedPackMaterialRows(materialsByConstruction, constructions),
+    { forKp: true },
+  );
+}
+
+/** Строки для UI/сводки: одна позиция на артикул, кол-во уже в упаковках. */
+export function buildAggregatedPackMaterialRows(
+  materialsByConstruction,
+  constructions,
+) {
+  return listAggregatedPackMaterials(
+    materialsByConstruction,
+    constructions,
+  ).map((line) => {
+    const nameFromPrice = getPriceName(line.code);
+    const fallbackName =
+      String(line.sample?.Name ?? line.sample?.name ?? "").trim() || line.code;
+    return {
+      Code: line.code,
+      Name: nameFromPrice?.trim() || fallbackName,
+      Quantity: line.piecesSum,
+      Units: line.kpUnits,
+      KpQuantity: line.packQty,
+      KpPricePerUnit: line.sample?.KpPricePerUnit,
+      KpPricePerM2: line.sample?.KpPricePerM2,
+      __kpAggregatedPackLine: true,
+    };
+  });
+}
+
 /** Сумма в ₽ по списку материалов (те же правила, что колонка «сумма»). */
 export function computeTotalRubForMaterialsData(data, { forKp = false } = {}) {
   if (!Array.isArray(data) || data.length === 0) return 0;
@@ -133,12 +180,20 @@ export function computeGrandTotalRubForConstructions(
 ) {
   if (!Array.isArray(constructions) || constructions.length === 0) return 0;
   if (!Array.isArray(materialsByConstruction)) return 0;
-  return constructions.reduce((sum, constRItem) => {
+  const perConstruction = constructions.reduce((sum, constRItem) => {
     const matEntry = materialsByConstruction.find(
       (m) => m.key_id === constRItem.key_id
     );
     return sum + computeTotalRubForMaterialsData(matEntry?.data ?? [], { forKp });
   }, 0);
+  if (!forKp) return perConstruction;
+  return (
+    perConstruction +
+    computeAggregatedPackMaterialsTotalRub(
+      materialsByConstruction,
+      constructions,
+    )
+  );
 }
 
 /** Ключ для сводки: артикул, иначе название + ед.изм. */
@@ -161,10 +216,12 @@ export function materialAggregateKey(material) {
  * Все материалы КП по конструкциям: одинаковые позиции суммируются (кол-во).
  * Порядок — первое появление в materialsByConstruction.
  * Позиции без суммы (нет цены/кол-ва или сумма ≤ 0) не включаются.
+ * Aggregated-pack артикулы (1407.4100) не суммируются по карточкам — одна
+ * строка с ceil(сумма штук / packSize) в конце.
  */
 export function aggregateMaterialsAcrossConstructions(
   materialsByConstruction,
-  { forKp = true } = {},
+  { forKp = true, constructions } = {},
 ) {
   if (!Array.isArray(materialsByConstruction)) return [];
   const order = [];
@@ -175,6 +232,7 @@ export function aggregateMaterialsAcrossConstructions(
     if (!Array.isArray(data)) continue;
     for (const material of data) {
       if (!material || typeof material !== "object") continue;
+      if (forKp && isAggregatedPackMaterial(material)) continue;
       const key = materialAggregateKey(material);
       const qty = effectiveKpQuantity(material, { forKp });
       const qtyNum = qty != null && Number.isFinite(qty) ? qty : 0;
@@ -198,7 +256,7 @@ export function aggregateMaterialsAcrossConstructions(
     }
   }
 
-  return order
+  const regular = order
     .map((key) => byKey.get(key))
     .filter((material) => {
       const codeRaw =
@@ -211,6 +269,24 @@ export function aggregateMaterialsAcrossConstructions(
       );
       return typeof sumRub === "number" && !Number.isNaN(sumRub) && sumRub > 0;
     });
+
+  if (!forKp) return regular;
+
+  const packRows = buildAggregatedPackMaterialRows(
+    materialsByConstruction,
+    constructions,
+  ).filter((material) => {
+    const codeRaw = materialArticleCode(material);
+    const sumRub = lineSumRub(
+      material,
+      getPricePerM2(codeRaw),
+      getPricePerUnit(codeRaw),
+      { forKp: true },
+    );
+    return typeof sumRub === "number" && !Number.isNaN(sumRub) && sumRub > 0;
+  });
+
+  return [...regular, ...packRows];
 }
 
 /**
@@ -224,6 +300,7 @@ export function aggregateMaterialsAcrossConstructions(
  * @param {(rowIndex: number, field: 'KpPricePerM2'|'KpPricePerUnit', value: string) => void} [onKpMaterialPriceChange]
  * @param {(rowIndex: number, value: string) => void} [onKpMaterialQuantityChange]
  * @param {boolean} [compositionOnly=false] — только артикул, название, ед.изм и кол-во (без цен и сумм)
+ * @param {number} [constructionAreaM2] — площадь карточки, м² (для 1407.4100)
  * @param {boolean} [forKp] — явно включить правила КП (кол-во/суммы); иначе как `collapsible && !compositionOnly`
  * @param {boolean} [summaryMode=false] — сводка КП: без колонок цен, после суммы — скидка и сумма скидки
  * @param {Record<string, string>} [discountByKey] — скидки % по ключу строки (controlled)
@@ -240,6 +317,7 @@ const MaterialsList = ({
   onKpMaterialPriceChange,
   onKpMaterialQuantityChange,
   compositionOnly = false,
+  constructionAreaM2,
   forKp: forKpProp,
   summaryMode = false,
   discountByKey: discountByKeyProp,
@@ -454,6 +532,10 @@ const MaterialsList = ({
           <tbody>
             {hasData ? (
               rowModels.map(({ Material, pricePerM2, pricePerUnit, sumRub, rowKey }, index) => {
+                const hideAggregatedMoney =
+                  forKp &&
+                  isAggregatedPackMaterial(Material) &&
+                  !Material.__kpAggregatedPackLine;
                 const codeRaw =
                   Material.Code != null ? String(Material.Code).trim() : "";
                 const priceName = compositionOnly ? "" : getPriceName(codeRaw);
@@ -470,13 +552,15 @@ const MaterialsList = ({
                   pricePerUnit
                 );
                 const kpPriceRaw = Material[kpPriceField];
-                const singlePriceDisplayRub = formatRub(
-                  effectiveSingleMaterialPrice(
-                    Material,
-                    pricePerM2,
-                    pricePerUnit
-                  )
-                );
+                const singlePriceDisplayRub = hideAggregatedMoney
+                  ? "—"
+                  : formatRub(
+                      effectiveSingleMaterialPrice(
+                        Material,
+                        pricePerM2,
+                        pricePerUnit
+                      )
+                    );
                 const discountRaw = discountByKey[rowKey] ?? "";
                 const discountPct = parseKpDecimal(discountRaw);
                 const discountSumRub =
@@ -533,7 +617,9 @@ const MaterialsList = ({
                     aria-label={`Цена, ${materialName}`}
                   />
                 ) : null;
-                const priceM2Input = editablePriceCells ? (
+                const priceM2Input = hideAggregatedMoney ? (
+                  "—"
+                ) : editablePriceCells ? (
                   <input
                     type="text"
                     className="kp-page__services-input"
@@ -558,7 +644,9 @@ const MaterialsList = ({
                 ) : (
                   formatRub(pricePerM2)
                 );
-                const priceUnitInput = editablePriceCells ? (
+                const priceUnitInput = hideAggregatedMoney ? (
+                  "—"
+                ) : editablePriceCells ? (
                   <input
                     type="text"
                     className="kp-page__services-input"
@@ -583,7 +671,12 @@ const MaterialsList = ({
                 ) : (
                   formatRub(pricePerUnit)
                 );
-                const sumDisplay = editablePriceCells || editableQuantityCells ? (
+                const sumLabel = hideAggregatedMoney
+                  ? "—"
+                  : formatKpComputedSum(sumRub);
+                const sumDisplay =
+                  !hideAggregatedMoney &&
+                  (editablePriceCells || editableQuantityCells) ? (
                   <input
                     type="text"
                     readOnly
@@ -592,10 +685,15 @@ const MaterialsList = ({
                     aria-label={`Сумма, ${materialName}`}
                   />
                 ) : (
-                  formatKpComputedSum(sumRub)
+                  sumLabel
                 );
-                const quantityDisplay = formatMaterialQuantity(Material, { forKp });
-                const quantityEditInput = editableQuantityCells ? (
+                const quantityDisplay = formatMaterialQuantity(Material, {
+                  forKp,
+                  areaM2: constructionAreaM2,
+                });
+                const rowEditableQuantity =
+                  editableQuantityCells && !hideAggregatedMoney;
+                const quantityEditInput = rowEditableQuantity ? (
                   <input
                     type="text"
                     className="kp-page__services-input"
@@ -625,11 +723,15 @@ const MaterialsList = ({
                       {
                         id: "qty",
                         label: "Кол-во",
-                        children: editableQuantityCells
+                        children: rowEditableQuantity
                           ? quantityEditInput
                           : forKp
-                            ? formatMaterialQuantity(Material, { forKp })
-                            : convertUnits(Material),
+                            ? quantityDisplay
+                            : isAggregatedPackMaterial(Material)
+                              ? formatMaterialQuantity(Material, {
+                                  areaM2: constructionAreaM2,
+                                })
+                              : convertUnits(Material),
                       },
                       ...(summaryMode
                         ? [
@@ -694,7 +796,11 @@ const MaterialsList = ({
                     )}
                     {colInDom && (
                       <td className={hideOnKpNarrow.trim() || undefined}>
-                        {convertUnits(Material)}
+                        {isAggregatedPackMaterial(Material)
+                          ? formatMaterialQuantity(Material, {
+                              areaM2: constructionAreaM2,
+                            })
+                          : convertUnits(Material)}
                       </td>
                     )}
                   </>
@@ -715,7 +821,7 @@ const MaterialsList = ({
                     />
                     {colInDom && (
                       <td className={hideOnKpNarrow.trim() || undefined}>
-                        {editableQuantityCells ? quantityEditInput : quantityDisplay}
+                        {rowEditableQuantity ? quantityEditInput : quantityDisplay}
                       </td>
                     )}
                     {colInDom && (
@@ -725,23 +831,29 @@ const MaterialsList = ({
                     )}
                     {colInDom && showPriceColumns && singlePriceColumn && (
                       <td className={hideOnKpNarrow.trim() || undefined}>
-                        {showInputsInRow && singlePriceEditInput
+                        {showInputsInRow &&
+                        !hideAggregatedMoney &&
+                        singlePriceEditInput
                           ? singlePriceEditInput
                           : singlePriceDisplayRub}
                       </td>
                     )}
                     {colInDom && showPriceColumns && !singlePriceColumn && (
                       <td className={hideOnKpNarrow.trim() || undefined}>
-                        {showInputsInRow && editablePriceCells
+                        {showInputsInRow && editablePriceCells && !hideAggregatedMoney
                           ? priceM2Input
-                          : formatRub(pricePerM2)}
+                          : hideAggregatedMoney
+                            ? "—"
+                            : formatRub(pricePerM2)}
                       </td>
                     )}
                     {colInDom && showPriceColumns && !singlePriceColumn && (
                       <td className={hideOnKpNarrow.trim() || undefined}>
-                        {showInputsInRow && editablePriceCells
+                        {showInputsInRow && editablePriceCells && !hideAggregatedMoney
                           ? priceUnitInput
-                          : formatRub(pricePerUnit)}
+                          : hideAggregatedMoney
+                            ? "—"
+                            : formatRub(pricePerUnit)}
                       </td>
                     )}
                     {colInDom && (
@@ -750,9 +862,11 @@ const MaterialsList = ({
                           kpTableChrome ? "kp-data-col--sum" : undefined
                         }
                       >
-                        {showInputsInRow && (editablePriceCells || editableQuantityCells)
+                        {showInputsInRow &&
+                        !hideAggregatedMoney &&
+                        (editablePriceCells || editableQuantityCells)
                           ? sumDisplay
-                          : formatKpComputedSum(sumRub)}
+                          : sumLabel}
                       </td>
                     )}
                     {colInDom && summaryMode && (

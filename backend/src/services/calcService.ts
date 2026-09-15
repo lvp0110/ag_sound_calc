@@ -1,22 +1,12 @@
 import { env } from "../config/env.js";
 import {
   AG_CU_MEM_CIPHER,
+  applyCalcFallbackMaps,
   buildUlMembraneMaterials,
-  ecoSWoolFallbackCalcCode,
-  is2GklCalcCode,
-  isEcoSWoolCalcCode,
-  isS2WoolCalcCode,
-  isUlTapeCalcCode,
+  calcFallbackAttempts,
   isUltracousticFloorSealant,
-  mapDefaultEcoWoolToEcoS,
-  mapDefaultEcoWoolToS2,
-  mapSoundlineDbToTwoGkl,
   mapVibrosilSealantToUltracoustic,
-  mapVibrostekMaterialsToUlTape,
   normalizeCeilingMats,
-  s2WoolFallbackCalcCode,
-  twoGklFallbackCalcCode,
-  ulTapeFallbackCalcCodes,
 } from "./calcUlTapeFallback.js";
 import {
   getCachedCalcMaterials,
@@ -158,54 +148,17 @@ const calculateOne = async (params: CalcParams): Promise<CalcMaterial[]> => {
 
   let materials = await fetchMaterialsFromCalcService(params);
 
-  // Внешний calc пока не знает *_ul_tape — считаем через *_vibrostek (полы) или базовый код (потолки).
-  if (materials.length === 0 && isUlTapeCalcCode(params.Code)) {
-    for (const fallbackCode of ulTapeFallbackCalcCodes(params.Code)) {
-      const fallbackParams = { ...params, Code: fallbackCode };
-      const fallbackMaterials = await fetchMaterialsFromCalcService(fallbackParams);
-      const mapped = mapVibrostekMaterialsToUlTape(fallbackMaterials);
-      if (mapped) {
+  if (materials.length === 0) {
+    for (const attempt of calcFallbackAttempts(params.Code)) {
+      const fallbackMaterials = await fetchMaterialsFromCalcService({
+        ...params,
+        Code: attempt.code,
+      });
+      const mapped = applyCalcFallbackMaps(fallbackMaterials, attempt.maps);
+      if (mapped?.length) {
         materials = mapped as CalcMaterial[];
         break;
       }
-    }
-  }
-
-  // Внешний calc пока не знает *_eco_s / *_s2 — считаем без суффикса и подменяем минвату.
-  if (materials.length === 0 && isEcoSWoolCalcCode(params.Code)) {
-    const fallbackParams = {
-      ...params,
-      Code: ecoSWoolFallbackCalcCode(params.Code),
-    };
-    const fallbackMaterials = await calculateOne(fallbackParams);
-    const woolMapped = mapDefaultEcoWoolToEcoS(fallbackMaterials);
-    if (woolMapped) {
-      materials = woolMapped as CalcMaterial[];
-    }
-  }
-
-  if (materials.length === 0 && isS2WoolCalcCode(params.Code)) {
-    const fallbackParams = {
-      ...params,
-      Code: s2WoolFallbackCalcCode(params.Code),
-    };
-    const fallbackMaterials = await calculateOne(fallbackParams);
-    const woolMapped = mapDefaultEcoWoolToS2(fallbackMaterials);
-    if (woolMapped) {
-      materials = woolMapped as CalcMaterial[];
-    }
-  }
-
-  // Внешний calc отдаёт ГКЛ+Саундлайн-dB; *_2gkl — два листа ГКЛ.
-  if (materials.length === 0 && is2GklCalcCode(params.Code)) {
-    const fallbackParams = {
-      ...params,
-      Code: twoGklFallbackCalcCode(params.Code),
-    };
-    const fallbackMaterials = await calculateOne(fallbackParams);
-    const sheetMapped = mapSoundlineDbToTwoGkl(fallbackMaterials);
-    if (sheetMapped) {
-      materials = sheetMapped as CalcMaterial[];
     }
   }
 
