@@ -612,15 +612,35 @@ textarea.kp-page__input {
   white-space: nowrap;
 }
 
+.kp-page .kp-table-card #kp-table-aggregated-pack td.kp-page__service-name-td--preset,
+.kp-page .kp-table-card #kp-table-aggregated-pack th:nth-child(1),
+.kp-page .kp-table-card #kp-table-aggregated-pack td:nth-child(1) {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.kp-page .kp-table-card #kp-table-aggregated-pack th:nth-child(n + 2),
+.kp-page .kp-table-card #kp-table-aggregated-pack td:nth-child(n + 2) {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
 .kp-page .kp-table-card #kp-table-additional-materials,
-.kp-page .kp-table-card #kp-table-services {
+.kp-page .kp-table-card #kp-table-services,
+.kp-page .kp-table-card #kp-table-aggregated-pack {
   table-layout: fixed;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
 }
 
 .kp-page .kp-table-card #kp-table-additional-materials th:nth-child(1),
 .kp-page .kp-table-card #kp-table-additional-materials td:nth-child(1),
 .kp-page .kp-table-card #kp-table-services th:nth-child(1),
-.kp-page .kp-table-card #kp-table-services td:nth-child(1) {
+.kp-page .kp-table-card #kp-table-services td:nth-child(1),
+.kp-page .kp-table-card #kp-table-aggregated-pack th:nth-child(1),
+.kp-page .kp-table-card #kp-table-aggregated-pack td:nth-child(1) {
   width: 60%;
   text-align: left;
 }
@@ -628,13 +648,17 @@ textarea.kp-page__input {
 .kp-page .kp-table-card #kp-table-additional-materials th:nth-child(n + 2),
 .kp-page .kp-table-card #kp-table-additional-materials td:nth-child(n + 2),
 .kp-page .kp-table-card #kp-table-services th:nth-child(n + 2),
-.kp-page .kp-table-card #kp-table-services td:nth-child(n + 2) {
+.kp-page .kp-table-card #kp-table-services td:nth-child(n + 2),
+.kp-page .kp-table-card #kp-table-aggregated-pack th:nth-child(n + 2),
+.kp-page .kp-table-card #kp-table-aggregated-pack td:nth-child(n + 2) {
   width: 10%;
 }
 
 .kp-page .kp-table-card #kp-table-additional-materials td:nth-child(n + 2) .kp-page__services-input,
-.kp-page .kp-table-card #kp-table-services td:nth-child(n + 2) .kp-page__services-input {
+.kp-page .kp-table-card #kp-table-services td:nth-child(n + 2) .kp-page__services-input,
+.kp-page .kp-table-card #kp-table-aggregated-pack td:nth-child(n + 2) .kp-page__services-input {
   min-width: 0;
+  max-width: 100%;
 }
 
 .kp-page__service-name-cell {

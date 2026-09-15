@@ -7,8 +7,13 @@ import { constructionKpCardHeading } from "../utils/constructionKpDisplay.js";
 import { formatDateRu } from "../utils/formatDateRu.js";
 import {
   effectiveKpQuantity,
+  isAggregatedPackMaterial,
   isPackPricedMaterial,
   kpPackDisplayUnits,
+  listAggregatedPackMaterials,
+  rawMaterialPieces,
+  aggregatedPackUnroundedQty,
+  areaM2FromConstructionLike,
 } from "../utils/materialPackUnits.js";
 import { numberToWordsRu, pluralRu, rublesToWordsRu } from "../utils/numberToWordsRu.js";
 import { UPLOADS_DIR } from "../routes/uploads.js";
@@ -161,6 +166,8 @@ const materialLineSum = (
   pPerM2: number | undefined,
   pPerUnit: number | undefined
 ): number | null => {
+  // Деньги по 1407.4100 — в отдельной секции с общим ceil до упаковки.
+  if (isAggregatedPackMaterial(m)) return null;
   const { effM2, effUnit } = effectivePrices(m, pPerM2, pPerUnit);
   const qty = effectiveKpQuantity(m, { forKp: true });
   if (qty == null || !Number.isFinite(qty)) return null;
@@ -312,6 +319,8 @@ const computeSectionDiscountAmounts = (
     const materials = Array.isArray(c.materials) ? c.materials : [];
     for (const material of materials) {
       if (!material || typeof material !== "object") continue;
+      // 1407.4100 — скидка через ключ общего расчёта ниже.
+      if (isAggregatedPackMaterial(material)) continue;
       const key = materialAggregateKey(material);
       const qty = effectiveKpQuantity(material, { forKp: true });
       const qtyNum = qty != null && Number.isFinite(qty) ? qty : 0;
@@ -341,6 +350,23 @@ const computeSectionDiscountAmounts = (
     const { pricePerM2, pricePerUnit } = priceLookup(article);
     const sum = materialLineSum(entry.material, pricePerM2, pricePerUnit);
     if (!(typeof sum === "number" && Number.isFinite(sum) && sum > 0)) continue;
+    constructions += pctOfSum(sum, constructionsPct[key]);
+  }
+
+  const packMaterialsByConstruction = (offer.constructions || []).map((c) => ({
+    data: Array.isArray(c.materials) ? c.materials : [],
+    areaM2: areaM2FromConstructionLike(c.calc_params),
+  }));
+  for (const line of listAggregatedPackMaterials(packMaterialsByConstruction)) {
+    const { pricePerUnit } = priceLookup(line.code);
+    const kpUnit = parseKpDecimal(
+      (line.sample as { KpPricePerUnit?: unknown }).KpPricePerUnit,
+    );
+    const unitPrice = kpUnit !== null ? kpUnit : pricePerUnit;
+    if (unitPrice == null || !Number.isFinite(unitPrice)) continue;
+    const sum = line.packQty * unitPrice;
+    if (!(sum > 0)) continue;
+    const key = `code:${line.code}`;
     constructions += pctOfSum(sum, constructionsPct[key]);
   }
 
@@ -553,6 +579,26 @@ export function renderOfferKpHtml({
       const article = materialArticle(m);
       const lookedUp = priceLookup(article);
       const { pricePerM2, pricePerUnit, name: catalogName } = lookedUp;
+
+      if (isAggregatedPackMaterial(m)) {
+        // В карточке — расход area / m2PerPack без ceil (деньги в блоке ниже).
+        const areaM2 = areaM2FromConstructionLike(c.calc_params);
+        const rawQty =
+          aggregatedPackUnroundedQty(areaM2, m) ?? rawMaterialPieces(m);
+        if (!(rawQty > 0)) continue;
+        rows.push({
+          name: catalogName?.trim() || materialFallbackName(m),
+          unit:
+            typeof m.Units === "string" && m.Units.trim() !== ""
+              ? m.Units
+              : "—",
+          qty: rawQty,
+          unitPrice: null,
+          lineSum: null,
+        });
+        continue;
+      }
+
       const unitPrice = materialUnitPriceForDisplay(m, pricePerM2, pricePerUnit);
       const qty = materialQuantityForDisplay(m);
       const lineSum = materialLineSum(m, pricePerM2, pricePerUnit);
@@ -586,6 +632,42 @@ export function renderOfferKpHtml({
       sectionTotal: sectionTotal.value,
       rows,
     });
+  }
+
+  // Материалы с общим округлением до упаковки (1407.4100) — перед услугами.
+  {
+    const mbc = constructionsOrdered.map((c) => ({
+      data: Array.isArray(c.materials) ? c.materials : [],
+      areaM2: areaM2FromConstructionLike(c.calc_params),
+    }));
+    for (const line of listAggregatedPackMaterials(mbc)) {
+      const lookedUp = priceLookup(line.code);
+      const kpUnit = parseKpDecimal(
+        (line.sample as { KpPricePerUnit?: unknown }).KpPricePerUnit,
+      );
+      const unitPrice =
+        kpUnit !== null ? kpUnit : lookedUp.pricePerUnit;
+      if (unitPrice == null || !Number.isFinite(unitPrice)) continue;
+      const lineSum = line.packQty * unitPrice;
+      if (!hasPositiveLineSum(lineSum)) continue;
+      const name =
+        lookedUp.name?.trim() ||
+        materialFallbackName(line.sample as MaterialLike);
+      const heading = `${line.code} ${name}`.trim();
+      sections.push({
+        name: heading,
+        sectionTotal: lineSum,
+        rows: [
+          {
+            name: heading,
+            unit: line.kpUnits,
+            qty: line.packQty,
+            unitPrice,
+            lineSum,
+          },
+        ],
+      });
+    }
   }
 
   // Услуги — только строки с положительной суммой (цена × кол-во).

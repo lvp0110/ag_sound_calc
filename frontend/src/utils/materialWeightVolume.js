@@ -1,4 +1,8 @@
-import { effectiveKpQuantity } from "./materialPackUnits";
+import {
+  effectiveKpQuantity,
+  isAggregatedPackMaterial,
+  listAggregatedPackMaterials,
+} from "./materialPackUnits";
 
 function parseLocaleNumber(raw) {
   if (raw == null) return null;
@@ -165,6 +169,7 @@ function addArticleQty(totals, index, article, qty) {
  */
 export function computeKpMaterialsWeightVolumeTotals({
   materialsByConstruction,
+  constructions,
   materialRowsByKeyId,
   priceList,
   fallbackLookup,
@@ -184,6 +189,8 @@ export function computeKpMaterialsWeightVolumeTotals({
       if (!Array.isArray(data)) continue;
       for (const material of data) {
         if (!material || typeof material !== "object") continue;
+        // 1407.4100 и аналоги — вес/объём по общей упаковке ниже, не по карточкам.
+        if (isAggregatedPackMaterial(material)) continue;
         const qty = effectiveKpQuantity(material, { forKp: true });
         for (const code of materialArticleCodes(material)) {
           addArticleQty(totals, index, code, qty);
@@ -191,6 +198,13 @@ export function computeKpMaterialsWeightVolumeTotals({
           break;
         }
       }
+    }
+
+    for (const line of listAggregatedPackMaterials(
+      materialsByConstruction,
+      constructions,
+    )) {
+      addArticleQty(totals, index, line.code, line.packQty);
     }
   }
 

@@ -450,6 +450,76 @@ export const is2GklCalcCode = (code) =>
 export const twoGklFallbackCalcCode = (code) =>
   String(code ?? "").split(SHEET_2GKL_SUFFIX).join("");
 
+export const CALC_FALLBACK_TAPE = "tape";
+export const CALC_FALLBACK_2GKL = "2gkl";
+export const CALC_FALLBACK_ECO_S = "eco_s";
+export const CALC_FALLBACK_S2 = "s2";
+
+/**
+ * Попытки fallback, если внешний calc не знает комбинацию суффиксов.
+ * Сначала снимаем ленту/_2gkl (нативный *_s2 остаётся), подмену минваты — в конце.
+ * Иначе AG.L404_ul_s2_2gkl_ul_tape уходит в ЭКО (2 уп) вместо С2 (1 уп).
+ */
+export const calcFallbackAttempts = (originalCode) => {
+  const code = String(originalCode ?? "").trim();
+  const attempts = [];
+  const seen = new Set();
+
+  const add = (nextCode, maps) => {
+    const c = String(nextCode ?? "").trim();
+    if (!c) return;
+    const key = `${c}::${maps.join("+")}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    if (c === code && maps.length === 0) return;
+    attempts.push({ code: c, maps: [...maps] });
+  };
+
+  const woolKind = isS2WoolCalcCode(code)
+    ? CALC_FALLBACK_S2
+    : isEcoSWoolCalcCode(code)
+      ? CALC_FALLBACK_ECO_S
+      : null;
+  const tapeFlags = isUlTapeCalcCode(code) ? [false, true] : [false];
+  const gklFlags = is2GklCalcCode(code) ? [false, true] : [false];
+
+  const peelWoolCode = (c) => {
+    if (isS2WoolCalcCode(c)) return s2WoolFallbackCalcCode(c);
+    if (isEcoSWoolCalcCode(c)) return ecoSWoolFallbackCalcCode(c);
+    return c;
+  };
+
+  for (const peelWool of [false, true]) {
+    if (peelWool && !woolKind) continue;
+    for (const peel2gkl of gklFlags) {
+      for (const peelTape of tapeFlags) {
+        if (!peelWool && !peel2gkl && !peelTape) continue;
+        let c = code;
+        const maps = [];
+        if (peel2gkl) {
+          c = twoGklFallbackCalcCode(c);
+          maps.push(CALC_FALLBACK_2GKL);
+        }
+        if (peelWool) {
+          c = peelWoolCode(c);
+          maps.push(woolKind);
+        }
+        if (peelTape) {
+          maps.push(CALC_FALLBACK_TAPE);
+          const tapeSource = isUlTapeCalcCode(c) ? c : `${c}${UL_TAPE_SUFFIX}`;
+          for (const tv of ulTapeFallbackCalcCodes(tapeSource)) {
+            add(tv, maps);
+          }
+        } else {
+          add(c, maps);
+        }
+      }
+    }
+  }
+
+  return attempts;
+};
+
 /**
  * Внешний calc отдаёт ГКЛ+Саундлайн-dB: для *_2gkl убираем Саундлайн-dB
  * и удваиваем количество листа ГКЛ (второй слой обшивки).
@@ -490,6 +560,24 @@ export const mapSoundlineDbToTwoGkl = (materials) => {
   }
 
   return removedSoundline && doubledGkl ? mapped : null;
+};
+
+export const applyCalcFallbackMaps = (materials, maps) => {
+  if (!Array.isArray(materials) || materials.length === 0) return null;
+  if (!Array.isArray(maps) || maps.length === 0) return materials;
+
+  let rows = materials;
+  for (const map of maps) {
+    let next = null;
+    if (map === CALC_FALLBACK_TAPE) next = mapVibrostekMaterialsToUlTape(rows);
+    else if (map === CALC_FALLBACK_2GKL) next = mapSoundlineDbToTwoGkl(rows);
+    else if (map === CALC_FALLBACK_ECO_S) next = mapDefaultEcoWoolToEcoS(rows);
+    else if (map === CALC_FALLBACK_S2) next = mapDefaultEcoWoolToS2(rows);
+    else next = rows;
+    if (!next?.length) return null;
+    rows = next;
+  }
+  return rows;
 };
 
 export const hasFacingTapeChoice = (agId) => {

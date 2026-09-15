@@ -4,27 +4,13 @@
 
 import { BASE_URL } from "./apiClient";
 import {
-  ecoSWoolFallbackCalcCode,
-  is2GklCalcCode,
-  isEcoSWoolCalcCode,
-  isS2WoolCalcCode,
-  isUlTapeCalcCode,
+  applyCalcFallbackMaps,
+  calcFallbackAttempts,
   isUltracousticFloorSealant,
-  mapDefaultEcoWoolToEcoS,
-  mapDefaultEcoWoolToS2,
-  mapSoundlineDbToTwoGkl,
   mapVibrosilSealantToUltracoustic,
-  mapVibrostekMaterialsToUlTape,
-  s2WoolFallbackCalcCode,
-  twoGklFallbackCalcCode,
-  ulTapeFallbackCalcCodes,
 } from "../utils/calcUlTapeFallback.js";
 
-export const calculateConstruction = async (constrList) => {
-  if (!constrList || constrList.length === 0) {
-    return { data: [] };
-  }
-
+const fetchCalcMaterialsRaw = async (constrList) => {
   const apiUrl = `${BASE_URL}/api/v1/calcIsolation/byProduct`;
 
   const payload = JSON.stringify(constrList);
@@ -78,75 +64,28 @@ export const calculateConstruction = async (constrList) => {
     rows = [];
   }
 
-  // Внешний calc пока не знает *_ul_tape (пустой data при HTTP 200).
-  if (
-    rows.length === 0 &&
-    constrList.length === 1 &&
-    isUlTapeCalcCode(constrList[0]?.Code)
-  ) {
-    for (const fallbackCode of ulTapeFallbackCalcCodes(constrList[0].Code)) {
+  return Array.isArray(rows) ? rows : [];
+};
+
+export const calculateConstruction = async (constrList) => {
+  if (!constrList || constrList.length === 0) {
+    return { data: [] };
+  }
+
+  let rows = await fetchCalcMaterialsRaw(constrList);
+
+  if (rows.length === 0 && constrList.length === 1) {
+    for (const attempt of calcFallbackAttempts(constrList[0]?.Code)) {
       const fallbackPayload = constrList.map((item) => ({
         ...item,
-        Code: fallbackCode,
+        Code: attempt.code,
       }));
-      const fallback = await calculateConstruction(fallbackPayload);
-      const mapped = mapVibrostekMaterialsToUlTape(fallback?.data ?? []);
+      const fetched = await fetchCalcMaterialsRaw(fallbackPayload);
+      const mapped = applyCalcFallbackMaps(fetched, attempt.maps);
       if (mapped?.length) {
-        return { data: mapped };
+        rows = mapped;
+        break;
       }
-    }
-  }
-
-  // Внешний calc пока не знает *_eco_s / *_s2 (пустой data при HTTP 200).
-  if (
-    rows.length === 0 &&
-    constrList.length === 1 &&
-    isEcoSWoolCalcCode(constrList[0]?.Code)
-  ) {
-    const fallbackCode = ecoSWoolFallbackCalcCode(constrList[0].Code);
-    const fallbackPayload = constrList.map((item) => ({
-      ...item,
-      Code: fallbackCode,
-    }));
-    const fallback = await calculateConstruction(fallbackPayload);
-    const mapped = mapDefaultEcoWoolToEcoS(fallback?.data ?? []);
-    if (mapped?.length) {
-      return { data: mapped };
-    }
-  }
-
-  if (
-    rows.length === 0 &&
-    constrList.length === 1 &&
-    isS2WoolCalcCode(constrList[0]?.Code)
-  ) {
-    const fallbackCode = s2WoolFallbackCalcCode(constrList[0].Code);
-    const fallbackPayload = constrList.map((item) => ({
-      ...item,
-      Code: fallbackCode,
-    }));
-    const fallback = await calculateConstruction(fallbackPayload);
-    const mapped = mapDefaultEcoWoolToS2(fallback?.data ?? []);
-    if (mapped?.length) {
-      return { data: mapped };
-    }
-  }
-
-  // Внешний calc отдаёт ГКЛ+Саундлайн-dB; *_2gkl — два листа ГКЛ.
-  if (
-    rows.length === 0 &&
-    constrList.length === 1 &&
-    is2GklCalcCode(constrList[0]?.Code)
-  ) {
-    const fallbackCode = twoGklFallbackCalcCode(constrList[0].Code);
-    const fallbackPayload = constrList.map((item) => ({
-      ...item,
-      Code: fallbackCode,
-    }));
-    const fallback = await calculateConstruction(fallbackPayload);
-    const mapped = mapSoundlineDbToTwoGkl(fallback?.data ?? []);
-    if (mapped?.length) {
-      return { data: mapped };
     }
   }
 

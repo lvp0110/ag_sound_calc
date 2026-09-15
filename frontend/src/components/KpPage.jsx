@@ -11,7 +11,10 @@ import ConstructionList, {
   ConstructionGrandTotalBlock,
 } from "./tables/ConstructionList";
 import {
+  buildAggregatedPackMaterialRows,
+  computeAggregatedPackMaterialsTotalRub,
   computeGrandTotalRubForConstructions,
+  effectiveSingleMaterialPrice,
   formatKpComputedSum,
   formatRub,
   montageLineProductRub,
@@ -41,7 +44,12 @@ import {
   catalogToRegionSelectOptions,
   findCatalogSelectOption,
 } from "../constants/regionSelectOptions.js";
-import { setPriceRegion, usePriceData } from "../services/priceApi";
+import {
+  getPricePerM2,
+  getPricePerUnit,
+  setPriceRegion,
+  usePriceData,
+} from "../services/priceApi";
 import {
   useOfferEditSession,
   useOfferEditSessionStore,
@@ -51,6 +59,7 @@ import { KpNarrowExpandableRow } from "./kp/KpNarrowExpandableRow";
 import PdfPrintDialog from "./PdfPrintDialog.jsx";
 import { useKpExpandedRow } from "../hooks/useKpExpandedRow";
 import { useKpNarrowViewport } from "../hooks/useKpNarrowViewport";
+import { materialDisplayUnits } from "../utils/materialPackUnits";
 import "./Calculator.css";
 import "./KpPage.css";
 
@@ -393,6 +402,8 @@ const KpPage = () => {
   const [additionalMaterialsSectionOpenByKeyId, setAdditionalMaterialsSectionOpenByKeyId] =
     useState(() => ({}));
   const [servicesSectionOpen, setServicesSectionOpen] = useState(false);
+  const [aggregatedPackSectionOpen, setAggregatedPackSectionOpen] =
+    useState(false);
   /** Свёрнутость карточек конструкций: key_id → collapsed (true = свёрнута). */
   const [cardCollapseOverridesByKeyId, setCardCollapseOverridesByKeyId] =
     useState(() => ({}));
@@ -443,6 +454,25 @@ const KpPage = () => {
   const servicesTotalRub = useMemo(
     () => additionalServicesGrandTotalRubForKp(serviceRows),
     [serviceRows],
+  );
+
+  const aggregatedPackRows = useMemo(
+    () =>
+      buildAggregatedPackMaterialRows(
+        calcTables.materialsByConstruction,
+        calcTables.ConstrToCalc,
+      ),
+    // Прайс влияет на Name через getPriceName внутри
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- priceLoaded/selectedRegion
+    [calcTables.materialsByConstruction, calcTables.ConstrToCalc, priceLoaded, selectedRegion],
+  );
+  const aggregatedPackTotalRub = useMemo(
+    () =>
+      computeAggregatedPackMaterialsTotalRub(
+        calcTables.materialsByConstruction,
+        calcTables.ConstrToCalc,
+      ),
+    [calcTables.materialsByConstruction, calcTables.ConstrToCalc, priceLoaded, selectedRegion],
   );
 
   const [loadStatus, setLoadStatus] = useState("idle"); // 'idle'|'loading'|'loaded'|'error'|'forbidden'
@@ -2062,6 +2092,103 @@ const KpPage = () => {
             </p>
           )}
         </div>
+
+        {aggregatedPackRows.length > 0 && (
+          <div className="kp-page__services kp-page__aggregated-pack">
+            <KpCollapsibleExtraTable
+              tableId="kp-table-aggregated-pack"
+              ariaLabel="Материалы с общим расчётом до упаковки"
+              title={
+                aggregatedPackRows.length === 1
+                  ? [aggregatedPackRows[0].Code, aggregatedPackRows[0].Name]
+                      .filter((part) => String(part ?? "").trim() !== "")
+                      .join(" ")
+                  : "Материалы с общим расчётом"
+              }
+              sectionOpen={aggregatedPackSectionOpen}
+              onToggleSection={() =>
+                setAggregatedPackSectionOpen((v) => !v)
+              }
+              totalRub={aggregatedPackTotalRub}
+              colgroup={
+                <colgroup>
+                  <col style={{ width: "60%" }} />
+                  <col style={{ width: "10%" }} />
+                  <col style={{ width: "10%" }} />
+                  <col style={{ width: "10%" }} />
+                  <col style={{ width: "10%" }} />
+                </colgroup>
+              }
+            >
+              {aggregatedPackRows.map((material) => {
+                const codeRaw = String(material.Code ?? "").trim();
+                const pricePerM2 = getPricePerM2(codeRaw);
+                const pricePerUnit = getPricePerUnit(codeRaw);
+                const unitPrice = effectiveSingleMaterialPrice(
+                  material,
+                  pricePerM2,
+                  pricePerUnit,
+                );
+                const packQty = parseKpDecimal(material.KpQuantity);
+                const qtyLabel =
+                  packQty != null ? String(packQty) : "—";
+                const unitsLabel = materialDisplayUnits(material, {
+                  forKp: false,
+                });
+                const sumRub =
+                  unitPrice != null && packQty != null
+                    ? unitPrice * packQty
+                    : null;
+                const name =
+                  [codeRaw, material.Name?.trim()].filter(Boolean).join(" ") ||
+                  "—";
+                return (
+                  <tr key={codeRaw || name}>
+                    <td className="kp-page__service-name-td--preset">{name}</td>
+                    <td>
+                      <input
+                        type="text"
+                        readOnly
+                        className="kp-page__services-input kp-page__services-input--computed"
+                        value={
+                          unitPrice != null ? formatRub(unitPrice) : formatRub(0)
+                        }
+                        aria-label={`Цена, ${name}`}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="text"
+                        readOnly
+                        className="kp-page__services-input kp-page__services-input--computed"
+                        value={qtyLabel}
+                        aria-label={`Количество, ${name}`}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="text"
+                        readOnly
+                        className="kp-page__services-input kp-page__services-input--computed"
+                        value={unitsLabel}
+                        aria-label={`Единица измерения, ${name}`}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        type="text"
+                        readOnly
+                        className="kp-page__services-input kp-page__services-input--computed"
+                        value={formatKpComputedSum(sumRub)}
+                        aria-label={`Сумма, ${name}`}
+                      />
+                    </td>
+                  </tr>
+                );
+              })}
+            </KpCollapsibleExtraTable>
+          </div>
+        )}
 
         <div className="kp-page__services">
           <KpCollapsibleExtraTable
