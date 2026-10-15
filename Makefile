@@ -18,7 +18,7 @@ FRONTEND_DIR := frontend
 .PHONY: help setup install reinstall env db-up db-down db-migrate db-reset db-ui \
         backend frontend frontend-docker dev dev-docker dev-docker-build stop build clean status \
         deploy-bootstrap deploy-backend deploy-frontend deploy-migrate \
-        deploy-create-admin deploy-nginx-sync deploy-nginx-reload deploy-status
+        deploy-create-admin deploy-status
 
 .DEFAULT_GOAL := help
 
@@ -155,7 +155,7 @@ status: ## Проверить, что где крутится
 # ─── prod deploy (SSH + Makefile) ───────────────────────────────────────────
 # Требуется deploy/.env.deploy (копия из deploy/.env.deploy.example).
 
-deploy-bootstrap: ## Первый запуск на чистом сервере (клонирует репо, проверяет nginx+.env.prod, поднимает все сервисы, мигрирует)
+deploy-bootstrap: ## Первый запуск на prodfront (клонирует репо, проверяет .env.prod, поднимает сервисы, мигрирует)
 	bash deploy/bootstrap.sh
 
 deploy-backend: ## Роллаут backend на прод (БД/frontend не трогает). REV=<commit> для точечной ревизии
@@ -169,12 +169,6 @@ deploy-migrate: ## Применить prisma migrate deploy на проде (о�
 
 deploy-create-admin: ## Создать/повысить рутового админа на проде (креды из .env.prod: ADMIN_EMAIL/ADMIN_PASSWORD)
 	bash deploy/deploy-create-admin.sh
-
-deploy-nginx-sync: ## Залить nginx server block из deploy/nginx/ на сервер и валидировать nginx -t
-	bash deploy/deploy-nginx-sync.sh
-
-deploy-nginx-reload: ## nginx -t && systemctl reload nginx на сервере
-	bash deploy/deploy-nginx-reload.sh
 
 deploy-status: ## Состояние прод-стека (compose ps + curl /health)
 	bash deploy/deploy-status.sh

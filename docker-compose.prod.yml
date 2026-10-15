@@ -1,8 +1,9 @@
 # Prod-compose. Используется ТОЛЬКО на сервере через `docker compose -f docker-compose.prod.yml ...`.
 # Локальная разработка живёт в docker-compose.yml (postgres + adminer).
 #
-# TLS и маршрутизация по доменам — на хостовом системном nginx (deploy/nginx/ag_sound_calc.conf).
-# Наши контейнеры говорят только HTTP. Публично слушает ТОЛЬКО frontend на 127.0.0.1:3004.
+# TLS и публичная маршрутизация находятся на отдельной VM gateway-01.
+# Наши контейнеры говорят только HTTP. Frontend публикуется исключительно на
+# приватном IP prodfront и доступен только gateway через сетевой firewall.
 
 services:
   postgres:
@@ -37,7 +38,7 @@ services:
     volumes:
       # Загруженные пользователями файлы (логотипы КП и т.п.) живут в named
       # volume, чтобы переживать rebuild контейнера. Express.static в backend
-      # отдаёт их по /uploads/*, host nginx проксирует на 127.0.0.1:3004.
+      # отдаёт их по /uploads/*, frontend-контейнер проксирует их внутри Docker-сети.
       - ag_sound_calc_uploads:/app/uploads
     # НЕТ секции ports — backend доступен только из frontend-контейнера через docker network.
     healthcheck:
@@ -56,9 +57,11 @@ services:
     environment:
       PORT: "3004"
       BACKEND_URL: http://backend:3006
-    # Биндим ТОЛЬКО на loopback — снаружи недоступен, трафик идёт через host nginx.
+      # Express доверяет X-Forwarded-* только приватному IP/CIDR gateway-01.
+      TRUST_PROXY: ${FRONTEND_TRUST_PROXY:?FRONTEND_TRUST_PROXY must be set in .env.prod}
+    # Публикуем порт только на приватном интерфейсе prodfront, не на 0.0.0.0.
     ports:
-      - "127.0.0.1:3004:3004"
+      - "${FRONTEND_BIND_IP:?FRONTEND_BIND_IP must be set in .env.prod}:3004:3004"
     volumes:
       # Статика отдельно от контейнера: rsync в эту директорию = моментальный роллаут
       # без rebuild/restart контейнера.

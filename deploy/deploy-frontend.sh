@@ -17,7 +17,7 @@ REBUILD="${REBUILD:-0}"
 info "vite build (локально)"
 cd "$REPO_ROOT/frontend"
 # VITE_API_URL="" → в проде apiClient.js будет бить по относительному /api/*,
-# который обработает host nginx → frontend-container → proxy на backend.
+# который обработает gateway-01 → frontend-container → proxy на backend.
 # VITE_YANDEX_METRIKA_ID — опционально; в коде дефолт 112388350.
 VITE_API_URL="" \
   VITE_YANDEX_METRIKA_ID="${VITE_YANDEX_METRIKA_ID:-112388350}" \
