@@ -63,8 +63,6 @@ chmod 600 .env.prod
 - `POSTGRES_PASSWORD`, `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`;
 - `CALC_SERVICE_URL` и `AUTH_SERVICE_URL` — внутренний URL ConstrTodo,
   например `http://constrtodo.mcs.local:3005`;
-- учетные данные ConstrTodo (`AUTH_EMAIL`, `AUTH_PASSWORD`), если они нужны
-  commerce-ручкам.
 
 Имя `constrtodo.mcs.local` должно разрешаться именно из backend-контейнера.
 Проверьте это после запуска:

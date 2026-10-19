@@ -3,7 +3,7 @@
  *
  * TLS и публичная маршрутизация по домену — на отдельном gateway-01. Этот процесс:
  *   1) отдаёт статику из /app/dist (собранная vite-бандла);
- *   2) проксирует /api/*, /health, /uploads/*, /commerce/*, /admin/commerce/*
+ *   2) проксирует /api/*, /health, /uploads/* и /commerce/*
  *      в backend-контейнер (сохраняя httpOnly cookies);
  *   3) делает SPA-fallback на index.html для любых non-asset GET-маршрутов.
  *
@@ -54,9 +54,7 @@ const backendProxy = createProxyMiddleware({
     pathname.startsWith("/api/") ||
     pathname.startsWith("/uploads/") ||
     pathname === "/commerce" ||
-    pathname.startsWith("/commerce/") ||
-    pathname === "/admin/commerce" ||
-    pathname.startsWith("/admin/commerce/"),
+    pathname.startsWith("/commerce/"),
 });
 app.use(backendProxy);
 

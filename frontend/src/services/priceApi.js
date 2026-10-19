@@ -10,14 +10,13 @@ import { BASE_URL } from "./apiClient";
 
 /**
  * Прайс: GET /commerce/price-list/{regionCode}
- * Регионы: GET /commerce/regions, иначе GET /admin/commerce/regions
+ * Регионы: GET /commerce/regions
  *
  * Список регионов — только справочник API (code + name, включая дочерние).
  * Для дочерних регионов прайс берётся у базового и умножается на
  * price_coefficient из того же справочника.
  */
 const COMMERCE_REGIONS_URL = `${BASE_URL}/commerce/regions`;
-const ADMIN_COMMERCE_REGIONS_URL = `${BASE_URL}/admin/commerce/regions`;
 const commercePriceListUrl = (regionCode) =>
   `${BASE_URL}/commerce/price-list/${encodeURIComponent(regionCode)}`;
 
@@ -98,19 +97,9 @@ const fetchJson = async (url) => {
 const catalogFromBody = (body) =>
   toActiveCatalog(unwrapList(body).map(normalizePriceRegion).filter(Boolean));
 
-/**
- * Сначала GET /commerce/regions, затем /admin/commerce/regions.
- */
 const fetchCommerceRegionCatalog = async () => {
-  for (const url of [COMMERCE_REGIONS_URL, ADMIN_COMMERCE_REGIONS_URL]) {
-    try {
-      const rows = catalogFromBody(await fetchJson(url));
-      if (rows.length) return rows;
-    } catch {
-      // следующий источник
-    }
-  }
-  return null;
+  const rows = catalogFromBody(await fetchJson(COMMERCE_REGIONS_URL));
+  return rows.length ? rows : null;
 };
 
 const normalizeCommercePriceRow = (raw, regionCode) => {
