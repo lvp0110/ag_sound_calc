@@ -26,7 +26,7 @@ info "последние 50 строк лога backend:"
 compose "logs --tail=50 backend"
 
 if [ -n "$DEPLOY_DOMAIN" ]; then
-  info "проверка /health через nginx"
+  info "проверка /health через gateway"
   curl -fs --retry 3 "https://$DEPLOY_DOMAIN/health" && echo || warn "/health не отвечает"
 fi
 

@@ -20,12 +20,17 @@ source "$ENV_FILE"
 : "${DEPLOY_HOST:?DEPLOY_HOST не задан в deploy/.env.deploy}"
 : "${DEPLOY_DIR:?DEPLOY_DIR не задан в deploy/.env.deploy}"
 DEPLOY_DOMAIN="${DEPLOY_DOMAIN:-}"
+DEPLOY_JUMP_HOST="${DEPLOY_JUMP_HOST:-}"
 DEPLOY_REMOTE="${DEPLOY_REMOTE:-origin}"
 DEPLOY_REV="${DEPLOY_REV:-origin/main}"
 
 # Используем одну shared-сессию ssh вместо многоразовых коннектов — быстрее и
 # меньше шума в authlog.
 SSH_OPTS=(-o ControlMaster=auto -o ControlPath="/tmp/.ssh-ag_sound_calc-%r@%h:%p" -o ControlPersist=5m)
+
+if [ -n "$DEPLOY_JUMP_HOST" ]; then
+  SSH_OPTS+=(-J "$DEPLOY_JUMP_HOST")
+fi
 
 ssh_exec() {
   ssh "${SSH_OPTS[@]}" "$DEPLOY_HOST" "$@"
@@ -39,7 +44,7 @@ remote() {
 
 # compose-обёртка — всегда указываем prod-файл и env_file.
 compose() {
-  remote "docker compose -f docker-compose.prod.yml $*"
+  remote "docker compose --env-file .env.prod -f docker-compose.prod.yml $*"
 }
 
 info() { echo -e "\033[36m→ $*\033[0m"; }

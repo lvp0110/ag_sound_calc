@@ -12,7 +12,7 @@ on:
         default: auto
         options: [auto, "yes", "no"]
       rev:
-        description: "Ревизия для деплоя (по умолчанию origin/main)"
+        description: "Ревизия для деплоя (по умолчанию SHA текущего запуска)"
         type: string
         required: false
         default: ""
@@ -67,17 +67,18 @@ jobs:
       - name: Write deploy/.env.deploy
         env:
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_JUMP_HOST: ${{ secrets.DEPLOY_JUMP_HOST }}
           DEPLOY_DIR: ${{ secrets.DEPLOY_DIR }}
           DEPLOY_DOMAIN: ${{ secrets.DEPLOY_DOMAIN }}
-          DEPLOY_CERT_DIR: ${{ secrets.DEPLOY_CERT_DIR }}
         run: |
-          # DEPLOY_REV из override (если workflow_dispatch с rev) или origin/main.
-          REV="${DEPLOY_REV_OVERRIDE:-origin/main}"
+          # Выкатываем ровно тот commit, для которого запущен workflow.
+          # Явный override сохраняет возможность ручного rollback по SHA/тегу.
+          REV="${DEPLOY_REV_OVERRIDE:-$GITHUB_SHA}"
           cat > deploy/.env.deploy <<EOF
           DEPLOY_HOST=$DEPLOY_HOST
+          DEPLOY_JUMP_HOST=$DEPLOY_JUMP_HOST
           DEPLOY_DIR=$DEPLOY_DIR
           DEPLOY_DOMAIN=$DEPLOY_DOMAIN
-          DEPLOY_CERT_DIR=$DEPLOY_CERT_DIR
           DEPLOY_REMOTE=origin
           DEPLOY_REV=$REV
           EOF
@@ -121,8 +122,6 @@ jobs:
               - 'frontend/package.prod.json'
             migrations:
               - 'backend/prisma/migrations/**'
-            nginx:
-              - 'deploy/nginx/**'
 
       # ─── Решаем, что катить ─────────────────────────────────────────────
       - name: Decide what to deploy
@@ -132,7 +131,6 @@ jobs:
           FRONTEND_CHANGED: ${{ steps.filter.outputs.frontend }}
           FRONTEND_CONTAINER_CHANGED: ${{ steps.filter.outputs.frontend_container }}
           MIGRATIONS_CHANGED: ${{ steps.filter.outputs.migrations }}
-          NGINX_CHANGED: ${{ steps.filter.outputs.nginx }}
           FORCE_MIGRATE: ${{ github.event.inputs.force_migrate }}
         run: |
           if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
@@ -141,7 +139,6 @@ jobs:
             echo "should_backend=true"           >> "$GITHUB_OUTPUT"
             echo "should_frontend=true"          >> "$GITHUB_OUTPUT"
             echo "should_frontend_rebuild=true"  >> "$GITHUB_OUTPUT"
-            echo "should_nginx=true"             >> "$GITHUB_OUTPUT"
             case "$FORCE_MIGRATE" in
               yes) echo "should_migrate=true"  >> "$GITHUB_OUTPUT" ;;
               no)  echo "should_migrate=false" >> "$GITHUB_OUTPUT" ;;
@@ -153,7 +150,6 @@ jobs:
             echo "should_frontend=$FRONTEND_CHANGED"                     >> "$GITHUB_OUTPUT"
             echo "should_frontend_rebuild=$FRONTEND_CONTAINER_CHANGED"   >> "$GITHUB_OUTPUT"
             echo "should_migrate=$MIGRATIONS_CHANGED"                    >> "$GITHUB_OUTPUT"
-            echo "should_nginx=$NGINX_CHANGED"                           >> "$GITHUB_OUTPUT"
           fi
 
       # ─── Rollout ────────────────────────────────────────────────────────
@@ -164,14 +160,6 @@ jobs:
       - name: Rollout migrations
         if: steps.decide.outputs.should_migrate == 'true'
         run: bash deploy/deploy-migrate.sh
-
-      - name: Sync nginx config
-        if: steps.decide.outputs.should_nginx == 'true'
-        run: bash deploy/deploy-nginx-sync.sh
-
-      - name: Reload nginx
-        if: steps.decide.outputs.should_nginx == 'true'
-        run: bash deploy/deploy-nginx-reload.sh
 
       - name: Rollout frontend
         if: steps.decide.outputs.should_frontend == 'true'
@@ -199,7 +187,7 @@ jobs:
           MSG+="<b>Backend:</b> ${{ steps.decide.outputs.should_backend == 'true' && 'выкачен' || 'без изменений' }}"$'\n'
           MSG+="<b>Frontend:</b> ${{ steps.decide.outputs.should_frontend == 'true' && (steps.decide.outputs.should_frontend_rebuild == 'true' && 'выкачен (rebuild контейнера)' || 'выкачен') || 'без изменений' }}"$'\n'
           MSG+="<b>Миграции:</b> ${{ steps.decide.outputs.should_migrate == 'true' && 'применены' || 'не требовались' }}"$'\n'
-          MSG+="<b>Nginx:</b> ${{ steps.decide.outputs.should_nginx == 'true' && 'перечитан' || 'без изменений' }}"$'\n'
+          MSG+="<b>Gateway:</b> внешний gateway-01 (без изменений)"$'\n'
           MSG+="<a href=\"https://${DEPLOY_DOMAIN}\">https://${DEPLOY_DOMAIN}</a>"
           curl -s -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
             -d chat_id="${TG_CHAT}" \

@@ -13,7 +13,7 @@
 | Auth | JWT в httpOnly cookies (access + refresh) |
 | DB | PostgreSQL 16 (в Docker) |
 | API-документация | OpenAPI + Swagger UI (`@asteasolutions/zod-to-openapi`) |
-| Внешний сервис | `dev3.constrtodo.ru:3005` — расчёт материалов |
+| ConstrTodo | Расчёт материалов и commerce API; в production доступен по внутренней сети |
 | DB UI | Prisma Studio, Adminer |
 
 ---
@@ -119,7 +119,7 @@ make db-ui
 | **Auth** | `POST /api/auth/{register,login,refresh,logout}` |
 | **Users** | `GET/PUT /api/users/me` |
 | **Offers** | `POST/GET /api/offers`, `GET/PATCH/DELETE /api/offers/:id`, `POST /api/offers/:id/clone` |
-| **Calc (proxy)** | Прозрачно проксируют на внешний `dev3.constrtodo.ru:3005`: `POST /api/v1/calcIsolation/byProduct`, `GET /api/v1/AllIsolationConstr`, `GET /api/v1/IsolationConstrMaterials/{code}`, `GET /api/v1/constr/{filename}`, `GET /api/v2/isolationConstructions/props/{code}` |
+| **Calc (proxy)** | Прозрачно проксируют на ConstrTodo: `POST /api/v1/calcIsolation/byProduct`, `GET /api/v1/AllIsolationConstr`, `GET /api/v1/IsolationConstrMaterials/{code}`, `GET /api/v1/constr/{filename}`, `GET /api/v2/isolationConstructions/props/{code}` |
 | **Health** | `GET /health` |
 
 Аутентификация — через httpOnly cookies `accessToken` (15 min) и `refreshToken` (30 days). Все запросы с фронта идут с `credentials: 'include'`; refresh при 401 выполняется автоматически клиентом.
@@ -160,7 +160,7 @@ ag_sound_calc/
 ├── Makefile                        ← все команды разработки
 ├── PROJECT_PLAN.md                 ← архитектурный план
 ├── DB_SCHEMA.html                  ← схема данных (визуал)
-└── .github/workflows/deploy.yml    ← GitHub Pages для фронта
+└── .github/workflows/prod-deploy.yml ← production deploy через gateway
 ```
 
 ---
@@ -179,7 +179,7 @@ Backend — `backend/.env` (создаётся из `.env.example` через `m
 | `JWT_REFRESH_SECRET` | `dev_refresh_secret_change_me` | Аналогично — **в проде заменить** |
 | `ACCESS_TOKEN_EXPIRES_IN` | `15m` | TTL access cookie |
 | `REFRESH_TOKEN_EXPIRES_IN` | `30d` | TTL refresh cookie |
-| `CALC_SERVICE_URL` | `https://dev3.constrtodo.ru:3005` | База внешнего сервиса расчёта |
+| `CALC_SERVICE_URL` | dev URL из `.env.example` | База сервиса расчёта; в production — внутренний адрес ConstrTodo |
 | `AUTH_SERVICE_URL` | значение `CALC_SERVICE_URL` | База ConstrTodo (`/commerce/price-list`, `/commerce/regions`). Локально `http://localhost:3005` |
 | `AUTH_EMAIL` / `AUTH_PASSWORD` | — | Логин ConstrTodo для прайса (тот же аккаунт, что в ag_co_worker). Без них `/commerce/price-list` отвечает 401 |
 | `CALC_SERVICE_TIMEOUT_MS` | `60000` | Таймаут запроса к calc/commerce (каталог конструкций на dev3 часто >15s) |
@@ -225,19 +225,19 @@ make build
 
 Генерирует:
 - `backend/dist/` — скомпилированный TypeScript (запуск: `cd backend && npm start`).
-- `frontend/dist/` — статический фронт (раздаётся любым CDN/nginx или GitHub Pages).
+- `frontend/dist/` — статический фронт (в production отдаётся frontend-контейнером через gateway).
 
 ---
 
-## Деплой фронта на GitHub Pages
+## Production deploy
 
-Фронт автоматически собирается и публикуется через [.github/workflows/deploy.yml](.github/workflows/deploy.yml) на каждый push в `main`.
+Production-фронт работает на приватной машине `prodfront.mcs.local:3004`.
+Публичный домен `partners.constrtodo.ru` и TLS обслуживает отдельный
+`gateway-01`. Браузер использует только относительные URL; frontend-контейнер
+проксирует API в backend, а backend обращается к ConstrTodo по внутренней сети.
 
-Настройка один раз:
-1. В `Settings` → `Pages` → `Source` = **GitHub Actions**.
-2. После первого успешного деплоя ссылка: https://lvp0110.github.io/ag_sound_calc/
-
-**Важно:** фронт для прода общается напрямую с `dev3.constrtodo.ru:3005`, так что на backend должен быть CORS для `https://lvp0110.github.io`. Если нужно чтобы прод-фронт смотрел на ваш задеплоенный backend — соберите с `VITE_API_URL=https://your-api.example.com npm run build`.
+Подробная настройка сервера, SSH jump host, `.env.prod` и GitHub Actions:
+[deploy/README.md](deploy/README.md).
 
 ---
 

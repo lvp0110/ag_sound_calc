@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project at a glance
 
-Калькулятор акустических конструкций с генерацией КП. Монорепо: `backend/` (Node/Express/TypeScript/Prisma/PostgreSQL) + `frontend/` (React 19 + Vite). Backend также проксирует внешний расчётный сервис `dev3.constrtodo.ru:3005`, а не просто использует его — фронт ходит всегда на свой `/api/*`.
+Калькулятор акустических конструкций с генерацией КП. Монорепо: `backend/` (Node/Express/TypeScript/Prisma/PostgreSQL) + `frontend/` (React 19 + Vite). Backend проксирует расчётный сервис ConstrTodo, а не просто использует его — фронт ходит всегда на свой `/api/*`. В production ConstrTodo доступен по внутреннему DNS-имени из `.env.prod`.
 
 README покрывает сценарии разработчика детально (URL-ы, env-переменные, частые проблемы). Ниже — только то, что быстро не увидишь из одного файла.
 
@@ -25,7 +25,7 @@ README покрывает сценарии разработчика деталь
 | Чистая переустановка при сломанном `node_modules`       | `make reinstall`                                     |
 | Убить зависшие tsx/vite                                 | `make stop`                                          |
 
-**Prod-деплой** (SSH + Makefile target wrappers): `make deploy-backend`, `make deploy-frontend`, `make deploy-migrate`, `make deploy-bootstrap`, `make deploy-status`, `make deploy-nginx-reload`. Подробная SOP — в [deploy/README.md](deploy/README.md).
+**Prod-деплой** (SSH через gateway + Makefile target wrappers): `make deploy-backend`, `make deploy-frontend`, `make deploy-migrate`, `make deploy-bootstrap`, `make deploy-status`. Подробная SOP — в [deploy/README.md](deploy/README.md).
 
 **Тесты**: только vitest в frontend (`cd frontend && npm test`) — точечно покрывает `priceSearch.js`. Backend без тестов. Полная проверка: `tsc --noEmit` в `backend/`, `npm run build` в `frontend/`, E2E — `curl` по ручкам после `make dev`.
 
@@ -52,14 +52,14 @@ README покрывает сценарии разработчика деталь
 
 - Backend ставит две cookie (`accessToken` 15m, `refreshToken` 30d) при register/login/refresh; логин-ответ содержит только `{user}`, токен в теле **не передаётся**.
 - `requireAuth` читает access из `req.cookies.accessToken`, не из Authorization.
-- `app.set('trust proxy', 1)` в [backend/src/index.ts](backend/src/index.ts) обязателен — backend стоит за frontend-container'ом (прокси), который стоит за host nginx.
+- `app.set('trust proxy', 1)` в [backend/src/index.ts](backend/src/index.ts) обязателен — backend стоит за frontend-container'ом (прокси), а публичный вход обслуживает Nginx на отдельном `gateway-01`.
 - Фронтовый `apiClient.js` всегда с `credentials: 'include'`. При 401 один раз пробует `POST /api/auth/refresh` (single-flight через `refreshInFlight`), при провале эмитит `window` event `auth:unauthorized` — на это подписан `AuthContext`, открывает `LoginModal`.
 - НЕ добавлять `Authorization` header — работа идёт только через cookies.
 
 ### Frontend всегда на относительных URL
 
 - `apiClient.js`: `DEFAULT_BASE_URL = import.meta.env.DEV ? "http://localhost:3006" : ""` + `??`-оператор (не `||`, пустая строка должна оставаться пустой). В prod-сборке URL = `""` → все fetch-ы относительные (`/api/auth/login`).
-- `api.js` / `constructionApi.js`: все запросы к calc-сервису (`/api/v1/*`, `/api/v2/*`) **всегда** относительные. В dev Vite-proxy из `vite.config.js` проксирует в `dev3.constrtodo.ru:3005`, в prod backend-router [routes/calc.ts](backend/src/routes/calc.ts) проксирует из docker-сети.
+- `api.js` / `constructionApi.js`: все запросы к calc-сервису (`/api/v1/*`, `/api/v2/*`) **всегда** относительные. В dev Vite-proxy использует dev URL, в prod backend-router [routes/calc.ts](backend/src/routes/calc.ts) проксирует на внутренний `CALC_SERVICE_URL` из `.env.prod`.
 - Не вводи `https://dev3.constrtodo.ru:3005/...` в новом коде фронта — это ломает single-origin-auth.
 
 ### Calculator state = zustand + sessionStorage
@@ -83,9 +83,9 @@ README покрывает сценарии разработчика деталь
 - `ServiceSchema` — `.passthrough()` + все поля optional-with-default. `CalcParamsSchema` — `.passthrough()`.
 - PATCH `/api/offers/:id` делает **частичное** обновление формы (`if (f.X !== undefined) formData.X = f.X`), POST — полное (с автозаполнением из профиля пользователя: `manager_name`, `phone`, `email`, `office_address`, `kp_date=today` если не переданы).
 
-### Prod-деплой: три слоя
+### Prod-деплой: gateway + приватная машина
 
-`Интернет :443 → host nginx (`/etc/nginx/sites-_`, ручной системный) → :127.0.0.1:3004 [frontend-container: express.static + http-proxy-middleware для /api и /health] → docker network → :3006 [backend-container] → [postgres-container]`. Backend и postgres не публикуют портов наружу. TLS только у nginx, `~/certs/_.pem`(bind-mount извне). Миграции вручную через`make deploy-migrate` (`docker compose run --rm backend npx prisma migrate deploy`), БД **никогда** не трогается обычным роллаутом.
+`Интернет :443 → gateway-01 Nginx/TLS → prodfront private IP :3004 [frontend-container: express.static + http-proxy-middleware для /api и /health] → docker network → :3006 [backend-container] → [postgres-container]`. На `prodfront` нет системного Nginx. Backend и postgres не публикуют портов, а `3004` привязан только к `FRONTEND_BIND_IP`; firewall разрешает его только с gateway. Backend обращается к ConstrTodo по внутреннему DNS. Миграции вручную через `make deploy-migrate`; БД **никогда** не трогается обычным роллаутом.
 
 ## Ключевые файлы для ориентации
 
@@ -105,4 +105,4 @@ README покрывает сценарии разработчика деталь
 - CORS_ORIGIN — список через запятую; если Vite автоинкрементил порт до 5175+ — дописать, backend перезапустить.
 - В prod-сборке фронта не используй env `VITE_API_URL` для прокси-пути: правильный default уже `""`. `VITE_API_URL` остаётся только для staging-настроек с API на отдельном хосте.
 - После правки `schema.prisma` обязательно `npx prisma migrate dev --name …` — просто `generate` не создаёт миграцию, `deploy` не применит без файла миграции.
-- Backend не публикует порты в prod-compose (`docker-compose.prod.yml`), только frontend на `127.0.0.1:3004`. Все `docker compose exec` / `run --rm` должны идти через compose, не по имени контейнера.
+- Backend не публикует порты в prod-compose (`docker-compose.prod.yml`), только frontend на `${FRONTEND_BIND_IP}:3004`. Все `docker compose exec` / `run --rm` должны идти через compose, не по имени контейнера.

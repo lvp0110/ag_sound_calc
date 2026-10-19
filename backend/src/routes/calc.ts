@@ -13,7 +13,7 @@ import { fetchCommerce } from "../services/commerceClient.js";
  *
  * Calc-эндпоинты (`/api/v1/*`, `/api/v2/*`) повторяют контракт внешнего сервиса.
  * Прайс: `/commerce/price-list/:region` и справочник `/commerce/regions`
- * на AUTH_SERVICE_URL (как в ag_co_worker). Fallback: `/admin/commerce/regions`.
+ * на AUTH_SERVICE_URL.
  *
  * Прокси публичный (без requireAuth): калькулятор работает до логина.
  * Лимит/аутентификация — задача внешнего сервиса, backend только прокидывает.
@@ -43,8 +43,6 @@ const proxyRequest = async (
 
   const headers: Record<string, string> = {
     accept: req.get("accept") ?? "*/*",
-    origin: targetBase,
-    referer: `${targetBase}/`,
   };
 
   let body: string | undefined;
@@ -124,8 +122,6 @@ const proxyGetCached = async (
         method: "GET",
         headers: {
           accept: req.get("accept") ?? "*/*",
-          origin: targetBase,
-          referer: `${targetBase}/`,
         },
         signal: AbortSignal.timeout(env.calcServiceTimeoutMs),
       });
@@ -179,7 +175,7 @@ const proxyCommerceGet = async (
   const startedAt = Date.now();
   try {
     const cached = await fetchUpstreamCached(cacheKey, () =>
-      fetchCommerce(targetPath, req.get("cookie") ?? undefined)
+      fetchCommerce(targetPath)
     );
 
     if (env.nodeEnv !== "production") {
@@ -263,13 +259,9 @@ router.get("/api/v2/data", (req, res) =>
 );
 
 // Прайс ConstrTodo: GET /commerce/regions + /commerce/price-list/{region}
-// (JWT: AUTH_EMAIL/AUTH_PASSWORD). Как в ag_co_worker.
+// Оба маршрута публичные и не требуют JWT.
 router.get("/commerce/regions", (req, res) => {
   return proxyCommerceGet(req, res, "/commerce/regions", "commerce/regions");
-});
-
-router.get("/admin/commerce/regions", (req, res) => {
-  return proxyCommerceGet(req, res, "/admin/commerce/regions", "admin/commerce/regions");
 });
 
 router.get("/commerce/price-list/:regionCode", (req, res) => {

@@ -2,10 +2,9 @@
 # Первый запуск на чистой машине.
 # Предварительные требования (делаются вручную оператором):
 #   1. Docker + docker compose plugin установлены.
-#   2. `apt install nginx` + certbot + сертификат получен в /etc/letsencrypt/live/<domain>/.
-#   3. Конфиг nginx положен и активирован (см. deploy/nginx/ag_sound_calc.conf и deploy/README.md).
-#   4. На сервере существует пользователь из DEPLOY_HOST с правом на docker и $DEPLOY_DIR.
-#   5. Переменные DEPLOY_HOST / DEPLOY_DIR / DEPLOY_DOMAIN заданы в deploy/.env.deploy.
+#   2. На сервере существует пользователь из DEPLOY_HOST с правом на docker и $DEPLOY_DIR.
+#   3. Gateway разрешает SSH jump и TCP-доступ к FRONTEND_BIND_IP:3004.
+#   4. Переменные DEPLOY_HOST / DEPLOY_JUMP_HOST / DEPLOY_DIR заданы в deploy/.env.deploy.
 set -euo pipefail
 source "$(dirname "$0")/_lib.sh"
 
@@ -30,10 +29,12 @@ ok "репо на сервере"
 
 info "проверка предварительных условий на сервере"
 remote '
-  test -f .env.prod || { echo "✗ '"'"'.env.prod'"'"' нет рядом с docker-compose.prod.yml. Скопируйте deploy/.env.prod.example → .env.prod и заполните."; exit 1; }
-  command -v nginx >/dev/null 2>&1 || { echo "✗ nginx не установлен. sudo apt install nginx"; exit 1; }
-  ls /etc/nginx/sites-enabled/ag_sound_calc.conf >/dev/null 2>&1 || { echo "✗ /etc/nginx/sites-enabled/ag_sound_calc.conf не активирован. См. deploy/README.md."; exit 1; }
-  sudo nginx -t 2>&1
+  if [ ! -f .env.prod ]; then
+    cp deploy/.env.prod.example .env.prod
+    chmod 600 .env.prod
+    echo "✗ Создан шаблон '"'"'.env.prod'"'"'. Заполните его на prodfront и повторите make deploy-bootstrap."
+    exit 1
+  fi
   command -v docker >/dev/null 2>&1 || { echo "✗ docker не установлен"; exit 1; }
   docker compose version >/dev/null 2>&1 || { echo "✗ docker compose plugin не установлен"; exit 1; }
 '

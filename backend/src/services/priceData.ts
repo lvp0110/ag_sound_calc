@@ -11,8 +11,7 @@ import { fetchUpstreamCached } from "./upstreamCache.js";
  * Серверный аналог frontend/src/services/priceApi.js — нужен для генерации
  * PDF КП на бэке (фронтовый кэш недоступен).
  *
- * Источник: GET /commerce/regions (+ fallback /admin/commerce/regions)
- * и GET /commerce/price-list/{regionCode}.
+ * Источник: GET /commerce/regions и GET /commerce/price-list/{regionCode}.
  * Для derived-регионов цена базового прайса × price_coefficient из справочника.
  */
 
@@ -152,16 +151,8 @@ const catalogFromBody = (body: unknown): PriceRegionRow[] =>
   ).filter((row) => row.is_active !== false && row.code);
 
 const fetchRegionCatalog = async (): Promise<PriceRegionRow[]> => {
-  for (const [cacheKey, path] of [
-    ["commerce/regions", "/commerce/regions"],
-    ["admin/commerce/regions", "/admin/commerce/regions"],
-  ] as const) {
-    const body = await fetchJsonCached(cacheKey, path);
-    if (body == null) continue;
-    const rows = catalogFromBody(body);
-    if (rows.length) return rows;
-  }
-  return [];
+  const body = await fetchJsonCached("commerce/regions", "/commerce/regions");
+  return body == null ? [] : catalogFromBody(body);
 };
 
 export type PriceLookup = (article: string | null | undefined) => {

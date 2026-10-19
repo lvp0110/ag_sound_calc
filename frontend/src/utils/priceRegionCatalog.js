@@ -10,7 +10,7 @@ const flattenRef = (prefix, ref, fallback = {}) => {
   };
 };
 
-/** Нормализует регион из GET /commerce/regions или /admin/commerce/regions. */
+/** Нормализует регион из публичного GET /commerce/regions. */
 export const normalizePriceRegion = (row) => {
   if (!row || typeof row !== "object") return null;
   const id = Number(row.id);

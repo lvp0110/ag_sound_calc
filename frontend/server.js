@@ -1,15 +1,15 @@
 /**
  * Prod-сервер фронта.
  *
- * TLS и маршрутизация по домену — на хостовом nginx. Этот процесс:
+ * TLS и публичная маршрутизация по домену — на отдельном gateway-01. Этот процесс:
  *   1) отдаёт статику из /app/dist (собранная vite-бандла);
- *   2) проксирует /api/*, /health, /uploads/*, /commerce/*, /admin/commerce/*
+ *   2) проксирует /api/*, /health, /uploads/* и /commerce/*
  *      в backend-контейнер (сохраняя httpOnly cookies);
  *   3) делает SPA-fallback на index.html для любых non-asset GET-маршрутов.
  *
  * Слушает только HTTP на PORT (дефолт 3004). В docker-compose.prod.yml
- * публикуется как "127.0.0.1:3004:3004" — снаружи недоступен, трафик приходит
- * только от host nginx.
+ * публикуется на приватном IP prodfront — снаружи недоступен, трафик приходит
+ * только от gateway-01.
  */
 import express from "express";
 import { createProxyMiddleware } from "http-proxy-middleware";
@@ -18,6 +18,7 @@ import path from "node:path";
 
 const PORT = Number(process.env.PORT) || 3004;
 const BACKEND_URL = process.env.BACKEND_URL || "http://backend:3006";
+const TRUST_PROXY = process.env.TRUST_PROXY || "loopback";
 const DIST_DIR = process.env.DIST_DIR || "/app/dist";
 const INDEX_HTML = path.join(DIST_DIR, "index.html");
 
@@ -29,8 +30,9 @@ if (!fs.existsSync(INDEX_HTML)) {
 
 const app = express();
 
-// Трасту X-Forwarded-* только от loopback (host nginx приходит с 127.0.0.1).
-app.set("trust proxy", "loopback");
+// В production значение — приватный IP/CIDR gateway-01. Loopback остаётся
+// безопасным fallback для локального запуска без внешнего reverse proxy.
+app.set("trust proxy", TRUST_PROXY);
 
 // Прокси на backend. Не монтируем через app.use("/api", ...) — так express
 // стрипает префикс и backend получает `/openapi.json` вместо `/api/openapi.json`.
@@ -52,9 +54,7 @@ const backendProxy = createProxyMiddleware({
     pathname.startsWith("/api/") ||
     pathname.startsWith("/uploads/") ||
     pathname === "/commerce" ||
-    pathname.startsWith("/commerce/") ||
-    pathname === "/admin/commerce" ||
-    pathname.startsWith("/admin/commerce/"),
+    pathname.startsWith("/commerce/"),
 });
 app.use(backendProxy);
 
