@@ -43,8 +43,6 @@ const proxyRequest = async (
 
   const headers: Record<string, string> = {
     accept: req.get("accept") ?? "*/*",
-    origin: targetBase,
-    referer: `${targetBase}/`,
   };
 
   let body: string | undefined;
@@ -124,8 +122,6 @@ const proxyGetCached = async (
         method: "GET",
         headers: {
           accept: req.get("accept") ?? "*/*",
-          origin: targetBase,
-          referer: `${targetBase}/`,
         },
         signal: AbortSignal.timeout(env.calcServiceTimeoutMs),
       });

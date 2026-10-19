@@ -26,7 +26,7 @@ export const loadCompositionMaterialNames = async (code: string): Promise<string
     const cached = await fetchUpstreamCached(cacheKey, async () => {
       const upstream = await fetch(`${targetBase}${path}`, {
         method: "GET",
-        headers: { accept: "application/json", origin: targetBase, referer: `${targetBase}/` },
+        headers: { accept: "application/json" },
         signal: AbortSignal.timeout(env.calcServiceTimeoutMs),
       });
       const headers: Record<string, string> = {};

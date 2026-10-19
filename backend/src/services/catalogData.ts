@@ -74,7 +74,7 @@ const loadConstructionCatalog = async (): Promise<Map<string, ConstructionCatalo
   const cached = await fetchUpstreamCached(CATALOG_CACHE_KEY, async () => {
     const upstream = await fetch(`${targetBase}${CATALOG_PATH}`, {
       method: "GET",
-      headers: { accept: "application/json", origin: targetBase, referer: `${targetBase}/` },
+      headers: { accept: "application/json" },
       signal: AbortSignal.timeout(env.calcServiceTimeoutMs),
     });
     const headers: Record<string, string> = {};
