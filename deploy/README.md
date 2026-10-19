@@ -143,6 +143,11 @@ Workflow [prod-deploy.yml](../.github/workflows/prod-deploy.yml) запуска�
 push в `main` и вручную через `workflow_dispatch`. GitHub-hosted runner входит
 на приватный `prodfront` через SSH jump host.
 
+При автоматическом запуске выкатывается точный commit из `GITHUB_SHA`, а не
+подвижная ссылка `origin/main`. Итоговый smoke-test `/health` является строгим:
+если production не отвечает после повторных попыток, workflow завершается с
+ошибкой.
+
 Repository secrets:
 
 | Secret | Значение |

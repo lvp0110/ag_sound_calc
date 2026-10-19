@@ -12,7 +12,7 @@ on:
         default: auto
         options: [auto, "yes", "no"]
       rev:
-        description: "Ревизия для деплоя (по умолчанию origin/main)"
+        description: "Ревизия для деплоя (по умолчанию SHA текущего запуска)"
         type: string
         required: false
         default: ""
@@ -71,8 +71,9 @@ jobs:
           DEPLOY_DIR: ${{ secrets.DEPLOY_DIR }}
           DEPLOY_DOMAIN: ${{ secrets.DEPLOY_DOMAIN }}
         run: |
-          # DEPLOY_REV из override (если workflow_dispatch с rev) или origin/main.
-          REV="${DEPLOY_REV_OVERRIDE:-origin/main}"
+          # Выкатываем ровно тот commit, для которого запущен workflow.
+          # Явный override сохраняет возможность ручного rollback по SHA/тегу.
+          REV="${DEPLOY_REV_OVERRIDE:-$GITHUB_SHA}"
           cat > deploy/.env.deploy <<EOF
           DEPLOY_HOST=$DEPLOY_HOST
           DEPLOY_JUMP_HOST=$DEPLOY_JUMP_HOST
