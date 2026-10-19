@@ -149,8 +149,6 @@ export const fetchCommerce = async (
 ): Promise<CommerceFetchResult> => {
   const headers: Record<string, string> = {
     accept: "application/json",
-    origin: authBase(),
-    referer: `${authBase()}/`,
   };
 
   const service = await getServiceSession();
