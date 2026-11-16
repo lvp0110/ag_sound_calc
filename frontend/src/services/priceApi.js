@@ -19,9 +19,11 @@ import { BASE_URL } from "./apiClient";
 const COMMERCE_REGIONS_URL = `${BASE_URL}/commerce/regions`;
 const commercePriceListUrl = (regionCode) =>
   `${BASE_URL}/commerce/price-list/${encodeURIComponent(regionCode)}`;
+/** Последний успешный импорт прайса: data.completed_at. */
+const PRICE_UPDATED_AT_URL = `${BASE_URL}/api/v2/import/last`;
 
 /** Bump when normalized row shape / source changes — forces refetch after HMR. */
-const NORMALIZE_SCHEMA_VERSION = 9;
+const NORMALIZE_SCHEMA_VERSION = 10;
 
 const cache = {
   byArticle: new Map(),
@@ -34,6 +36,9 @@ const cache = {
   error: null,
   schemaVersion: 0,
   listByRegion: new Map(),
+  /** ISO последнего импорта прайса; undefined — ещё не запрашивали. */
+  updatedAt: undefined,
+  updatedAtPromise: null,
 };
 
 const invalidatePriceCacheIfStale = () => {
@@ -47,6 +52,8 @@ const invalidatePriceCacheIfStale = () => {
   cache.regions = [];
   cache.loadingPromise = null;
   cache.error = null;
+  cache.updatedAt = undefined;
+  cache.updatedAtPromise = null;
 };
 
 const listeners = new Set();
@@ -129,6 +136,39 @@ const normalizeCommercePriceRow = (raw, regionCode) => {
       ? { [region]: { pricePerM2, pricePerUnit } }
       : {},
   };
+};
+
+const readPriceUpdatedAt = (body) => {
+  const value = body?.data?.completed_at ?? body?.completed_at ?? null;
+  if (value == null || value === "") return null;
+  const time = Date.parse(value);
+  return Number.isFinite(time) ? String(value) : null;
+};
+
+const fetchPriceUpdatedAt = async () => {
+  try {
+    return readPriceUpdatedAt(await fetchJson(PRICE_UPDATED_AT_URL));
+  } catch {
+    return null;
+  }
+};
+
+const loadPriceUpdatedAt = () => {
+  if (cache.updatedAt !== undefined || cache.updatedAtPromise) {
+    return cache.updatedAtPromise;
+  }
+  cache.updatedAtPromise = fetchPriceUpdatedAt()
+    .then((value) => {
+      cache.updatedAt = value;
+    })
+    .catch(() => {
+      cache.updatedAt = null;
+    })
+    .finally(() => {
+      cache.updatedAtPromise = null;
+      notifyListeners();
+    });
+  return cache.updatedAtPromise;
 };
 
 const fetchCommercePriceList = async (regionCode) => {
@@ -241,6 +281,7 @@ const loadPriceListForRegion = async (regionCode) => {
  */
 export const ensurePriceDataLoaded = async (options = {}) => {
   invalidatePriceCacheIfStale();
+  void loadPriceUpdatedAt();
 
   const forceRegion = normalizeRegionName(options.forceRegion);
   if (forceRegion) {
@@ -382,6 +423,7 @@ export const getPriceState = () => ({
   regions: cache.regions,
   regionCatalog: cache.regionCatalog,
   selectedRegion: cache.selectedRegion,
+  updatedAt: cache.updatedAt ?? null,
 });
 
 export const usePriceData = () => {

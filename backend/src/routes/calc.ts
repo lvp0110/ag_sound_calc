@@ -258,6 +258,11 @@ router.get("/api/v2/data", (req, res) =>
   proxyGetCached(req, res, "/api/v2/data", "v2/data")
 );
 
+// Время последнего импорта прайса. Сам price-list даты не содержит.
+router.get("/api/v2/import/last", (req, res) =>
+  proxyGetCached(req, res, "/api/v2/import/last", "v2/import/last")
+);
+
 // Прайс ConstrTodo: GET /commerce/regions + /commerce/price-list/{region}
 // Оба маршрута публичные и не требуют JWT.
 router.get("/commerce/regions", (req, res) => {

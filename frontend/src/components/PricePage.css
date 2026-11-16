@@ -15,11 +15,27 @@
   gap: 12px;
 }
 
-.price-page__title {
+.price-page__heading {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px 14px;
   margin: 4px 0 0 4px;
+}
+
+.price-page__title {
+  margin: 0;
   font-size: 22px;
   font-weight: 600;
   color: #6d7277;
+}
+
+.price-page__updated {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: #878181;
+  white-space: nowrap;
 }
 
 .price-page__search-label {

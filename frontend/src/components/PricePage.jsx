@@ -32,6 +32,19 @@ function getPriceRowKey(row, region) {
   return `${row.article}-${region || "default"}`;
 }
 
+function formatPriceUpdatedAt(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleString("ru-RU", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 function PriceRowDetailCard({ row, selectedRegion }) {
   return (
     <div className="price-page__detail-card">
@@ -119,6 +132,7 @@ const PricePage = () => {
     loading,
     regionCatalog,
     selectedRegion,
+    updatedAt,
   } = usePriceData();
 
   const visibleRegionOptions = useMemo(
@@ -206,10 +220,19 @@ const PricePage = () => {
     return filterPriceRows(priceList, query);
   }, [query, priceList]);
 
+  const priceUpdatedLabel = formatPriceUpdatedAt(updatedAt);
+
   return (
     <div className="price-page">
       <main className="price-page__main">
-        <h1 className="price-page__title">Прайс</h1>
+        <div className="price-page__heading">
+          <h1 className="price-page__title">Прайс</h1>
+          {priceUpdatedLabel ? (
+            <time className="price-page__updated" dateTime={updatedAt}>
+              обновлён {priceUpdatedLabel}
+            </time>
+          ) : null}
+        </div>
         {isEditingDraft && (
           <p className="price-page__draft-hint">
             Выбранные позиции подсвечены и попадут в доп. материалы выбранной
