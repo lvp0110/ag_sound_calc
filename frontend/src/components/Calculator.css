@@ -446,10 +446,54 @@ h4 {
 
 .tables-and-buttons-footer {
   margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
 }
 
 .tables-and-buttons-footer .add_design_button {
   flex: 0 0 auto;
+}
+
+.excel-export-button {
+  width: 50px !important;
+  height: 50px !important;
+  min-width: 50px !important;
+  min-height: 50px !important;
+  max-width: 50px !important;
+  max-height: 50px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  box-sizing: border-box;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  box-shadow: none !important;
+  filter: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: flex-start;
+  cursor: pointer;
+  color: inherit;
+  font-size: 0;
+  line-height: 0;
+  touch-action: manipulation;
+}
+
+.excel-export-button:hover,
+.excel-export-button:focus,
+.excel-export-button:focus-visible {
+  outline: none;
+  box-shadow: none !important;
+  filter: brightness(1.05);
+}
+
+.excel-export-button__icon {
+  width: 50px;
+  height: 50px;
+  display: block;
 }
 
 .construction-materials-blocks {

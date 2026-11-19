@@ -25,6 +25,7 @@ import {
   getConstructionCode,
   resolveDisplayCipher,
 } from "../utils/calculations";
+import { exportTablesToExcel } from "../utils/excelExport";
 import {
   hasCeilingMatChoice,
   hasSheetChoice,
@@ -525,6 +526,13 @@ const Calculator = () => {
       tableConstrToCalc,
     ],
   );
+
+  const handleExportToExcel = async () => {
+    await exportTablesToExcel({
+      materialsByConstruction,
+      constructions: ConstrToCalc,
+    });
+  };
 
   /**
    * Сам запрос POST /api/offers и редирект на /kp/:id.
@@ -1178,8 +1186,7 @@ const Calculator = () => {
                                   legacyTableWithMaterials
                                 />
                               )}
-                            {(showReturnToKpButton ||
-                              (template != null && showMakeKpButton)) && (
+                            {(showReturnToKpButton || template != null) && (
                               <div className="tables-and-buttons-footer">
                                 {showReturnToKpButton ? (
                                   <button
@@ -1194,16 +1201,62 @@ const Calculator = () => {
                                       : "Вернуться в КП"}
                                   </button>
                                 ) : (
+                                  showMakeKpButton && (
+                                    <button
+                                      type="button"
+                                      onMouseDown={(e) => e.preventDefault()}
+                                      onClick={handleMakeKP}
+                                      className="counter__button_plus"
+                                      disabled={isSubmittingKp}
+                                    >
+                                      {isSubmittingKp
+                                        ? "Создание КП..."
+                                        : "Сделать КП"}
+                                    </button>
+                                  )
+                                )}
+                                {template != null && (
                                   <button
                                     type="button"
-                                    onMouseDown={(e) => e.preventDefault()}
-                                    onClick={handleMakeKP}
-                                    className="counter__button_plus"
-                                    disabled={isSubmittingKp}
+                                    onClick={handleExportToExcel}
+                                    className="excel-export-button"
+                                    title="Сохранить в Excel"
+                                    aria-label="Сохранить в Excel"
                                   >
-                                    {isSubmittingKp
-                                      ? "Создание КП..."
-                                      : "Сделать КП"}
+                                    <svg
+                                      className="excel-export-button__icon"
+                                      viewBox="0 0 32 32"
+                                      aria-hidden="true"
+                                      focusable="false"
+                                    >
+                                      <rect
+                                        x="2"
+                                        y="2"
+                                        width="28"
+                                        height="28"
+                                        rx="4"
+                                        fill="#217346"
+                                      />
+                                      <rect
+                                        x="14"
+                                        y="6"
+                                        width="12"
+                                        height="20"
+                                        rx="1.5"
+                                        fill="#ffffff"
+                                        opacity="0.92"
+                                      />
+                                      <path
+                                        d="M14 12.5h12M14 17h12M14 21.5h12M20 6.5v19"
+                                        stroke="#217346"
+                                        strokeWidth="1.2"
+                                        opacity="0.55"
+                                      />
+                                      <path
+                                        d="M5.2 9.2 11.3 22.8h2.4L7.6 9.2H5.2zm7.4 0L6.5 22.8H4.1L10.2 9.2h2.4z"
+                                        fill="#ffffff"
+                                      />
+                                    </svg>
                                   </button>
                                 )}
                               </div>
