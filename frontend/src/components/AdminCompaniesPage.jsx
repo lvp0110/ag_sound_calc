@@ -98,12 +98,8 @@ function CompanyModal({ initial, countries, onClose, onSaved }) {
   };
 
   return (
-    <div className="admin-modal__backdrop" onClick={() => !saving && onClose()}>
-      <form
-        className="admin-modal"
-        onClick={(e) => e.stopPropagation()}
-        onSubmit={onSubmit}
-      >
+    <div className="admin-modal__backdrop">
+      <form className="admin-modal" onSubmit={onSubmit}>
         <h2 className="admin-modal__title">
           {isEdit ? "Редактировать компанию" : "Новая компания"}
         </h2>
